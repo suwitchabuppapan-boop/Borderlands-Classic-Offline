@@ -1,0 +1,17 @@
+# Credentials and local/private data
+.env
+.env.*
+*.key
+*credentials*
+*secret*
+local-config.*
+*.save.json
+*savestate*.json
+node_modules/
+__pycache__/
+*.pyc
+.superpowers/
+# Third-party artwork: do not commit personal-use assets
+assets/phieti/
+assets/sprites/novice_ro_hair_*.png
+assets/sprites/swordman_ro_hair_*.png
