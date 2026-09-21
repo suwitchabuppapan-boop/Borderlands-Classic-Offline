@@ -75,7 +75,7 @@ function pickMobAt(point){
  }
  return best;
 }
-function drawEquippedWeapon(actor,x,y,frame,bodyInfo){
+function drawEquippedWeapon(actor,x,y,frame,bodyInfo,bodyKey){
  // Weapon sprites are original replacement art. RO inventory icons are not used as body weapons.
  const weaponId=s.equipment.weapon,img=weaponImages[weaponId];
  if(!loaded(img)||frame.state==='death'||!C.ITEMS[weaponId]||C.ITEMS[weaponId].slot!=='weapon')return false;
@@ -85,13 +85,25 @@ function drawEquippedWeapon(actor,x,y,frame,bodyInfo){
  // body art rather than the game. The fallbacks are the pre-v1.5b numbers.
  const hand=bodyInfo&&bodyInfo.hand||{x:17,y:48,upX:14,upY:54};
  const blade=bodyInfo&&bodyInfo.weapon||{w:24,h:36,gripX:12,gripY:29,rest:0.32};
- // The swing carries the attack: the body frames barely move, so a narrow arc reads as
- // nothing happening. These three carry the blade from raised to extended.
- const swing=attacking?[-60,-5,50][Math.max(0,Math.min(2,frame.col-6))]:0;
+ // While attacking, the hand comes per frame from the skeleton those frames were drawn
+ // from, so the blade travels with the arm. Rotating it about one fixed point looks like
+ // a spinning prop, not a swing. Everything else keeps the resting hand.
+ const live=attacking?window.BorderWeaponHands?.[bodyKey]?.[frame.row]?.[frame.col]:null;
  // Hand is relative to the body's feet anchor, not to screen/canvas origin.
- const px=Math.round(x+xSide*(direction==='up'?hand.upX:hand.x)+(direction==='left'?-2:0)+(attacking?xSide*3:0));
- const py=Math.round(y-(direction==='up'?hand.upY:hand.y)+(attacking?-4:frame.state==='walk'?(frame.col%2?1:0):0));
- const angle=(direction==='left'?-blade.rest:blade.rest)+(attacking?xSide*swing*Math.PI/180:0)+(direction==='up'?Math.PI:0);
+ let px,py,angle;
+ if(live){
+  px=Math.round(x+live[0]);
+  py=Math.round(y-live[1]);
+  angle=live[2]*Math.PI/180;
+ }else{
+  // No hand data for this frame: keep the fixed hand and rotate the blade about it, which
+  // is all the engine could ever do. Reads as a spin rather than a swing, so it is the
+  // fallback for art that ships without BorderWeaponHands, not the intended path.
+  const swing=attacking?[-60,-5,50][Math.max(0,Math.min(2,frame.col-6))]:0;
+  px=Math.round(x+xSide*(direction==='up'?hand.upX:hand.x)+(direction==='left'?-2:0)+(attacking?xSide*3:0));
+  py=Math.round(y-(direction==='up'?hand.upY:hand.y)+(attacking?-4:frame.state==='walk'?(frame.col%2?1:0):0));
+  angle=(direction==='left'?-blade.rest:blade.rest)+(attacking?xSide*swing*Math.PI/180:0)+(direction==='up'?Math.PI:0);
+ }
  g.save();g.translate(px,py);g.rotate(angle);g.drawImage(img,-blade.gripX,-blade.gripY,blade.w,blade.h);g.restore();return true;
 }
 function drawLayeredCharacter(key,actor,x,y){
@@ -101,10 +113,10 @@ function drawLayeredCharacter(key,actor,x,y){
  if(!spriteImages[hairKey]){const img=new Image();img.src='assets/sprites/hair_'+String(style).padStart(2,'0')+'.png';spriteImages[hairKey]=img;}
  const hair=spriteImages[hairKey],frame=spriteFrame(actor),dx=Math.round(x-info.anchorX),dy=Math.round(y-info.anchorY);
  const anchors=window.BorderSpriteAnchors?.[key],head=anchors?.[frame.row]?.[frame.col];
- if(actor.facing==='up')drawEquippedWeapon(actor,x,y,frame,info);
+ if(actor.facing==='up')drawEquippedWeapon(actor,x,y,frame,info,key);
  g.drawImage(body,frame.col*info.w,frame.row*info.h,info.w,info.h,dx,dy,info.w,info.h);
  if(loaded(hair)&&head){g.drawImage(hair,frame.col*64,frame.row*48,64,48,dx+head[0],dy+head[1],64,48);}
- if(actor.facing!=='up')drawEquippedWeapon(actor,x,y,frame,info);
+ if(actor.facing!=='up')drawEquippedWeapon(actor,x,y,frame,info,key);
  return true;
 }
 // A soft ellipse on the ground under every sprite. Without one the characters read as
