@@ -22,9 +22,12 @@ for(const id of ['potion','ether','green_potion','rusty_sword','moon_blade','clo
 assert.match(game,/function itemIconHtml\(/);
 assert.match(game,/function itemIconPath\(/);
 assert.match(game,/icon\.innerHTML=entry\.type===.*itemIconHtml/);
-// Confirm no gameplay damage or targeting geometry was altered in this graphics-only patch.
-const old=fs.readFileSync(path.join(root,'js/game.js.base'),'utf8');
+// Confirm the graphics-only patch did not drop the gameplay and save entry points.
+// This used to diff against js/game.js.base, a scratch copy from the patch process that
+// was never shipped in the package or listed in PATCH_MANIFEST_v1_5b.txt, so the check
+// could not run at all. Asserting on the current js/game.js still catches a deletion;
+// it cannot prove the bodies are byte-identical to the pre-patch file.
 for(const line of ['const KEY=','function attack(', 'function skill(', 'function save(', 'function hydrateWithHotbar(']){
- assert.ok(old.includes(line)&&game.includes(line),'gameplay/save function '+line+' must survive');
+ assert.ok(game.includes(line),'gameplay/save function '+line+' must survive');
 }
 console.log('LAYERED V15B PASS: head/body independent, weapon assets, 7-monster scale configuration, item icons, save/combat hooks');

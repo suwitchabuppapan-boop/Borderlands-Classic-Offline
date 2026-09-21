@@ -2,6 +2,10 @@
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import base64,re
+import os
+CHROMIUM=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium')
+# Fall back to Playwright's bundled browser when no system Chromium is installed.
+CHROMIUM=CHROMIUM if os.path.exists(CHROMIUM) else None
 R=Path(__file__).resolve().parents[1]
 html=(R/'index.html').read_text(encoding='utf-8')
 css=(R/'css/style.css').read_text(encoding='utf-8')
@@ -26,7 +30,7 @@ for rel in ['js/classic-data.js','js/core.js','data/divine-pride-cache.js','js/d
  html=html.replace('<script src="'+rel+'"></script>','<script>'+js+'</script>')
 html=html.replace('<body>','<body><script>window.requestAnimationFrame=()=>0;</script>')
 with sync_playwright() as pw:
- browser=pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+ browser=pw.chromium.launch(headless=True,executable_path=CHROMIUM,args=['--no-sandbox','--disable-dev-shm-usage'])
  page=browser.new_page(viewport={'width':1366,'height':768});page.set_default_timeout(5000)
  errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content(html,wait_until='load')

@@ -1,9 +1,13 @@
 """Actual file:// launch (not inlined HTML): ensure the pack works without a server."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright, Error
+import os
+CHROMIUM=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium')
+# Fall back to Playwright's bundled browser when no system Chromium is installed.
+CHROMIUM=CHROMIUM if os.path.exists(CHROMIUM) else None
 root=Path(__file__).resolve().parents[1]
 with sync_playwright() as pw:
-    browser=pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage','--disable-gpu'])
+    browser=pw.chromium.launch(headless=True,executable_path=CHROMIUM,args=['--no-sandbox','--disable-dev-shm-usage','--disable-gpu'])
     page=browser.new_page(viewport={'width':1600,'height':1030})
     errors=[]
     requests=[]
