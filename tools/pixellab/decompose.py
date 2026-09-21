@@ -9,8 +9,16 @@ def row_widths(im):
         out.append((min(xs),max(xs),len(xs)) if xs else None)
     return out
 
-def neck_y(im):
-    """คอ = แถวที่แคบที่สุดในช่วง 25-55% ของความสูงตัวละคร (ระหว่างหัวกับไหล่)"""
+def neck_y(im, hint=None, tol=4):
+    """คอ = แถวที่แคบที่สุดในช่วง 25-55% ของความสูงตัวละคร (ระหว่างหัวกับไหล่)
+
+    ท่าที่ยกแขนขึ้นไม่มีคอแคบจริงในช่วงนั้น ความกว้างจะไล่ลงเรื่อย ๆ จนค่าต่ำสุด
+    ไปตกที่ขอบล่างของช่วงค้นหา แล้วตัดลำตัวส่วนบนไปอยู่กับหัว เฟรมแรกของท่าฟัน
+    เจอแบบนี้ 5 จาก 6 ชุด
+
+    hint = จุดคอของท่ายืนทิศเดียวกัน ถ้าผลที่หาได้ห่างจาก hint เกิน tol ให้ใช้ hint
+    แทน เพราะทุกเฟรมสร้างจาก reference เดียวกัน ตัวละครจึงยืนที่ระดับเดิม
+    """
     rows=row_widths(im); bb=im.getchannel('A').getbbox()
     top,bot=bb[1],bb[3]; span=bot-top
     lo,hi=top+int(span*0.25), top+int(span*0.55)
@@ -18,6 +26,7 @@ def neck_y(im):
     for y in range(lo,hi):
         r=rows[y]
         if r and r[2]<best: best,besty=r[2],y
+    if hint is not None and abs(besty-hint)>tol: return hint
     return besty
 
 def split(full_path, bald_path):
