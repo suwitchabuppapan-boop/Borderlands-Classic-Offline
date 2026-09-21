@@ -16,10 +16,11 @@ Input files are individual PNGs in one directory, named:
     body_<novice|swordman>_<down|left|right|up>_<00..12>.png
     hair_<00..18>_<down|left|right|up>.png
 
-Bodies are animated, so each column is its own drawing. Hair is not: the
-shipped atlases repeat one image per direction across columns 0-11 and leave
-column 12 empty, because drawLayeredCharacter() skips the hair layer on the
-last death frame. So one hair image per direction is all this script needs.
+Bodies are animated, so each column is its own drawing. Hair mostly is not: one
+image per direction is repeated across the row, which is why 19 styles cost 57
+drawings rather than 988. A column that needs its own head supplies
+hair_<NN>_<direction>_<col>.png, which wins for that column alone -- the death
+frames use this, because a character tipping over has to tip its head too.
 
 Missing body columns are filled from the idle frame of the same direction and
 reported, so a partial set still produces a loadable atlas.
@@ -28,9 +29,9 @@ Feet sit at y=108 in a 112px body frame (anchorY in SPRITE_LIBRARY) and the
 character is centred on x=32 (novice) or x=48 (swordman). Frames that ignore
 that will render at the wrong height or off-centre.
 
-Head placement comes from js/sprite-anchors.js, which was measured against the
-original art. New body frames that put the head somewhere else need those
-anchors re-measured -- this script does not do that.
+Head placement comes from js/sprite-anchors.js. tools/pixellab/assemble.py
+regenerates it alongside the frames; body art from anywhere else that puts the
+head elsewhere needs those anchors re-measured, which this script does not do.
 
 Usage:
     python3 tools/build-sprite-atlas.py <input-dir> [--out assets/sprites] [--check]
@@ -50,8 +51,10 @@ ROWS = 4
 HAIR_W, HAIR_H = 64, 48
 HAIR_STYLES = 19
 BODIES = {"novice": (64, 112), "swordman": (96, 112)}
-# Column 12 is the only one drawLayeredCharacter() never draws hair on.
-HAIR_BLANK_COLUMN = 12
+# Column 12 is the last death frame. drawLayeredCharacter() used to skip the hair
+# layer there, because the original art baked a head into that body frame; it now
+# draws every column, so column 12 needs its own head like any other.
+HAIR_BLANK_COLUMN = None
 IDLE_COLUMN = 0
 # Which columns belong to each animation, so a short set can be cycled to fill
 # its own animation instead of freezing on the idle pose.
@@ -137,18 +140,33 @@ def available_hair_styles(src_dir, mirror):
 
 
 def build_hair(style, source_style, src_dir, out_dir, mirror=False):
+    """One head per direction fills the row, except where a column overrides it.
+
+    Most columns reuse a single drawing, which is why 19 styles cost 57 drawings
+    rather than 988. A column that needs its own head -- the death frames, where the
+    character is tipping over and the head has to tip with the body -- supplies
+    hair_<NN>_<direction>_<col>.png and that file wins for that column alone.
+    """
     atlas = Image.new("RGBA", (HAIR_W * COLUMNS, HAIR_H * ROWS), (0, 0, 0, 0))
+    overrides = 0
     for row, (direction, flip) in enumerate(source_directions(mirror)[1]):
-        frame = load_exact(src_dir / f"hair_{source_style:02d}_{direction}.png", (HAIR_W, HAIR_H))
-        if flip:
-            frame = frame.transpose(Image.FLIP_LEFT_RIGHT)
+        default = load_exact(src_dir / f"hair_{source_style:02d}_{direction}.png", (HAIR_W, HAIR_H))
         for col in range(COLUMNS):
             if col == HAIR_BLANK_COLUMN:
                 continue
+            per_col = src_dir / f"hair_{source_style:02d}_{direction}_{col:02d}.png"
+            if per_col.exists():
+                frame = load_exact(per_col, (HAIR_W, HAIR_H))
+                if not flip:
+                    overrides += 1
+            else:
+                frame = default
+            if flip:
+                frame = frame.transpose(Image.FLIP_LEFT_RIGHT)
             atlas.paste(frame, (col * HAIR_W, row * HAIR_H))
     out = out_dir / f"hair_{style:02d}.png"
     atlas.save(out)
-    return out, atlas.size
+    return out, atlas.size, overrides
 
 
 def check(out_dir):
@@ -193,12 +211,13 @@ def main():
     styles = available_hair_styles(args.input_dir, args.mirror)
     if not styles:
         sys.exit("no complete hair style found; hair_00 needs every direction at minimum")
-    reused = []
+    reused, overridden = [], 0
     for style in range(HAIR_STYLES):
         source = style if style in styles else styles[style % len(styles)]
         if source != style:
             reused.append((style, source))
-        path, size = build_hair(style, source, args.input_dir, args.out, args.mirror)
+        path, size, ov = build_hair(style, source, args.input_dir, args.out, args.mirror)
+        overridden += ov
         print(f"wrote {path}  {size[0]}x{size[1]}")
 
     if substituted:
@@ -211,6 +230,10 @@ def main():
         print(f"\n{len(reused)} hair styles were not drawn and reuse another style:")
         print("  " + ", ".join(f"{s:02d}<-{src:02d}" for s, src in reused))
         print("Those entries in the appearance picker will look identical.")
+
+    if overridden:
+        print(f"\n{overridden} head frames came from a per-column file rather than the "
+              "direction's single drawing.")
 
     if args.check:
         print("\nchecking written atlases against the sizes tests/layered_sprite_v15b.test.js asserts:")

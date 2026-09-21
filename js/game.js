@@ -97,7 +97,7 @@ function drawLayeredCharacter(key,actor,x,y){
  const anchors=window.BorderSpriteAnchors?.[key],head=anchors?.[frame.row]?.[frame.col];
  if(actor.facing==='up')drawEquippedWeapon(actor,x,y,frame,info);
  g.drawImage(body,frame.col*info.w,frame.row*info.h,info.w,info.h,dx,dy,info.w,info.h);
- if(loaded(hair)&&head&&frame.col!==12){g.drawImage(hair,frame.col*64,frame.row*48,64,48,dx+head[0],dy+head[1],64,48);}
+ if(loaded(hair)&&head){g.drawImage(hair,frame.col*64,frame.row*48,64,48,dx+head[0],dy+head[1],64,48);}
  if(actor.facing!=='up')drawEquippedWeapon(actor,x,y,frame,info);
  return true;
 }
