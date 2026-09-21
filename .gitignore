@@ -11,7 +11,41 @@ node_modules/
 __pycache__/
 *.pyc
 .superpowers/
+
+# ---------------------------------------------------------------------------
 # Third-party artwork: do not commit personal-use assets
+#
+# These patterns are a FAIL-CLOSED guard. The PERSONAL_OFFLINE package and the
+# GITHUB_SAFE package ship character art under the SAME file names, so the
+# names alone cannot tell them apart. Everything matching below is therefore
+# blocked by default.
+#
+# When you upload the reviewed GITHUB_SAFE replacement art, force-add it once:
+#     git add -f assets/sprites/
+# Confirm the files came from Borderlands_Master_v1_5b_GITHUB_SAFE.zip BEFORE
+# running that command, and never force-add from the PERSONAL_OFFLINE package.
+# See ASSET_PROVENANCE.md.
+# ---------------------------------------------------------------------------
+
+# Phieti skin bitmaps (any location)
 assets/phieti/
+*phieti*
+
+# Ragnarok-derived character sprites, by the names the v1.5b manifest uses
+assets/sprites/hair_*.png
+assets/sprites/body_novice.png
+assets/sprites/body_swordman.png
+
+# Older / alternate naming kept from earlier patches
 assets/sprites/novice_ro_hair_*.png
 assets/sprites/swordman_ro_hair_*.png
+*_ro_hair_*.png
+
+# Original Ragnarok Online client data and sprite sheets - never commit
+*.spr
+*.act
+*.grf
+*.rgz
+*.gat
+*.rsw
+*.pal
