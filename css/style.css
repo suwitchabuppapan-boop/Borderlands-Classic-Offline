@@ -293,17 +293,27 @@
 }
 
 /* v1.3e: actual locally supplied Phieti skin image parts, not screenshot mockups. */
-.ro-skin .portrait-pane{background:#f9fafb url("../assets/phieti/basewin_bg.png") top right/100% auto no-repeat}
-.ro-skin .section-head{background:#e8edf0 url("../assets/phieti/basewin_mini.png") center/100% 100% no-repeat}
-.ro-skin .combatbar{background:#e8e8eb url("../assets/phieti/shortcut_bg.png") center/100% 100% no-repeat}
-.ro-skin .action-slot{background:#f7f7f7 url("../assets/phieti/itemwin_mid.png") center/100% 100% no-repeat}
-.ro-skin .action-slot:hover,.ro-skin .action-slot:focus-visible{background:#e6f5fa url("../assets/phieti/itemwin_mid.png") center/100% 100% no-repeat;filter:brightness(.95)}
-.ro-equipment-layout{background:linear-gradient(#ffffffc7,#ffffffc7),url("../assets/phieti/equipwin_bg2.png") center/100% 100% no-repeat}
-.ro-stat-grid{background:linear-gradient(#ffffffd8,#ffffffd8),url("../assets/phieti/statwin_bg.png") center/100% 100% no-repeat}
-.ro-skin .tab[data-tab="status"]{background:#e2ecf2 url("../assets/phieti/btn_status_off.png") center/auto 70% no-repeat}
-.ro-skin .tab[data-tab="equipment"]{background:#e2ecf2 url("../assets/phieti/btn_equip_off.png") center/auto 70% no-repeat}
-.ro-skin .tab[data-tab="inventory"]{background:#e2ecf2 url("../assets/phieti/btn_items_off.png") center/auto 70% no-repeat}
-.ro-skin .tab[data-tab="skills"]{background:#e2ecf2 url("../assets/phieti/btn_skill_off.png") center/auto 70% no-repeat}
+/* Window chrome, drawn rather than textured. These rules used to paint the Phieti
+   bitmaps, which are user-supplied Ragnarok-derived art and are not part of this
+   repository; every rule already carried a flat colour behind the image, so the
+   layout never depended on them. Gradients and insets restore the panelled look. */
+.ro-skin .portrait-pane{background:linear-gradient(#fdfefe 0%,#f2f5f7 46%,#e9eef2 100%);
+  box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 #d4dde4}
+.ro-skin .section-head{background:linear-gradient(#f4f8fa,#dde6ec);
+  border-bottom:1px solid #c6d3dc;box-shadow:inset 0 1px 0 #fff}
+.ro-skin .combatbar{background:linear-gradient(#f0f1f4,#dfe1e7);
+  box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 #c9ccd6}
+.ro-skin .action-slot{background:linear-gradient(#fbfbfc,#eceef2);
+  box-shadow:inset 0 1px 0 #fff,inset 0 0 0 1px #d2d6de}
+.ro-skin .action-slot:hover,.ro-skin .action-slot:focus-visible{
+  background:linear-gradient(#f2fbfe,#dceef6);box-shadow:inset 0 1px 0 #fff,inset 0 0 0 1px #9fc9db}
+.ro-equipment-layout{background:linear-gradient(#ffffffe8,#f3f6f9e8);
+  box-shadow:inset 0 0 0 1px #d8e0e7}
+.ro-stat-grid{background:linear-gradient(#fffffff0,#f2f6f9f0);
+  box-shadow:inset 0 0 0 1px #d8e0e7}
+.ro-skin .tab[data-tab="status"],.ro-skin .tab[data-tab="equipment"],
+.ro-skin .tab[data-tab="inventory"],.ro-skin .tab[data-tab="skills"]{
+  background:linear-gradient(#eef4f8,#dae6ee)}
 .ro-skin .tab[data-tab="status"] b,.ro-skin .tab[data-tab="equipment"] b,.ro-skin .tab[data-tab="inventory"] b,.ro-skin .tab[data-tab="skills"] b{opacity:0}
 .ro-skin .tab[data-tab="status"]:hover,.ro-skin .tab[data-tab="equipment"]:hover,.ro-skin .tab[data-tab="inventory"]:hover,.ro-skin .tab[data-tab="skills"]:hover{filter:brightness(.88)}
 
