@@ -8,4 +8,4 @@ This repository is intended to contain the **GitHub-safe v1.5b master**, not the
 - Existing `LICENSE-GPL-3.0.txt` in the source package does not license any third-party artwork.
 - Do not upload credentials, save files, or original third-party sprite sheets. A private repository is not a copyright license.
 
-The full GitHub-safe source archive has been prepared separately but **bulk upload is still pending**. Once the user publishes the extracted safe files, review this provenance file alongside the committed assets.
+**Current state:** the source tree and the project's own art (7 monster sprites, 28 item icons, 3 weapon sprites) are committed. Character head/body atlases and the Phieti skin bitmaps remain **not uploaded**, so `css/style.css` still references `../assets/phieti/*.png` files that are absent here and `js/game.js` still loads `assets/sprites/hair_*.png` and `body_*.png` that are absent here. Replacing that artwork is the remaining work; until then this repository is source-complete but art-incomplete.

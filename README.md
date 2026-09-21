@@ -2,7 +2,11 @@
 
 Private repository for the offline, single-player Borderlands Classic project.
 
-**Master prepared:** v1.5b (base v1.4.2 + v1.5 Novice + v1.5 Swordman + v1.5a + v1.5b). Source code and artwork have **not yet been uploaded to this repository**; this first commit establishes the repository instructions only.
+**Master prepared:** v1.5b (base v1.4.2 + v1.5 Novice + v1.5 Swordman + v1.5a + v1.5b).
+
+**Upload status:** the source tree is now in this repository - `js/`, `css/`, `data/`, `tests/`, `tools/`, `docs/`, plus the project's own monster sprites, item icons and weapon art. **Character artwork is not here yet.** The head/body atlases (`assets/sprites/hair_00..18.png`, `body_novice.png`, `body_swordman.png`) and the Phieti window skin (`assets/phieti/`) are derived from user-provided Ragnarok Online material and stay out of this repository until independently drawn replacements exist. `.gitignore` blocks them by name.
+
+Because of that, the game runs but draws no player character, and 4 of the 12 Node tests fail on missing sprite files: `layered_sprite_v15b`, `sprite_runtime_v15`, `swordman_ro_sprite_v15` and `user_sprite_v15`. The other 8 pass. This is expected until replacement art lands.
 
 The prepared master is available in two packages in the originating ChatGPT conversation:
 - `Borderlands_Master_v1_5b_PERSONAL_OFFLINE.zip`: personal-use game package that contains user-provided Ragnarok/Phieti-derived graphics. Keep local; do not publish without permission.
