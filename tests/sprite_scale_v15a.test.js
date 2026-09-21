@@ -6,7 +6,10 @@ assert.ok(start>=0&&end>start);
 const calls=[],context={Image:class{constructor(){this.complete=true;this.naturalWidth=1248;}set src(s){this._src=s;}get src(){return this._src;}},
  s:{player:{hairStyle:0,classId:'novice'},equipment:{weapon:null}},
  C:{ITEMS:{rusty_sword:{slot:'weapon'}}},now:0,
- g:{drawImage(...args){calls.push(args)},save(){},restore(){},translate(){},rotate(){}}};
+ // The stub models only what the draw path touches. drawGroundShadow adds path calls;
+ // they push nothing onto calls, so the drawImage assertions below are unaffected.
+ g:{drawImage(...args){calls.push(args)},save(){},restore(){},translate(){},rotate(){},
+    beginPath(){},ellipse(){},fill(){}}};
 context.window=context;vm.createContext(context);vm.runInContext(anchor,context);
 vm.runInContext(game.slice(start,end)+`
 this.measure=(key,state='idle',facing='down')=>{let actor={facing,animState:state,animStartedAt:0,deadUntil:0};return drawEntitySprite(key,actor,240,240);};

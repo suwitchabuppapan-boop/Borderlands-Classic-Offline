@@ -107,11 +107,23 @@ function drawLayeredCharacter(key,actor,x,y){
  if(actor.facing!=='up')drawEquippedWeapon(actor,x,y,frame,info);
  return true;
 }
+// A soft ellipse on the ground under every sprite. Without one the characters read as
+// floating above the field: the art carries no baked shadow and the ground has no
+// depth cues of its own.
+function drawGroundShadow(x,y,width,dead){
+ const rx=Math.max(4,Math.round(width*0.30)),ry=Math.max(2,Math.round(rx*0.38));
+ g.save();g.globalAlpha=dead?0.10:0.22;g.fillStyle='#0d221b';
+ g.beginPath();g.ellipse(Math.round(x),Math.round(y)-1,rx,ry,0,0,Math.PI*2);g.fill();g.restore();
+}
 function drawEntitySprite(key,actor,x,y){
  const info=SPRITE_LIBRARY[key];if(!info)return false;
- if(key==='novice'||key==='swordman')return drawLayeredCharacter(key,actor,x,y);
+ if(key==='novice'||key==='swordman'){
+  drawGroundShadow(x,y,info.w*0.62,actor.deadUntil>now);
+  return drawLayeredCharacter(key,actor,x,y);
+ }
  const img=spriteImages[key];if(!loaded(img))return false;
  const frame=spriteFrame(actor),scale=MONSTER_DRAW_SCALE[key]||1,drawW=Math.round(info.w*scale),drawH=Math.round(info.h*scale);
+ drawGroundShadow(x,y,drawW*0.55,actor.deadUntil>now);
  g.drawImage(img,frame.col*info.w,frame.row*info.h,info.w,info.h,Math.round(x-info.anchorX*scale),Math.round(y-info.anchorY*scale),drawW,drawH);return true;
 }
 initActorVisual(s.player);
