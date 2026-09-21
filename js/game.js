@@ -40,8 +40,8 @@ let saveReady=true,hotbarEdit=false,selectedHotbarSlot=null,pendingHotbar=null,d
 let fpsFrames=0,fpsSince=performance.now();
 const MONSTER_DRAW_SCALE={poring:1.5,fabre:1.5,lunatic:1.5,willow:2,hornet:1.75,poporing:1.75,boss:2};
 const SPRITE_LIBRARY={
- novice:{src:'assets/sprites/body_novice.png',w:64,h:112,anchorX:32,anchorY:108},
- swordman:{src:'assets/sprites/body_swordman.png',w:96,h:112,anchorX:48,anchorY:108},
+ novice:{src:'assets/sprites/body_novice.png',w:64,h:112,anchorX:32,anchorY:108,hand:{x:14,y:18,upX:11,upY:22},weapon:{w:14,h:21,gripX:7,gripY:16,rest:0.70}},
+ swordman:{src:'assets/sprites/body_swordman.png',w:96,h:112,anchorX:48,anchorY:108,hand:{x:17,y:18,upX:13,upY:22},weapon:{w:16,h:24,gripX:8,gripY:18,rest:0.70}},
  poring:{src:'assets/sprites/monster_poring.png',w:32,h:32,anchorX:16,anchorY:28},
  fabre:{src:'assets/sprites/monster_fabre.png',w:32,h:32,anchorX:16,anchorY:28},
  lunatic:{src:'assets/sprites/monster_lunatic.png',w:32,h:32,anchorX:16,anchorY:28},
@@ -81,12 +81,18 @@ function drawEquippedWeapon(actor,x,y,frame,bodyInfo){
  if(!loaded(img)||frame.state==='death'||!C.ITEMS[weaponId]||C.ITEMS[weaponId].slot!=='weapon')return false;
  const direction=actor.facing||'down',attacking=frame.state==='attack';
  const xSide=direction==='left'?-1:1;
+ // Hand and blade sizes live on the class in SPRITE_LIBRARY, because they describe the
+ // body art rather than the game. The fallbacks are the pre-v1.5b numbers.
+ const hand=bodyInfo&&bodyInfo.hand||{x:17,y:48,upX:14,upY:54};
+ const blade=bodyInfo&&bodyInfo.weapon||{w:24,h:36,gripX:12,gripY:29,rest:0.32};
+ // The swing carries the attack: the body frames barely move, so a narrow arc reads as
+ // nothing happening. These three carry the blade from raised to extended.
+ const swing=attacking?[-60,-5,50][Math.max(0,Math.min(2,frame.col-6))]:0;
  // Hand is relative to the body's feet anchor, not to screen/canvas origin.
- const swing=attacking?[-12,0,12][Math.max(0,Math.min(2,frame.col-6))]:0;
- const px=Math.round(x+xSide*(direction==='up'?14:17)+(direction==='left'?-2:0)+(attacking?xSide*3:0));
- const py=Math.round(y-(direction==='up'?54:48)+(attacking?-4:frame.state==='walk'?(frame.col%2?1:0):0));
- const angle=(direction==='left'?-0.32:0.32)+(attacking?xSide*swing*Math.PI/180:0)+(direction==='up'?Math.PI:0);
- g.save();g.translate(px,py);g.rotate(angle);g.drawImage(img,-12,-29,24,36);g.restore();return true;
+ const px=Math.round(x+xSide*(direction==='up'?hand.upX:hand.x)+(direction==='left'?-2:0)+(attacking?xSide*3:0));
+ const py=Math.round(y-(direction==='up'?hand.upY:hand.y)+(attacking?-4:frame.state==='walk'?(frame.col%2?1:0):0));
+ const angle=(direction==='left'?-blade.rest:blade.rest)+(attacking?xSide*swing*Math.PI/180:0)+(direction==='up'?Math.PI:0);
+ g.save();g.translate(px,py);g.rotate(angle);g.drawImage(img,-blade.gripX,-blade.gripY,blade.w,blade.h);g.restore();return true;
 }
 function drawLayeredCharacter(key,actor,x,y){
  const info=SPRITE_LIBRARY[key],body=spriteImages[key];if(!info||!loaded(body))return false;
