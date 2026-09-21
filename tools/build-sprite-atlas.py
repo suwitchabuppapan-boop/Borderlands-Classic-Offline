@@ -53,6 +53,15 @@ BODIES = {"novice": (64, 112), "swordman": (96, 112)}
 # Column 12 is the only one drawLayeredCharacter() never draws hair on.
 HAIR_BLANK_COLUMN = 12
 IDLE_COLUMN = 0
+# Which columns belong to each animation, so a short set can be cycled to fill
+# its own animation instead of freezing on the idle pose.
+ANIM_GROUPS = {
+    "idle": [0, 1],
+    "walk": [2, 3, 4, 5],
+    "attack": [6, 7, 8],
+    "hit": [9],
+    "death": [10, 11, 12],
+}
 
 
 def load_exact(path, size):
@@ -63,35 +72,76 @@ def load_exact(path, size):
     return img
 
 
-def build_body(name, src_dir, out_dir):
+def source_directions(mirror):
+    """Which directions the input must supply, and how rows are filled from them.
+
+    With --mirror the caller draws 'side' once and row 2 (right) becomes its
+    horizontal flip, which is a third less drawing. The original art does not
+    work this way -- its left and right rows are separate drawings, not flips --
+    but nothing in the game requires them to differ.
+    """
+    if mirror:
+        return ["down", "side", "up"], [("down", False), ("side", False), ("side", True), ("up", False)]
+    return DIRECTIONS, [(d, False) for d in DIRECTIONS]
+
+
+def resolve_columns(prefix, src_dir, ext="png"):
+    """Map all 13 columns onto the frames actually supplied.
+
+    Columns provided for an animation are cycled across the rest of that same
+    animation, so two walk drawings become a real two-step walk cycle rather
+    than four identical frames.
+    """
+    mapping, filled = {}, []
+    idle_given = [c for c in ANIM_GROUPS["idle"] if (src_dir / f"{prefix}_{c:02d}.{ext}").exists()]
+    if not idle_given:
+        raise SystemExit(f"missing {prefix}_{IDLE_COLUMN:02d}.{ext}; every direction needs at least its idle frame")
+    for anim, cols in ANIM_GROUPS.items():
+        given = [c for c in cols if (src_dir / f"{prefix}_{c:02d}.{ext}").exists()]
+        pool = given or idle_given
+        for i, col in enumerate(cols):
+            if col in given:
+                mapping[col] = col
+            else:
+                mapping[col] = pool[i % len(pool)]
+                filled.append((f"{prefix}_{col:02d}.{ext}", anim, mapping[col]))
+    return mapping, filled
+
+
+def build_body(name, src_dir, out_dir, mirror=False):
     fw, fh = BODIES[name]
     atlas = Image.new("RGBA", (fw * COLUMNS, fh * ROWS), (0, 0, 0, 0))
     substituted = []
-    for row, direction in enumerate(DIRECTIONS):
-        idle_path = src_dir / f"body_{name}_{direction}_{IDLE_COLUMN:02d}.png"
-        if not idle_path.exists():
-            raise SystemExit(f"missing {idle_path.name}; the idle frame of every direction is required")
-        idle = load_exact(idle_path, (fw, fh))
+    for row, (direction, flip) in enumerate(source_directions(mirror)[1]):
+        prefix = f"body_{name}_{direction}"
+        mapping, filled = resolve_columns(prefix, src_dir)
+        if not flip:
+            substituted += filled
+        cache = {}
         for col in range(COLUMNS):
-            path = src_dir / f"body_{name}_{direction}_{col:02d}.png"
-            if path.exists():
-                frame = load_exact(path, (fw, fh))
-            else:
-                frame = idle
-                substituted.append(path.name)
-            atlas.paste(frame, (col * fw, row * fh))
+            src_col = mapping[col]
+            if src_col not in cache:
+                frame = load_exact(src_dir / f"{prefix}_{src_col:02d}.png", (fw, fh))
+                cache[src_col] = frame.transpose(Image.FLIP_LEFT_RIGHT) if flip else frame
+            atlas.paste(cache[src_col], (col * fw, row * fh))
     out = out_dir / f"body_{name}.png"
     atlas.save(out)
     return out, atlas.size, substituted
 
 
-def build_hair(style, src_dir, out_dir):
+def available_hair_styles(src_dir, mirror):
+    """Style numbers that have every direction they need."""
+    needed, _ = source_directions(mirror)
+    return [s for s in range(HAIR_STYLES)
+            if all((src_dir / f"hair_{s:02d}_{d}.png").exists() for d in needed)]
+
+
+def build_hair(style, source_style, src_dir, out_dir, mirror=False):
     atlas = Image.new("RGBA", (HAIR_W * COLUMNS, HAIR_H * ROWS), (0, 0, 0, 0))
-    for row, direction in enumerate(DIRECTIONS):
-        path = src_dir / f"hair_{style:02d}_{direction}.png"
-        if not path.exists():
-            raise SystemExit(f"missing {path.name}")
-        frame = load_exact(path, (HAIR_W, HAIR_H))
+    for row, (direction, flip) in enumerate(source_directions(mirror)[1]):
+        frame = load_exact(src_dir / f"hair_{source_style:02d}_{direction}.png", (HAIR_W, HAIR_H))
+        if flip:
+            frame = frame.transpose(Image.FLIP_LEFT_RIGHT)
         for col in range(COLUMNS):
             if col == HAIR_BLANK_COLUMN:
                 continue
@@ -126,6 +176,8 @@ def main():
     ap.add_argument("input_dir", type=pathlib.Path, help="directory holding the individual frame PNGs")
     ap.add_argument("--out", type=pathlib.Path, default=pathlib.Path("assets/sprites"))
     ap.add_argument("--check", action="store_true", help="verify the written atlases and exit non-zero on a mismatch")
+    ap.add_argument("--mirror", action="store_true",
+                    help="take 'side' instead of 'left' and 'right', and flip it for the right-facing row")
     args = ap.parse_args()
 
     if not args.input_dir.is_dir():
@@ -134,18 +186,31 @@ def main():
 
     substituted = []
     for name in BODIES:
-        path, size, subs = build_body(name, args.input_dir, args.out)
+        path, size, subs = build_body(name, args.input_dir, args.out, args.mirror)
         substituted += subs
         print(f"wrote {path}  {size[0]}x{size[1]}")
+
+    styles = available_hair_styles(args.input_dir, args.mirror)
+    if not styles:
+        sys.exit("no complete hair style found; hair_00 needs every direction at minimum")
+    reused = []
     for style in range(HAIR_STYLES):
-        path, size = build_hair(style, args.input_dir, args.out)
+        source = style if style in styles else styles[style % len(styles)]
+        if source != style:
+            reused.append((style, source))
+        path, size = build_hair(style, source, args.input_dir, args.out, args.mirror)
         print(f"wrote {path}  {size[0]}x{size[1]}")
 
     if substituted:
-        print(f"\n{len(substituted)} body frames were missing and reused their direction's idle frame:")
-        for name in substituted:
-            print(f"  {name}")
-        print("The atlas loads, but those animations will not move.")
+        print(f"\n{len(substituted)} body frames were not supplied and were filled from their own animation:")
+        for missing, anim, src_col in substituted:
+            print(f"  {missing:<28} {anim} <- column {src_col:02d}")
+        print("Animations with a single source frame will not appear to move.")
+
+    if reused:
+        print(f"\n{len(reused)} hair styles were not drawn and reuse another style:")
+        print("  " + ", ".join(f"{s:02d}<-{src:02d}" for s, src in reused))
+        print("Those entries in the appearance picker will look identical.")
 
     if args.check:
         print("\nchecking written atlases against the sizes tests/layered_sprite_v15b.test.js asserts:")
