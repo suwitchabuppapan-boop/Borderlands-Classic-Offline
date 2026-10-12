@@ -460,6 +460,13 @@
   }
   function worldPoint(canvas, event) {
     const b = canvas.getBoundingClientRect();
+    if (canvas.id === "game") {
+      const camera = R.view(canvas, state);
+      return {
+        x: (event.clientX - b.left) / camera.scale + camera.x,
+        y: (event.clientY - b.top) / camera.scale + camera.y,
+      };
+    }
     return {
       x: ((event.clientX - b.left) / b.width) * 960,
       y: ((event.clientY - b.top) / b.height) * 560,
@@ -494,6 +501,35 @@
   $("minimap").addEventListener("pointerdown", (event) =>
     run("move", worldPoint($("minimap"), event)),
   );
+  function toggleUI() {
+    const hidden = document.body.classList.toggle("hud-hidden");
+    const button = document.querySelector('[data-action="toggle-ui"]');
+    button.setAttribute("aria-pressed", String(!hidden));
+    button.setAttribute("aria-label", hidden ? "แสดง UI" : "ซ่อน UI");
+    button.title = hidden ? "แสดง UI (V)" : "ซ่อน UI (V)";
+  }
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (document.fullscreenEnabled)
+        await document.documentElement.requestFullscreen();
+      else
+        toast("เบราว์เซอร์นี้ไม่รองรับโหมดเต็มจอ • เกมยังใช้เต็มหน้าต่างได้");
+    } catch {
+      toast("เปิดโหมดเต็มจอไม่ได้ • ลองใช้ปุ่ม F11 ของเบราว์เซอร์");
+    }
+  }
+  document.addEventListener("fullscreenchange", () => {
+    const active = Boolean(document.fullscreenElement);
+    const button = document.querySelector('[data-action="fullscreen"]');
+    button.setAttribute("aria-pressed", String(active));
+    button.setAttribute(
+      "aria-label",
+      active ? "ออกจากโหมดเต็มจอ" : "เข้าโหมดเต็มจอ",
+    );
+    button.title = active ? "ออกจากเต็มจอ" : "เต็มจอ";
+    button.querySelector("span").textContent = active ? "ย่อจอ" : "เต็มจอ";
+  });
   document.addEventListener("click", (event) => {
     const b = event.target.closest("button");
     if (!b) return;
@@ -514,6 +550,8 @@
       if (a === "close") closePanel();
       if (a === "save") save(true);
       if (a === "auto") run("auto");
+      if (a === "toggle-ui") toggleUI();
+      if (a === "fullscreen") toggleFullscreen();
       return;
     }
     const a = b.dataset.act;
@@ -635,6 +673,7 @@
     else if (key === "i") openPanel("inventory");
     else if (key === "q") openPanel("quest");
     else if (key === "m") openPanel("map");
+    else if (key === "v") toggleUI();
   });
   document.addEventListener("keyup", (e) => {
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;

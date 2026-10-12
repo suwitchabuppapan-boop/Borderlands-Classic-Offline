@@ -9,22 +9,42 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%2323342d'/%3E%3Ctext x='7' y='30' font-size='30' fill='%23dcc48c'%3E✦%3C/text%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/style.css?v=1.1" />
   </head>
-  <body>
+  <body class="game-fullscreen">
     <header class="topbar">
       <a class="brand" href="index.html" aria-label="Borderlands หน้าแรก"
         ><span class="brand-mark">✦</span
         ><span><b>BORDERLANDS</b><small>THE SOLO CHRONICLES</small></span></a
       >
-      <div class="header-note">
-        <span class="live-dot"></span> โลกเล็ก ๆ ของการผจญภัยครั้งใหญ่
-        <span class="edition">OFFLINE RPG</span>
-      </div>
+      <div class="header-note">WASD เดิน · E คุย NPC · V ซ่อน/แสดง UI</div>
       <div class="header-actions">
         <button data-action="save" id="save-button">
           ▣ <span>บันทึก</span></button
-        ><button data-panel="settings" aria-label="ตั้งค่า">⚙</button>
+        ><button
+          data-action="fullscreen"
+          aria-label="เข้าโหมดเต็มจอ"
+          aria-pressed="false"
+          title="เต็มจอ"
+        >
+          ⛶ <span>เต็มจอ</span>
+        </button>
+        <button
+          data-action="toggle-ui"
+          aria-label="ซ่อน UI"
+          aria-pressed="true"
+          title="ซ่อน/แสดง UI (V)"
+        >
+          ◉ <span>UI</span>
+        </button>
+        <button
+          data-panel="help"
+          aria-label="คู่มือการเล่น"
+          title="คู่มือการเล่น"
+        >
+          ?
+        </button>
+        <button data-panel="settings" aria-label="ตั้งค่า">⚙</button>
       </div>
     </header>
     <main class="game-layout">
@@ -183,7 +203,7 @@
     <footer class="site-footer">
       <span>✦ BORDERLANDS · SOLO CHRONICLES</span
       ><span>โลกออฟไลน์ · ความคืบหน้าของคุณ · การเดินทางของคุณ</span
-      ><span>REBUILT 1.0</span>
+      ><span>REBUILT 1.1</span>
     </footer>
     <div id="panel-backdrop" hidden></div>
     <section
@@ -210,7 +230,7 @@
     />
     <script src="js/classic-data.js"></script>
     <script src="js/core.js"></script>
-    <script src="js/render.js"></script>
-    <script src="js/game.js"></script>
+    <script src="js/render.js?v=1.1"></script>
+    <script src="js/game.js?v=1.1"></script>
   </body>
 </html>

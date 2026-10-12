@@ -395,9 +395,42 @@
       );
     }
   }
+  function view(canvas, s) {
+    const screenWidth = canvas.clientWidth || 960;
+    const screenHeight = canvas.clientHeight || 560;
+    const scale = Math.max(screenWidth / 960, screenHeight / 560) * 1.15;
+    const width = screenWidth / scale;
+    const height = screenHeight / scale;
+    return {
+      scale,
+      width,
+      height,
+      x: Math.max(0, Math.min(960 - width, s.player.x - width / 2)),
+      y: Math.max(0, Math.min(560 - height, s.player.y - height / 2)),
+    };
+  }
   function draw(canvas, s) {
+    const camera = view(canvas, s);
+    const density = Math.min(root.devicePixelRatio || 1, 2);
+    const pixelWidth = Math.max(1, Math.round(canvas.clientWidth * density));
+    const pixelHeight = Math.max(1, Math.round(canvas.clientHeight * density));
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
     const c = canvas.getContext("2d");
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, canvas.width, canvas.height);
     c.imageSmoothingEnabled = false;
+    c.save();
+    c.setTransform(
+      camera.scale * density,
+      0,
+      0,
+      camera.scale * density,
+      -camera.x * camera.scale * density,
+      -camera.y * camera.scale * density,
+    );
     if (!backgrounds[s.zone]) backgrounds[s.zone] = background(s.zone);
     c.drawImage(backgrounds[s.zone], 0, 0);
     if (s.destination) {
@@ -456,6 +489,7 @@
         y = 95 + ((i * 47) % 350) + Math.sin(s.clock + i) * 9;
       rect(c, x, y, 2, 2, s.zone === 2 ? "#e3eacc88" : "#f4ecb66b");
     }
+    c.restore();
   }
   function minimap(canvas, s) {
     const c = canvas.getContext("2d");
@@ -495,5 +529,5 @@
     });
     c.restore();
   }
-  root.BCRender = { draw, minimap, portrait };
+  root.BCRender = { draw, minimap, portrait, view };
 })(window);
