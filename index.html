@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#172923" />
+    <meta name="theme-color" content="#414e5a" />
     <title>Borderlands · นักผจญภัยแห่งพรมแดน</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%2323342d'/%3E%3Ctext x='7' y='30' font-size='30' fill='%23dcc48c'%3E✦%3C/text%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="css/style.css?v=1.1" />
+    <link rel="stylesheet" href="css/style.css?v=1.2" />
   </head>
   <body class="game-fullscreen">
     <header class="topbar">
@@ -50,9 +50,6 @@
     <main class="game-layout">
       <aside class="side-left">
         <section class="card character">
-          <div class="eyebrow">
-            YOUR ADVENTURER <span class="badge">SOLO</span>
-          </div>
           <div class="character-heading">
             <canvas
               id="portrait"
@@ -63,13 +60,10 @@
             <div>
               <h1 id="hero-name">Novice</h1>
               <div class="subtle" id="job-level">Job Lv.1</div>
-              <span class="money">◈ <b id="silver">45</b> Silver</span>
             </div>
           </div>
-          <div class="meter-title"><span>HP</span><b id="hp-val"></b></div>
-          <div class="meter"><i id="hp-bar" class="hp"></i></div>
-          <div class="meter-title"><span>SP</span><b id="sp-val"></b></div>
-          <div class="meter"><i id="sp-bar" class="sp"></i></div>
+          <div class="vital-row"><span>HP</span><div class="meter"><i id="hp-bar" class="hp"></i><b id="hp-val"></b></div></div>
+          <div class="vital-row"><span>SP</span><div class="meter"><i id="sp-bar" class="sp"></i><b id="sp-val"></b></div></div>
           <div class="level-row">
             <b id="level">Base Lv.1</b><span id="exp-val"></span>
           </div>
@@ -79,11 +73,10 @@
           </div>
           <div class="meter thin"><i id="jexp-bar" class="job"></i></div>
           <div class="weight">
-            <span>น้ำหนัก</span><span id="weight-val"></span>
+            <span class="money">◈ <b id="silver">45</b></span><span>Wt. <span id="weight-val"></span></span>
           </div>
         </section>
         <section class="card menu-card">
-          <div class="eyebrow">ADVENTURE JOURNAL</div>
           <nav class="menu-grid" aria-label="เมนูเกม">
             <button data-panel="status"><span>♧</span>สเตตัส</button
             ><button data-panel="skills"><span>✧</span>สกิล</button
@@ -111,9 +104,7 @@
       <section class="world-column">
         <div class="world-heading">
           <div>
-            <div class="eyebrow">
-              CHAPTER <span id="zone-number">01</span> / 03
-            </div>
+            <div class="eyebrow">FIELD <span id="zone-number">01</span></div>
             <h2 id="zone-label">Starter Meadow</h2>
             <p id="zone-subtitle">ลมอุ่น • หมู่บ้านนักเดินทาง</p>
           </div>
@@ -203,7 +194,7 @@
     <footer class="site-footer">
       <span>✦ BORDERLANDS · SOLO CHRONICLES</span
       ><span>โลกออฟไลน์ · ความคืบหน้าของคุณ · การเดินทางของคุณ</span
-      ><span>REBUILT 1.1</span>
+      ><span>REBUILT 1.2</span>
     </footer>
     <div id="panel-backdrop" hidden></div>
     <section
@@ -230,7 +221,7 @@
     />
     <script src="js/classic-data.js"></script>
     <script src="js/core.js"></script>
-    <script src="js/render.js?v=1.1"></script>
-    <script src="js/game.js?v=1.1"></script>
+    <script src="js/render.js?v=1.2"></script>
+    <script src="js/game.js?v=1.2"></script>
   </body>
 </html>

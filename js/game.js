@@ -24,6 +24,8 @@
     saveTime = 0,
     toastTimer,
     hotSignature = "",
+    selectedInventoryItem = "potion",
+    inventoryCategory = "all",
     lastFocus = null,
     protectStorage = false,
     storageError = "";
@@ -150,8 +152,37 @@
       lastFocus.focus({ preventScroll: true });
     else $("game").focus({ preventScroll: true });
   }
-  const icon = (id) =>
-    `<span class="item-icon" style="color:${D.items[id].color}">${D.items[id].icon}</span>`;
+  // Original compact item illustrations; each icon shares the same 32px canvas.
+  function artIcon(id) {
+    const ink = '#273143';
+    const bottle = (color) => `<path d="M12 3h8v5l-2 3c6 3 8 15 2 18h-8c-6-3-4-15 2-18l-2-3z" fill="#dbe5ef"/><path d="M9 18c-1 5 0 9 4 10h6c4-1 5-5 4-10z" fill="${color}"/><path d="M12 3h8v4h-8z" fill="#b79b6c"/><path d="M12 13l-2 8" stroke="#fff" stroke-width="2" opacity=".75"/><path d="M14 21h4m-2-2v4" stroke="#fff" opacity=".8"/>`;
+    const blade = (color) => `<path d="M6 27l4-5 3 3-5 5z" fill="#815c3c"/><path d="M9 19l5 7m-7-4l7-6" stroke="#d5b05c" stroke-width="3"/><path d="M11 21L25 3l2 7-13 14z" fill="${color}"/><path d="M12 21L25 5" stroke="#f7fbff"/><path d="M13 25l3-3" stroke="#97713d" stroke-width="2"/>`;
+    const armor = (color) => `<path d="M10 6l4-3h4l4 3 6 2-3 9-4-2 2 13H9l2-13-4 2-3-9z" fill="${color}"/><path d="M13 4l3 6 3-6M9 11l3 2m8 0l3-2M12 22h8" stroke="#e6d7b1"/><path d="M15 12h3v12h-3z" fill="#fff" opacity=".15"/>`;
+    const book = (color) => `<path d="M6 4h20v24H6z" fill="${color}"/><path d="M4 5h4v24H4z" fill="#795d44"/><path d="M9 7h14v18H9z" fill="#eedcbd"/><path d="M12 11h8m-8 4h8m-8 4h5" stroke="#927b67"/><path d="M22 6h3v9l-1.5-2-1.5 2z" fill="#b6515f"/>`;
+    let shape;
+    if (['potion', 'ether', 'green_potion'].includes(id)) shape = bottle(D.items[id].color);
+    else if (id.includes('sword') || id === 'moon_blade' || ['attack','equipment','bash'].includes(id)) shape = blade(D.items[id]?.color || '#dbe5ef');
+    else if (id.includes('armor')) shape = armor(D.items[id].color);
+    else if (id === 'apple') shape = '<path d="M16 9c-7-7-14 2-11 11 2 7 7 11 11 7 5 4 10-1 12-8 2-8-5-15-12-10z" fill="#ce6471"/><path d="M16 10l1-6" stroke="#735439" stroke-width="2"/><path d="M18 5c0-4 7-4 8-2-1 4-5 5-8 2z" fill="#7ca769"/><path d="M9 12c-3 3-2 7-1 9" stroke="#f5b2a2" stroke-width="2"/>';
+    else if (id === 'bronze_ring') shape = '<ellipse cx="16" cy="17" rx="10" ry="11" fill="#bb844c"/><ellipse cx="16" cy="17" rx="6" ry="7" fill="#39485e"/><path d="M8 13c2-6 11-8 15-2" fill="none" stroke="#f1d598" stroke-width="3"/><path d="M19 24l4-4" stroke="#e1b779" stroke-width="2"/>';
+    else if (['moon_charm','guardian_core','jellopy','provoke'].includes(id)) { const color = D.items[id]?.color || '#c4a0de'; shape = `<path d="M16 3l10 11-4 13-12 1-6-14z" fill="${color}"/><path d="M16 3l-4 12 10 12-1-15z" fill="#fff" opacity=".35"/><path d="M4 14l8 1 9-3 5 2M12 15l-2 13" fill="none" stroke="#617080"/>`; }
+    else if (['fluff','log'].includes(id)) shape = '<path d="M5 27C8 12 18 2 28 3c3 9-9 19-18 18z" fill="#e8e4d9"/><path d="M5 27L25 6M13 19v-7m4 3h7M19 12V7" fill="none" stroke="#9ba4b4"/><path d="M6 29l3-6" stroke="#d2bb8f" stroke-width="2"/>';
+    else if (id === 'tree_root') shape = '<path d="M13 3h8l-3 11 9 11-4 3-8-9-5 11-6-2 8-14z" fill="#b08760"/><path d="M16 7l-2 10 10 9M11 22l-4 5" fill="none" stroke="#dfbc8c"/>';
+    else if (id === 'bee_sting') shape = '<path d="M23 5l5 7-20 17-4-2z" fill="#b8c7d7"/><path d="M24 5l-3-2-8 8 8 5 6-5z" fill="#d7b467"/><path d="M9 25l15-17" stroke="#fff"/>';
+    else if (id === 'inventory') shape = '<path d="M9 10V7c0-6 14-6 14 0v3" fill="none" stroke="#d8b68c" stroke-width="3"/><path d="M5 10h22l2 18H3z" fill="#bc8a60"/><path d="M4 10h24l-3 10H7z" fill="#d5ad83"/><path d="M14 17h5v7h-5z" fill="#ebd395"/><path d="M7 24h4m10 0h4" stroke="#8a6044"/>';
+    else if (id === 'codex') shape = book('#7f95b9');
+    else if (id === 'quest') shape = '<path d="M7 4h20l-2 5v19H6V7z" fill="#eed6aa"/><path d="M6 5h20v5H6z" fill="#b6936b"/><path d="M11 14h10m-10 4h10m-10 4h7" stroke="#997d65"/><path d="M22 21l5 3-2 4-4-1z" fill="#b55362"/>';
+    else if (id === 'shop') shape = '<ellipse cx="11" cy="23" rx="8" ry="4" fill="#b9914c"/><path d="M3 19v4c0 6 16 6 16 0v-4z" fill="#d1aa5c"/><ellipse cx="11" cy="19" rx="8" ry="4" fill="#f2d58a"/><circle cx="22" cy="12" r="9" fill="#e5bd6d"/><circle cx="22" cy="12" r="6" fill="#b99048"/><path d="M22 7v10m-3-8h5m-5 6h5" stroke="#f4dca4" stroke-width="2"/>';
+    else if (id === 'status') shape = '<path d="M5 29c-1-12 23-12 22 0z" fill="#aa7b76"/><path d="M11 21l5 5 5-5" fill="#f0d3b2"/><ellipse cx="16" cy="13" rx="8" ry="10" fill="#f1ccad"/><path d="M7 15V7c1-9 20-8 19 3l-2 8-3-10-5 5-1-5-6 10z" fill="#c49a62"/><path d="M12 14h1m6 0h1" stroke="#43394a" stroke-width="2"/>';
+    else if (id === 'interact') shape = '<path d="M3 5h26v17H17l-7 7v-7H3z" fill="#e5dcc7"/><path d="M8 11h16M8 15h12" stroke="#8d8a99" stroke-width="2"/>';
+    else if (id === 'settings') shape = '<path d="M13 3h6l1 4 4 2 4-1 3 5-3 3v4l2 3-3 5-4-1-4 2h-6l-2-4-4-2-4 1-3-5 3-3v-4l-2-3 3-5 4 1 4-2z" fill="#bdc8d8"/><circle cx="16" cy="16" r="6" fill="#556780"/><circle cx="16" cy="16" r="3" fill="#dae4ef"/>';
+    else if (id === 'auto') shape = '<path d="M7 11c4-10 20-8 21 3h-5c-1-7-10-8-13-2l3 3H2l2-11zM25 21c-4 10-20 8-21-3h5c1 7 10 8 13 2l-3-3h11l-2 11z" fill="#aec9a7"/>';
+    else if (id === 'first_aid') shape = '<path d="M6 5h20v24H6z" fill="#dfd9cf"/><path d="M6 5h20v5H6z" fill="#9b829c"/><path d="M13 12h6v5h5v6h-5v5h-6v-5H8v-6h5z" fill="#df8296"/>';
+    else if (id === 'magnum') shape = '<path d="M15 29C-2 24 8 12 8 12c0 7 5 1 5 1s-3-7 6-12c-1 9 2 9 6 6-3 6 8 12 4 18-3 4-9 6-14 4z" fill="#d87d67"/><path d="M16 27c-7-3-5-9 1-15-1 6 7 9 4 13z" fill="#f2d283"/>';
+    else shape = '<path d="M16 2l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#b7addf"/><path d="M16 6v20M6 16h20" stroke="#f7ecff"/><circle cx="16" cy="16" r="4" fill="#e1d9f9"/>';
+    return `<svg class="game-icon" viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><g stroke="${ink}" stroke-width=".8" stroke-linejoin="round">${shape}</g></svg>`;
+  }
+  const icon = (id) => `<span class="item-icon">${artIcon(id)}</span>`;
   const button = (act, label, id = "", extra = "") =>
     `<button data-act="${act}"${id ? ` data-id="${id}"` : ""} ${extra}>${label}</button>`;
   const itemMeta = (i) =>
@@ -195,10 +226,10 @@
       st = C.stats(s);
     let html = "";
     if (panel === "status") {
-      html = `<p class="panel-note">${s.job} · Base Lv.${s.baseLevel} · แต้มสเตตัส <b>${s.statPoints}</b><br>สเตตัสใช้กฎ SOLO ของเกมนี้ เพิ่มหนึ่งค่าต่อหนึ่งแต้ม</p>`;
+      html = `<p class="panel-note">${s.job} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${["weapon", "armor", "accessory"].map(slot => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" title="${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ช่องอุปกรณ์ว่าง"}" aria-label="เปิดอุปกรณ์ ${slot}">${artIcon(s.equipment[slot] || ({weapon:"rusty_sword",armor:"cloth_armor",accessory:"bronze_ring"})[slot])}</button>`).join("")}</div><canvas id="status-portrait" width="68" height="76" aria-label="ตัวละครและอุปกรณ์"></canvas><div class="job-label">${s.job}</div></div><div>`;
       for (const [id, name] of Object.entries(D.statNames))
         html += `<div class="stat-row"><span>${name}</span><b>${s.stats[id]}</b>${button("stat", "＋", id, s.statPoints > 0 && s.stats[id] < 99 ? "" : "disabled")}</div>`;
-      html += `<div class="stat-summary">${[
+      html += `</div></div><div class="stat-summary">${[
         ["ATK", st.atk],
         ["DEF", st.def],
         ["CRIT", st.crit + "%"],
@@ -210,25 +241,20 @@
         .join("")}</div>`;
     }
     if (panel === "inventory") {
-      html = `<p class="panel-note">น้ำหนัก ${st.weight} / ${st.capacity} · ตั้งแต่ 50% หยุดฟื้น HP/SP · ตั้งแต่ 90% ห้ามโจมตี<br>ซื้อขายได้เมื่ออยู่ใกล้ Merchant เท่านั้น</p>`;
-      for (const [id, n] of Object.entries(s.inventory))
-        if (n > 0) {
-          const i = D.items[id];
-          let actions =
-            i.type === "use"
-              ? button("use", "ใช้", id)
-              : ["weapon", "armor", "accessory"].includes(i.type)
-                ? button("equip", "สวมใส่", id)
-                : "";
-          actions += button(
-            "sell",
-            "ขาย " + Math.max(1, Math.floor(i.price / 2)) + " ◈",
-            id,
-          );
-          html += itemRow(id, n, actions);
-        }
-      if (!Object.keys(s.inventory).some((k) => s.inventory[k] > 0))
-        html += '<p class="empty">กระเป๋าว่าง • ลองออกสำรวจหาไอเทม</p>';
+      const allItems = Object.entries(s.inventory).filter(([, count]) => count > 0);
+      const items = allItems.filter(([id]) => inventoryCategory === "all" || (inventoryCategory === "equip" ? ["weapon", "armor", "accessory"].includes(D.items[id].type) : D.items[id].type === inventoryCategory));
+      if (!items.some(([id]) => id === selectedInventoryItem)) selectedInventoryItem = items[0]?.[0] || null;
+      html = `<div class="inventory-tabs">${[["all","ทั้งหมด"],["use","ยา"],["equip","อุปกรณ์"],["loot","ของดรอป"]].map(([category,name]) => `<button data-item-category="${category}" aria-pressed="${inventoryCategory === category}">${name}</button>`).join("")}<span class="inventory-count">${allItems.length} ชนิด</span></div><div class="inventory-grid">`;
+      for (const [id, count] of items) html += `<button class="inventory-tile" data-choose-item="${id}" aria-pressed="${id === selectedInventoryItem}" aria-label="${D.items[id].name} ×${count}" title="${D.items[id].name}">${icon(id)}<span class="quantity">${count}</span></button>`;
+      for (let i = items.length; i < Math.max(24, Math.ceil(items.length / 8) * 8); i++) html += '<div class="inventory-empty-slot" aria-hidden="true"></div>';
+      html += `</div><div class="inventory-footer"><span>Wt. ${st.weight} / ${st.capacity}</span><span>◈ ${s.silver.toLocaleString()} Silver</span></div>`;
+      if (selectedInventoryItem) {
+        const id = selectedInventoryItem, i = D.items[id];
+        let actions = i.type === "use" ? button("use", "ใช้", id) : ["weapon", "armor", "accessory"].includes(i.type) ? button("equip", "สวมใส่", id) : "";
+        actions += button("sell", "ขาย " + Math.max(1, Math.floor(i.price / 2)) + " ◈", id);
+        html += `<div class="inventory-detail">${itemRow(id, s.inventory[id], "")}<div class="item-actions">${actions}</div></div>`;
+      } else html += '<p class="empty">ไม่มีไอเทมในหมวดนี้</p>';
+      html += '<p class="panel-note" style="margin-top:7px">เลือกไอเทมเพื่อใช้หรือสวมใส่ · ขายได้ใกล้ Merchant<br>น้ำหนัก 50% หยุดฟื้น HP/SP · 90% ห้ามโจมตี</p>';
       html +=
         '<button data-open="hotbar" class="outline-button">ใส่ไอเทมหรือสกิลใน Hotbar →</button>';
     }
@@ -253,7 +279,7 @@
     if (panel === "skills") {
       html = `<p class="panel-note">${s.job} · Job Lv.${s.jobLevel} · แต้มสกิล <b>${s.skillPoints}</b><br>Novice Job Lv.10 → คุย Guild Guide เพื่อเปลี่ยนเป็น Swordman</p>`;
       for (const [id, d] of Object.entries(D.skills))
-        html += `<div class="skill-card"><span class="item-icon" style="color:${d.color}">${d.icon}</span><div class="item-info"><b>${d.name} <span class="subtle">Lv.${s.skills[id]} / ${d.max}</span></b><small>${d.thai} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${d.description}</small></div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, s.job === "Swordman" && s.skillPoints > 0 && s.skills[id] < d.max ? "" : "disabled")}</div>`;
+        html += `<div class="skill-card"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${d.name} <span class="subtle">Lv.${s.skills[id]} / ${d.max}</span></b><small>${d.thai} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${d.description}</small></div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, s.job === "Swordman" && s.skillPoints > 0 && s.skills[id] < d.max ? "" : "disabled")}</div>`;
       html +=
         '<button data-open="hotbar" class="outline-button">จัดสกิลลง Hotbar →</button>';
     }
@@ -313,15 +339,16 @@
     if (panel === "help")
       html = `<div class="help-list"><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>คุย Guild Guide เพื่อรับและส่งเควสต์ เมื่อ Job Lv.10 คุยอีกครั้งเพื่อเปลี่ยนเป็น Swordman และเรียนสกิล</p><p>ประตูอยู่ริมแผนที่ซ้ายและขวา Healer ที่หมู่บ้านฟื้น HP/SP ฟรี เมื่อล้มจะกลับหมู่บ้านพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
     $("side-panel").innerHTML = html;
+    if ($("status-portrait")) R.portrait($("status-portrait"), s);
   }
   function bindingInfo(value) {
-    if (!value) return { label: "ว่าง", icon: "＋", color: "#879c7f" };
+    if (!value) return { label: "ว่าง", icon: "", color: "#879c7f" };
     const [kind, id] = value.split(":");
     if (kind === "skill") {
       const d = D.skills[id];
       return {
         label: d.name,
-        icon: d.icon,
+        icon: artIcon(id),
         color: d.color,
         locked: !state.skills[id],
         cooldown: (state.cooldowns[id] || 0) / d.cooldown,
@@ -331,14 +358,14 @@
       const d = D.items[id];
       return {
         label: d.name,
-        icon: d.icon,
+        icon: artIcon(id),
         color: d.color,
         stock: state.inventory[id] || 0,
       };
     }
     return {
       label: { attack: "โจมตี", interact: "คุย NPC", auto: "Auto" }[id],
-      icon: { attack: "⚔", interact: "♧", auto: "⟳" }[id],
+      icon: artIcon(id),
       color: "#d6c18e",
     };
   }
@@ -420,6 +447,7 @@
     }
     R.minimap($("minimap"), s);
     R.portrait($("portrait"), s);
+    if ($("status-portrait")) R.portrait($("status-portrait"), s);
     updateHotbar();
     updateSaveLabel();
   }
@@ -533,6 +561,18 @@
   document.addEventListener("click", (event) => {
     const b = event.target.closest("button");
     if (!b) return;
+    if (b.dataset.chooseItem) {
+      selectedInventoryItem = b.dataset.chooseItem;
+      renderPanel();
+      $("side-panel").querySelector(`[data-choose-item="${selectedInventoryItem}"]`)?.focus();
+      return;
+    }
+    if (b.dataset.itemCategory) {
+      inventoryCategory = b.dataset.itemCategory;
+      renderPanel();
+      $("side-panel").querySelector(`[data-item-category="${inventoryCategory}"]`)?.focus();
+      return;
+    }
     if (b.dataset.panel) {
       openPanel(b.dataset.panel);
       return;
@@ -755,6 +795,12 @@
     save,
     openPanel,
   };
+  document.querySelectorAll(".menu-grid [data-panel]").forEach((button) => {
+    const name = button.dataset.panel;
+    button.title = titleNames[name];
+    button.setAttribute("aria-label", titleNames[name]);
+    button.innerHTML = artIcon(name) + `<span class="menu-label">${titleNames[name]}</span>`;
+  });
   updateHUD();
   requestAnimationFrame(frame);
   if (storageError) setTimeout(() => toast(storageError), 100);
