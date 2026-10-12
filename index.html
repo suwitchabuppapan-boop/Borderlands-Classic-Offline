@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#172923" />
+    <title>Borderlands · นักผจญภัยแห่งพรมแดน</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%2323342d'/%3E%3Ctext x='7' y='30' font-size='30' fill='%23dcc48c'%3E✦%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html" aria-label="Borderlands หน้าแรก"
+        ><span class="brand-mark">✦</span
+        ><span><b>BORDERLANDS</b><small>THE SOLO CHRONICLES</small></span></a
+      >
+      <div class="header-note">
+        <span class="live-dot"></span> โลกเล็ก ๆ ของการผจญภัยครั้งใหญ่
+        <span class="edition">OFFLINE RPG</span>
+      </div>
+      <div class="header-actions">
+        <button data-action="save" id="save-button">
+          ▣ <span>บันทึก</span></button
+        ><button data-panel="settings" aria-label="ตั้งค่า">⚙</button>
+      </div>
+    </header>
+    <main class="game-layout">
+      <aside class="side-left">
+        <section class="card character">
+          <div class="eyebrow">
+            YOUR ADVENTURER <span class="badge">SOLO</span>
+          </div>
+          <div class="character-heading">
+            <canvas
+              id="portrait"
+              width="68"
+              height="76"
+              aria-label="ตัวละคร"
+            ></canvas>
+            <div>
+              <h1 id="hero-name">Novice</h1>
+              <div class="subtle" id="job-level">Job Lv.1</div>
+              <span class="money">◈ <b id="silver">45</b> Silver</span>
+            </div>
+          </div>
+          <div class="meter-title"><span>HP</span><b id="hp-val"></b></div>
+          <div class="meter"><i id="hp-bar" class="hp"></i></div>
+          <div class="meter-title"><span>SP</span><b id="sp-val"></b></div>
+          <div class="meter"><i id="sp-bar" class="sp"></i></div>
+          <div class="level-row">
+            <b id="level">Base Lv.1</b><span id="exp-val"></span>
+          </div>
+          <div class="meter thin"><i id="exp-bar" class="exp"></i></div>
+          <div class="level-row small">
+            <span>Job EXP</span><span id="jexp-val"></span>
+          </div>
+          <div class="meter thin"><i id="jexp-bar" class="job"></i></div>
+          <div class="weight">
+            <span>น้ำหนัก</span><span id="weight-val"></span>
+          </div>
+        </section>
+        <section class="card menu-card">
+          <div class="eyebrow">ADVENTURE JOURNAL</div>
+          <nav class="menu-grid" aria-label="เมนูเกม">
+            <button data-panel="status"><span>♧</span>สเตตัส</button
+            ><button data-panel="skills"><span>✧</span>สกิล</button
+            ><button data-panel="inventory"><span>▤</span>กระเป๋า</button
+            ><button data-panel="equipment"><span>⚔</span>อุปกรณ์</button
+            ><button data-panel="quest"><span>☷</span>เควสต์</button
+            ><button data-panel="shop"><span>♜</span>ร้านค้า</button
+            ><button data-panel="codex"><span>▥</span>คู่มือ</button
+            ><button data-panel="log"><span>⌁</span>บันทึก</button
+            ><button data-panel="settings"><span>⚙</span>ตั้งค่า</button>
+          </nav>
+        </section>
+        <section class="card guide-card">
+          <div class="eyebrow">A LITTLE GUIDANCE</div>
+          <p>ทุกการเดินทาง<br />เริ่มจากก้าวแรก</p>
+          <div class="key-hint"><kbd>W A S D</kbd> เดินสำรวจ</div>
+          <div class="key-hint"><kbd>SPACE</kbd> โจมตี</div>
+          <div class="key-hint"><kbd>E</kbd> คุยกับ NPC</div>
+          <div class="key-hint"><kbd>1—9</kbd> ใช้ Hotbar</div>
+          <button class="text-button" data-panel="help">
+            คู่มือนักผจญภัย ↗
+          </button>
+        </section>
+      </aside>
+      <section class="world-column">
+        <div class="world-heading">
+          <div>
+            <div class="eyebrow">
+              CHAPTER <span id="zone-number">01</span> / 03
+            </div>
+            <h2 id="zone-label">Starter Meadow</h2>
+            <p id="zone-subtitle">ลมอุ่น • หมู่บ้านนักเดินทาง</p>
+          </div>
+          <div class="world-status">
+            <span class="live-dot"></span> SINGLE PLAYER<br /><span id="clock"
+              >00:00</span
+            >
+          </div>
+        </div>
+        <div class="world-frame">
+          <div class="world-corner">
+            ✦ <span id="world-caption">ทุ่งเริ่มต้น</span>
+          </div>
+          <canvas
+            id="game"
+            width="960"
+            height="560"
+            tabindex="0"
+            aria-label="แผนที่เกม คลิกพื้นเพื่อเดิน คลิกมอนสเตอร์เพื่อโจมตี"
+            >ต้องใช้เบราว์เซอร์ที่รองรับ Canvas</canvas
+          >
+          <div id="target-box" hidden></div>
+          <div id="pause-banner" hidden>
+            หยุดพักการผจญภัย · กลับมาที่หน้าเกมเพื่อเล่นต่อ
+          </div>
+          <div class="world-bottom">
+            <span id="coordinates">X:250 Y:310</span
+            ><span>คลิกพื้นเพื่อเดิน · คลิกมอนสเตอร์เพื่อโจมตี</span
+            ><span id="mob-count"></span>
+          </div>
+        </div>
+        <div class="action-heading">
+          <span class="eyebrow">YOUR NEXT MOVE</span
+          ><button class="text-button" data-panel="hotbar">
+            จัด Hotbar ⚙
+          </button>
+        </div>
+        <div
+          id="hotbar-slots"
+          class="hotbar"
+          aria-label="Hotbar ช่อง 1 ถึง 9"
+        ></div>
+        <div class="world-footer">
+          <span id="save-indicator">● เซฟในเบราว์เซอร์นี้</span
+          ><span>เดินทางตามจังหวะของคุณ</span>
+        </div>
+        <div id="toast" role="status" aria-live="polite"></div>
+      </section>
+      <aside class="side-right">
+        <section class="card map-card">
+          <div class="eyebrow">WORLD AT A GLANCE <span>⌖</span></div>
+          <canvas
+            id="minimap"
+            width="192"
+            height="112"
+            aria-label="แผนที่ย่อ คลิกเพื่อเดิน"
+          ></canvas>
+          <div class="map-caption">
+            <span class="live-dot"></span
+            ><span id="map-location">Starter Meadow</span>
+          </div>
+        </section>
+        <button class="auto-button" data-action="auto" aria-pressed="false">
+          <span>⚔ AUTO BATTLE</span><b id="combat-mode">OFF</b
+          ><kbd>F</kbd></button
+        ><button class="text-button auto-settings" data-panel="auto">
+          ตั้งค่าการต่อสู้อัตโนมัติ ↗
+        </button>
+        <section class="card quest-card">
+          <div class="eyebrow">ON YOUR JOURNEY <span>◇</span></div>
+          <span class="quest-tag">MAIN QUEST</span>
+          <h3 id="quest-title">ก้าวแรกของนักผจญภัย</h3>
+          <p id="quest-description">คุยกับ Guild Guide เพื่อรับภารกิจแรก</p>
+          <div class="quest-progress"><i id="quest-progress-bar"></i></div>
+          <div id="quest-count" class="subtle"></div>
+          <button data-panel="quest" class="outline-button">
+            เปิดบันทึกภารกิจ →
+          </button>
+        </section>
+        <section class="field-note">
+          <span>❧</span>
+          <h3>พักก่อนก็ได้</h3>
+          <p>Healer ที่หมู่บ้านช่วยฟื้น HP และ SP ให้เต็มได้เสมอ</p>
+        </section>
+      </aside>
+    </main>
+    <footer class="site-footer">
+      <span>✦ BORDERLANDS · SOLO CHRONICLES</span
+      ><span>โลกออฟไลน์ · ความคืบหน้าของคุณ · การเดินทางของคุณ</span
+      ><span>REBUILT 1.0</span>
+    </footer>
+    <div id="panel-backdrop" hidden></div>
+    <section
+      id="panel-window"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="panel-title"
+      hidden
+    >
+      <header class="panel-header">
+        <div>
+          <div class="eyebrow">ADVENTURER'S JOURNAL</div>
+          <h2 id="panel-title"></h2>
+        </div>
+        <button data-action="close" aria-label="ปิดหน้าต่าง">✕</button>
+      </header>
+      <div id="side-panel"></div>
+    </section>
+    <input
+      type="file"
+      id="import-file"
+      accept=".json,application/json"
+      hidden
+    />
+    <script src="js/classic-data.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/game.js"></script>
+  </body>
+</html>
