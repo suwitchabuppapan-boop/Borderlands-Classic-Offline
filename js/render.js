@@ -2,7 +2,7 @@
 (function (root) {
   "use strict";
   const D = root.BCData;
-  const assets = { ready: false, failed: [], loaded: 0, total: 8 };
+  const assets = { ready: false, failed: [], loaded: 0, total: 9 };
   const images = {};
   const cells = {};
   const hairAtlases = new Map();
@@ -24,7 +24,7 @@
       assets.ready = assets.loaded === assets.total;
     };
     img.onerror = () => assets.failed.push(name);
-    img.src = `assets/art/${name}.webp`;
+    img.src = `assets/art/${name}.webp?v=${encodeURIComponent(D.world.release)}`;
   }
   // Atlas gutters vary slightly; painted bounds put every sprite's feet on the ground.
   function measureCells(img, name) {
@@ -34,13 +34,15 @@
     const c = canvas.getContext("2d", { willReadFrequently: true });
     c.drawImage(img, 0, 0);
     const pixels = c.getImageData(0, 0, canvas.width, canvas.height).data;
+    const columns = name === "townsfolk" ? 2 : 4;
+    const rows = name === "townsfolk" ? 2 : 4;
     cells[name] = [];
-    for (let cell = 0; cell < 16; cell++) {
-      const sx = Math.round((cell % 4) * canvas.width / 4);
-      const row = Math.floor(cell / 4);
-      const sy = Math.round(name === "gear" ? gearRowBands[row] * canvas.height : row * canvas.height / 4);
-      const ex = Math.round((cell % 4 + 1) * canvas.width / 4);
-      const ey = Math.round(name === "gear" ? gearRowBands[row + 1] * canvas.height : (row + 1) * canvas.height / 4);
+    for (let cell = 0; cell < columns * rows; cell++) {
+      const sx = Math.round((cell % columns) * canvas.width / columns);
+      const row = Math.floor(cell / columns);
+      const sy = Math.round(name === "gear" ? gearRowBands[row] * canvas.height : row * canvas.height / rows);
+      const ex = Math.round((cell % columns + 1) * canvas.width / columns);
+      const ey = Math.round(name === "gear" ? gearRowBands[row + 1] * canvas.height : (row + 1) * canvas.height / rows);
       let left = ex, top = ey, right = sx, bottom = sy;
       for (let y = sy; y < ey; y++) for (let x = sx; x < ex; x++) {
         if (pixels[(y * canvas.width + x) * 4 + 3] < 64) continue;
@@ -140,14 +142,19 @@
     ellipse(c, x, y + 1.5, 7, 2.6, "#293c3b48");
     const height = npc === "healer" ? 35 : 34;
     let name = "sprites", cell = npc === "healer" ? 15 : (job === "Swordman" || npc === "guide" ? 4 : 0) + pose.facing;
-    if (!npc && pose.mode === "walk") {
+    if (npc) {
+      name = "townsfolk"; cell = { guide: 0, merchant: 1, healer: 2 }[npc];
+    } else if (pose.mode === "walk") {
       name = job === "Swordman" ? "swordman-walk" : "novice-walk";
       cell = pose.facing * 4 + pose.frame;
     } else if (!npc && pose.mode === "attack") {
       name = "attacks"; cell = pose.facing * 4 + (job === "Swordman" ? 2 : 0) + pose.frame;
     }
     // Keep the base character visible while an animation atlas is still downloading.
-    if (!cells[name]?.[cell]) { name = "sprites"; cell = (job === "Swordman" ? 4 : 0) + pose.facing; }
+    if (!cells[name]?.[cell]) {
+      name = "sprites";
+      cell = npc === "healer" ? 15 : (job === "Swordman" || npc === "guide" ? 4 : 0) + pose.facing;
+    }
     if (pose.hand.behind) weapon(c, x, y, id, pose);
     sprite(c, cell, x + pose.lean, y, height, npc ? 0 : hair, pose.bob, name);
     if (!pose.hand.behind) weapon(c, x, y, id, pose);
@@ -219,7 +226,7 @@
       ellipse(c, s.player.x, s.player.y + 4, 15, 6, "#d6eced15");
       person(c, s.player.x, s.player.y, { job: s.job, hair: s.settings.hair, facing: s.player.facing,
         weapon: s.equipment.weapon, head: s.equipment.head, pose });
-      label(c, s.job, s.player.x, s.player.y - (s.equipment.head ? 46 : 39), "#fff", 11);
+      label(c, D.jobs[s.job].name, s.player.x, s.player.y - (s.equipment.head ? 46 : 39), "#fff", 11);
     } });
     entities.sort((a, b) => a.y - b.y).forEach(e => e.draw());
     for (const e of s.effects) {
@@ -256,6 +263,6 @@
       head: s.equipment.head, pose: root.BCAppearance.idle(0) });
     c.restore();
   }
-  ["meadow", "woodland", "cavern", "sprites", "novice-walk", "swordman-walk", "attacks", "gear"].forEach(load);
+  ["meadow", "woodland", "cavern", "sprites", "novice-walk", "swordman-walk", "attacks", "gear", "townsfolk"].forEach(load);
   root.BCRender = { draw, minimap, portrait, view, assets };
 })(window);

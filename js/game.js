@@ -4,6 +4,9 @@
     C = window.BCCore,
     R = window.BCRender,
     $ = (id) => document.getElementById(id);
+  const world = D.world,
+    npc = (id) => D.npcs.find((person) => person.id === id),
+    jobName = (id) => D.jobs[id].name;
   const esc = (v) =>
     String(v).replace(
       /[&<>"']/g,
@@ -93,7 +96,7 @@
     const a = document.createElement("a");
     a.href = url;
     a.download =
-      "borderlands-save-" + new Date().toISOString().slice(0, 10) + ".json";
+      "siam-arun-save-" + new Date().toISOString().slice(0, 10) + ".json";
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast("ส่งออกเซฟแล้ว • เก็บไฟล์นี้ไว้ใช้ Import");
@@ -123,13 +126,13 @@
     equipment: "อุปกรณ์สวมใส่",
     quest: "บันทึกภารกิจ",
     shop: "ร้านค้านักเดินทาง",
-    codex: "คู่มือโลก Borderlands",
+    codex: `คู่มือโลก${world.title}`,
     log: "บันทึกการเดินทาง",
     settings: "ตั้งค่าการผจญภัย",
     hotbar: "จัด Hotbar",
     auto: "Auto Battle",
     help: "คู่มือนักผจญภัย",
-    npc: "Guild Guide",
+    npc: npc("guide").name,
     map: "เส้นทางการเดินทาง",
   };
   const equipmentSlots = [
@@ -165,18 +168,18 @@
   // Original compact item illustrations; each icon shares the same 32px canvas.
   function artIcon(id) {
     const ink = '#273143';
-    const bottle = (color) => `<path d="M12 3h8v5l-2 3c6 3 8 15 2 18h-8c-6-3-4-15 2-18l-2-3z" fill="#dbe5ef"/><path d="M9 18c-1 5 0 9 4 10h6c4-1 5-5 4-10z" fill="${color}"/><path d="M12 3h8v4h-8z" fill="#b79b6c"/><path d="M12 13l-2 8" stroke="#fff" stroke-width="2" opacity=".75"/><path d="M14 21h4m-2-2v4" stroke="#fff" opacity=".8"/>`;
-    const blade = (color) => `<path d="M6 27l4-5 3 3-5 5z" fill="#815c3c"/><path d="M9 19l5 7m-7-4l7-6" stroke="#d5b05c" stroke-width="3"/><path d="M11 21L25 3l2 7-13 14z" fill="${color}"/><path d="M12 21L25 5" stroke="#f7fbff"/><path d="M13 25l3-3" stroke="#97713d" stroke-width="2"/>`;
+    const bottle = (color) => `<path d="M12 3h8v5l-2 3c6 3 8 15 2 18h-8c-6-3-4-15 2-18l-2-3z" fill="#e1e7db"/><path d="M9 18c-1 5 0 9 4 10h6c4-1 5-5 4-10z" fill="${color}"/><path d="M12 3h8v4h-8z" fill="#b79b6c"/><path d="M12 13l-2 8" stroke="#fff" stroke-width="2" opacity=".75"/><path d="M16 25v-8c-4-3-6 1-1 3m1 2c6-4 7 1 0 2" fill="none" stroke="#edf2d6" stroke-width="1.5"/>`;
+    const blade = (color) => `<path d="M5 27l4-6 3 3-4 6z" fill="#785238"/><path d="M6 24l5-2m-3 5l4-2" stroke="#d6b476" stroke-width="1.5"/><path d="M9 22C17 15 21 11 25 3c4 7-1 16-13 22z" fill="${color}"/><path d="M12 23c8-6 13-13 13-18" fill="none" stroke="#f7eed7"/><path d="M9 20l5 5" stroke="#d5b05c" stroke-width="2"/>`;
     const armor = (color) => `<path d="M10 6l4-3h4l4 3 6 2-3 9-4-2 2 13H9l2-13-4 2-3-9z" fill="${color}"/><path d="M13 4l3 6 3-6M9 11l3 2m8 0l3-2M12 22h8" stroke="#e6d7b1"/><path d="M15 12h3v12h-3z" fill="#fff" opacity=".15"/>`;
     const book = (color) => `<path d="M6 4h20v24H6z" fill="${color}"/><path d="M4 5h4v24H4z" fill="#795d44"/><path d="M9 7h14v18H9z" fill="#eedcbd"/><path d="M12 11h8m-8 4h8m-8 4h5" stroke="#927b67"/><path d="M22 6h3v9l-1.5-2-1.5 2z" fill="#b6515f"/>`;
     let shape;
     if (['potion', 'ether', 'green_potion'].includes(id)) shape = bottle(D.items[id].color);
-    else if (id === 'novice_cap') shape = '<path d="M6 18C4 3 28 3 26 18l-3 5H9z" fill="#8ab5ae"/><path d="M6 17h20l2 6H4z" fill="#d8e6cc"/><path d="M9 9c3-4 10-4 13-1M6 20h20" fill="none" stroke="#f0edcf" stroke-width="2"/><path d="M20 8l2-4 6 2-2 8z" fill="#ddbd79"/><path d="M23 6v6" stroke="#997d55"/>';
+    else if (id === 'novice_cap') shape = '<ellipse cx="16" cy="23" rx="14" ry="5" fill="#d6b479"/><path d="M5 23L16 5l11 18z" fill="#d8bd83"/><path d="M9 18h14M11 14h10M13 10h6M5 23h22M16 6v17M12 12l-2 11m10-11l2 11" fill="none" stroke="#9e8455"/><path d="M3 24c7 3 19 3 26 0" fill="none" stroke="#f3e2b7" stroke-width="1.5"/><path d="M12 27l4 3 4-3" fill="none" stroke="#657c6b"/>';
     else if (id === 'cat_ears') shape = '<path d="M5 22L3 3l11 8h4L29 3l-2 19z" fill="#676475"/><path d="M7 15L6 7l7 6m7 0l6-6-1 8" fill="#e7a3b2"/><path d="M5 21c4-8 18-8 22 0v5h-4v-4c-4-5-10-5-14 0v4H5z" fill="#b1a3bf"/><path d="M8 20c4-5 13-5 17 0" fill="none" stroke="#ede1e2"/>';
-    else if (id === 'silver_circlet') shape = '<path d="M3 12l6 3 7-7 7 7 6-3-3 12H6z" fill="#bbcbdc"/><path d="M5 18l6 2 5-7 5 7 6-2M7 23h18" fill="none" stroke="#f1f2ec" stroke-width="2"/><path d="M16 9l5 7-5 7-5-7z" fill="#8cbad7"/><path d="M16 11l-2 5 2 5 2-5z" fill="#dbeff3"/>';
+    else if (id === 'silver_circlet') shape = '<path d="M4 18l3 8h18l3-8-6 2-6-7-6 7z" fill="#d7bd7b"/><path d="M10 21c-7-4-5-10-1-8-4 3 3 4 4 5m6 0c1-1 8-2 4-5 4-2 6 4-1 8" fill="none" stroke="#e6d4a2" stroke-width="2"/><path d="M16 3l5 13-5 7-5-7z" fill="#ddc589"/><path d="M16 9l3 7-3 4-3-4z" fill="#77aaa0"/><path d="M7 25h18" fill="none" stroke="#fff0c8" stroke-width="1.5"/>';
     else if (id.includes('sword') || id === 'moon_blade' || ['attack','equipment','bash'].includes(id)) shape = blade(D.items[id]?.color || '#dbe5ef');
     else if (id.includes('armor')) shape = armor(D.items[id].color);
-    else if (id === 'apple') shape = '<path d="M16 9c-7-7-14 2-11 11 2 7 7 11 11 7 5 4 10-1 12-8 2-8-5-15-12-10z" fill="#ce6471"/><path d="M16 10l1-6" stroke="#735439" stroke-width="2"/><path d="M18 5c0-4 7-4 8-2-1 4-5 5-8 2z" fill="#7ca769"/><path d="M9 12c-3 3-2 7-1 9" stroke="#f5b2a2" stroke-width="2"/>';
+    else if (id === 'apple') shape = '<path d="M18 7c10 0 14 12 5 20-5 4-13 4-17 1 6-4-1-10 3-16 2-3 5-5 9-5z" fill="#dfb556"/><path d="M9 24c5 2 10-3 11-9" fill="none" stroke="#f9d784" stroke-width="2"/><path d="M17 8l1-5" stroke="#806340" stroke-width="1.5"/><path d="M19 4c0-3 8-4 10-1-3 4-6 4-10 1z" fill="#769260"/>';
     else if (id === 'bronze_ring') shape = '<ellipse cx="16" cy="17" rx="10" ry="11" fill="#bb844c"/><ellipse cx="16" cy="17" rx="6" ry="7" fill="#39485e"/><path d="M8 13c2-6 11-8 15-2" fill="none" stroke="#f1d598" stroke-width="3"/><path d="M19 24l4-4" stroke="#e1b779" stroke-width="2"/>';
     else if (['moon_charm','guardian_core','jellopy','provoke'].includes(id)) { const color = D.items[id]?.color || '#c4a0de'; shape = `<path d="M16 3l10 11-4 13-12 1-6-14z" fill="${color}"/><path d="M16 3l-4 12 10 12-1-15z" fill="#fff" opacity=".35"/><path d="M4 14l8 1 9-3 5 2M12 15l-2 13" fill="none" stroke="#617080"/>`; }
     else if (['fluff','log'].includes(id)) shape = '<path d="M5 27C8 12 18 2 28 3c3 9-9 19-18 18z" fill="#e8e4d9"/><path d="M5 27L25 6M13 19v-7m4 3h7M19 12V7" fill="none" stroke="#9ba4b4"/><path d="M6 29l3-6" stroke="#d2bb8f" stroke-width="2"/>';
@@ -240,7 +243,7 @@
       st = C.stats(s);
     let html = "";
     if (panel === "status") {
-      html = `<p class="panel-note">${s.job} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${equipmentSlots.map(([slot, name, placeholder]) => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" data-slot="${slot}" title="${name}: ${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ยังไม่ได้สวมใส่"}" aria-label="เปิดอุปกรณ์ ${name}">${artIcon(s.equipment[slot] || placeholder)}</button>`).join("")}</div><canvas id="status-portrait" width="96" height="124" aria-label="ตัวละครพร้อมอาวุธและเครื่องประดับศีรษะ"></canvas><div class="job-label">${s.job}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div>`;
+      html = `<p class="panel-note">${esc(jobName(s.job))} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${equipmentSlots.map(([slot, name, placeholder]) => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" data-slot="${slot}" title="${name}: ${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ยังไม่ได้สวมใส่"}" aria-label="เปิดอุปกรณ์ ${name}">${artIcon(s.equipment[slot] || placeholder)}</button>`).join("")}</div><canvas id="status-portrait" width="96" height="124" aria-label="ตัวละครพร้อมอาวุธและเครื่องประดับศีรษะ"></canvas><div class="job-label">${esc(jobName(s.job))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div>`;
       for (const [id, name] of Object.entries(D.statNames))
         html += `<div class="stat-row"><span>${name}</span><b>${s.stats[id]}</b>${button("stat", "＋", id, s.statPoints > 0 && s.stats[id] < 99 ? "" : "disabled")}</div>`;
       html += `</div></div><div class="stat-summary">${[
@@ -261,20 +264,20 @@
       html = `<div class="inventory-tabs">${[["all","ทั้งหมด"],["use","ยา"],["equip","อุปกรณ์"],["loot","ของดรอป"]].map(([category,name]) => `<button data-item-category="${category}" aria-pressed="${inventoryCategory === category}">${name}</button>`).join("")}<span class="inventory-count">${allItems.length} ชนิด</span></div><div class="inventory-grid">`;
       for (const [id, count] of items) html += `<button class="inventory-tile" data-choose-item="${id}" aria-pressed="${id === selectedInventoryItem}" aria-label="${D.items[id].name} ×${count}" title="${D.items[id].name}">${icon(id)}<span class="quantity">${count}</span></button>`;
       for (let i = items.length; i < Math.max(24, Math.ceil(items.length / 8) * 8); i++) html += '<div class="inventory-empty-slot" aria-hidden="true"></div>';
-      html += `</div><div class="inventory-footer"><span>Wt. ${st.weight} / ${st.capacity}</span><span>◈ ${s.silver.toLocaleString()} Silver</span></div>`;
+      html += `</div><div class="inventory-footer"><span>Wt. ${st.weight} / ${st.capacity}</span><span>◈ ${s.silver.toLocaleString()} ${esc(world.currency)}</span></div>`;
       if (selectedInventoryItem) {
         const id = selectedInventoryItem, i = D.items[id];
         let actions = i.type === "use" ? button("use", "ใช้", id) : equipmentTypes.includes(i.type) ? button("equip", "สวมใส่", id) : "";
         actions += button("sell", "ขาย " + Math.max(1, Math.floor(i.price / 2)) + " ◈", id);
         html += `<div class="inventory-detail">${itemRow(id, s.inventory[id], "")}<div class="item-actions">${actions}</div></div>`;
       } else html += '<p class="empty">ไม่มีไอเทมในหมวดนี้</p>';
-      html += '<p class="panel-note" style="margin-top:7px">เลือกไอเทมเพื่อใช้หรือสวมใส่ · ขายได้ใกล้ Merchant<br>น้ำหนัก 50% หยุดฟื้น HP/SP · 90% ห้ามโจมตี</p>';
+      html += `<p class="panel-note" style="margin-top:7px">เลือกไอเทมเพื่อใช้หรือสวมใส่ · ขายได้ใกล้${esc(npc("merchant").name)}<br>น้ำหนัก 50% หยุดฟื้น HP/SP · 90% ห้ามโจมตี</p>`;
       html +=
         '<button data-open="hotbar" class="outline-button">ใส่ไอเทมหรือสกิลใน Hotbar →</button>';
     }
     if (panel === "equipment") {
       html =
-        `<p class="panel-note">เปลี่ยนอาวุธหรือเครื่องประดับศีรษะ ภาพตัวละครจะเปลี่ยนตามทันที</p><div class="equipment-layout"><div class="equipment-preview"><canvas id="equipment-portrait" width="104" height="140" aria-label="ตัวละครพร้อมอุปกรณ์ที่สวมใส่"></canvas><div class="job-label">${s.job}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div class="equipment-list">`;
+        `<p class="panel-note">เปลี่ยนอาวุธหรือเครื่องประดับศีรษะ ภาพตัวละครจะเปลี่ยนตามทันที</p><div class="equipment-layout"><div class="equipment-preview"><canvas id="equipment-portrait" width="104" height="140" aria-label="ตัวละครพร้อมอุปกรณ์ที่สวมใส่"></canvas><div class="job-label">${esc(jobName(s.job))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div class="equipment-list">`;
       for (const [slot, name] of equipmentSlots) {
         html += `<div class="shop-title">${name}</div>`;
         html += s.equipment[slot]
@@ -288,7 +291,7 @@
       html += '</div></div><button data-open="inventory" class="outline-button">เลือกอุปกรณ์จากกระเป๋า →</button><p class="panel-note equipment-note">อุปกรณ์มีผลกับ ATK / DEF และนับรวมในน้ำหนักกระเป๋า</p>';
     }
     if (panel === "skills") {
-      html = `<p class="panel-note">${s.job} · Job Lv.${s.jobLevel} · แต้มสกิล <b>${s.skillPoints}</b><br>Novice Job Lv.10 → คุย Guild Guide เพื่อเปลี่ยนเป็น Swordman</p>`;
+      html = `<p class="panel-note">${esc(jobName(s.job))} · Job Lv.${s.jobLevel} · แต้มสกิล <b>${s.skillPoints}</b><br>${esc(jobName("Novice"))} Job Lv.10 → คุย${esc(npc("guide").name)}เพื่อเป็น${esc(jobName("Swordman"))}</p>`;
       for (const [id, d] of Object.entries(D.skills))
         html += `<div class="skill-card"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${d.name} <span class="subtle">Lv.${s.skills[id]} / ${d.max}</span></b><small>${d.thai} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${d.description}</small></div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, s.job === "Swordman" && s.skillPoints > 0 && s.skills[id] < d.max ? "" : "disabled")}</div>`;
       html +=
@@ -296,16 +299,16 @@
     }
     if (panel === "quest" || panel === "npc") {
       if (panel === "npc")
-        html = `<p class="panel-note">ยินดีต้อนรับ นักผจญภัย! เริ่มจากฝึกต่อสู้ในทุ่งนี้ แล้วออกเดินทางไปยังป่าและถ้ำทางตะวันออก</p><div class="settings-actions">${button("job", s.job === "Swordman" ? "คุณเป็น Swordman แล้ว" : "เปลี่ยนอาชีพ → Swordman", "", s.job === "Novice" && s.jobLevel >= 10 ? 'class="primary"' : "disabled")}</div>`;
+        html = `<p class="panel-note">${esc(npc("guide").dialogue)}</p><div class="settings-actions">${button("job", s.job === "Swordman" ? `คุณเป็น${esc(jobName("Swordman"))}แล้ว` : `เปลี่ยนอาชีพ → ${esc(jobName("Swordman"))}`, "", s.job === "Novice" && s.jobLevel >= 10 ? 'class="primary"' : "disabled")}</div>`;
       D.quests.forEach((q, i) => {
-        html += `<article class="quest-detail ${i < s.quest ? "done" : ""}"><div class="eyebrow">${i < s.quest ? "COMPLETED" : i === s.quest ? "CURRENT CHAPTER" : "NEXT CHAPTER"} · 0${i + 1}</div><h3>${q.title}</h3><p>${q.text} (${Math.min(s.kills[q.kind] || 0, q.count)} / ${q.count})</p><p>รางวัล ${q.silver} Silver · ${q.exp} EXP</p>${i === s.quest ? button("quest", s.questActive ? "รับรางวัลจาก Guild Guide" : "รับภารกิจจาก Guild Guide") : i < s.quest ? "✓ สำเร็จแล้ว" : ""}</article>`;
+        html += `<article class="quest-detail ${i < s.quest ? "done" : ""}"><div class="eyebrow">${i < s.quest ? "สำเร็จแล้ว" : i === s.quest ? "ภารกิจปัจจุบัน" : "บทต่อไป"} · 0${i + 1}</div><h3>${q.title}</h3><p>${q.text} (${Math.min(s.kills[q.kind] || 0, q.count)} / ${q.count})</p><p>รางวัล ${q.silver} ${esc(world.currency)} · ${q.exp} EXP</p>${i === s.quest ? button("quest", s.questActive ? `รับรางวัลจาก${esc(npc("guide").name)}` : `รับภารกิจจาก${esc(npc("guide").name)}`) : i < s.quest ? "✓ สำเร็จแล้ว" : ""}</article>`;
       });
       if (s.quest >= D.quests.length)
         html +=
           '<p class="panel-note">✦ บทแรกของคุณจบลงแล้ว แต่โลกนี้ยังรอให้คุณออกสำรวจเสมอ</p>';
     }
     if (panel === "shop") {
-      html = `<p class="panel-note">เงิน ${s.silver} Silver · ซื้อขายกับ Merchant ใน Starter Meadow<br>หากอยู่ไกลให้คลิกกลับแผนที่ แล้วเดินมาที่ร้านก่อน</p>`;
+      html = `<p class="panel-note">${esc(npc("merchant").dialogue)}<br>เงิน ${s.silver} ${esc(world.currency)} · ซื้อขายกับ${esc(npc("merchant").name)}ที่${esc(D.maps[0].name)}<br>หากอยู่ไกลให้คลิกกลับแผนที่ แล้วเดินมาที่ร้านก่อน</p>`;
       for (const [id, d] of Object.entries(D.items))
         if (d.type === "use" || equipmentTypes.includes(d.type))
           html += itemRow(id, null, button("buy", d.price + " ◈", id));
@@ -321,16 +324,16 @@
       );
     }
     if (panel === "auto") {
-      html = `<p class="panel-note">Auto จะหาเป้าหมาย เดินเข้าระยะ และใช้กฎต่อสู้เดียวกับการเล่นเอง ทำงานเฉพาะขณะหน้าเกมเปิดและไม่มีหน้าต่างเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้ Bash เมื่อเรียนแล้ว</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
+      html = `<p class="panel-note">Auto จะหาเป้าหมาย เดินเข้าระยะ และใช้กฎต่อสู้เดียวกับการเล่นเอง ทำงานเฉพาะขณะหน้าเกมเปิดและไม่มีหน้าต่างเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้${esc(D.skills.bash.name)}เมื่อเรียนแล้ว</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
     }
     if (panel === "settings") {
-      html = `<p class="panel-note">ความคืบหน้าเก็บในเบราว์เซอร์และที่อยู่ที่เล่นนี้ ใช้ Export เพื่อย้ายเครื่องหรือสำรองเซฟ</p><div class="settings-row"><label for="hair-select">สีผมของนักผจญภัย</label><select id="hair-select">${["น้ำตาล", "ทองเข้ม", "ดำ", "แดงอิฐ", "ทองอ่อน", "เทาอมฟ้า"].map((n, i) => `<option value="${i}" ${s.settings.hair === i ? "selected" : ""}>${n}</option>`).join("")}</select></div><div class="settings-actions">${button("save", "บันทึกเกม")}${button("export", "Export Save")}${button("import", "Import Save")}</div><p class="panel-note">รองรับเซฟ Borderlands Rebuilt รุ่น 1 • เซฟจากเกมรุ่นเก่าใช้ร่วมกันไม่ได้</p><hr class="section-rule"><p class="panel-note">เริ่มต้นการผจญภัยใหม่จะล้างความคืบหน้าปัจจุบัน ควร Export ไว้ก่อน</p>${button("reset", "เริ่มเกมใหม่", "", 'class="danger"')}`;
+      html = `<p class="panel-note">ความคืบหน้าเก็บในเบราว์เซอร์และที่อยู่ที่เล่นนี้ ใช้ Export เพื่อย้ายเครื่องหรือสำรองเซฟ</p><div class="settings-row"><label for="hair-select">สีผมของนักผจญภัย</label><select id="hair-select">${["น้ำตาล", "ทองเข้ม", "ดำ", "แดงอิฐ", "ทองอ่อน", "เทาอมฟ้า"].map((n, i) => `<option value="${i}" ${s.settings.hair === i ? "selected" : ""}>${n}</option>`).join("")}</select></div><div class="settings-actions">${button("save", "บันทึกเกม")}${button("export", "Export Save")}${button("import", "Import Save")}</div><p class="panel-note">ใช้เซฟเดิมต่อในโลก${esc(world.title)}ได้ • อาวุธ หมวก อาชีพ และภารกิจเดิมยังอยู่ครบ</p><hr class="section-rule"><p class="panel-note">เริ่มต้นการผจญภัยใหม่จะล้างความคืบหน้าปัจจุบัน ควร Export ไว้ก่อน</p>${button("reset", "เริ่มเกมใหม่", "", 'class="danger"')}`;
     }
     if (panel === "codex") {
       html =
-        '<p class="panel-note">สิ่งมีชีวิตทั้งเจ็ดแห่ง Borderlands · ตัวเลขเป็นสมดุล SOLO ของเกมนี้</p>';
+        `<p class="panel-note">${esc(world.intro)}</p><p class="panel-note">สิ่งมีชีวิตแห่งลุ่มน้ำและป่าหิมพานต์ · สมดุลสำหรับการผจญภัยคนเดียว</p>`;
       for (const [id, m] of Object.entries(D.monsters))
-        html += `<div class="item-row"><span class="item-icon" style="color:${m.color}">${m.boss ? "◆" : "●"}</span><div class="item-info"><b>${m.name} · Lv.${m.level}</b><small>HP ${m.hp} · ATK ${m.atk} · DEF ${m.def}<br>EXP ${m.exp} / Job EXP ${m.jexp} · ของดรอป ${D.items[m.drop].name}</small></div></div>`;
+        html += `<div class="item-row"><span class="item-icon" style="color:${m.color}">${m.boss ? "◆" : "●"}</span><div class="item-info"><b>${m.name} · Lv.${m.level}</b><small>HP ${m.hp} · ATK ${m.atk} · DEF ${m.def}<br>EXP ${m.exp} / Job EXP ${m.jexp} · ของดรอป ${D.items[m.drop].name}<br>${esc(m.description)}</small></div></div>`;
       html +=
         '<button data-open="map" class="outline-button">ดูเส้นทางทั้งสามแผนที่ →</button>';
     }
@@ -340,7 +343,7 @@
         D.maps
           .map(
             (m, i) =>
-              `<article class="quest-detail"><div class="eyebrow">CHAPTER 0${i + 1}${s.zone === i ? " · คุณอยู่ที่นี่" : ""}</div><h3>${m.name} · ${m.thai}</h3><p>${[...new Set(m.mobs)].map((id) => D.monsters[id].name).join(" · ")}</p></article>`,
+              `<article class="quest-detail"><div class="eyebrow">เส้นทาง 0${i + 1}${s.zone === i ? " · คุณอยู่ที่นี่" : ""}</div><h3>${esc(m.name)}</h3><p>${[...new Set(m.mobs)].map((id) => D.monsters[id].name).join(" · ")}</p></article>`,
           )
           .join("");
     if (panel === "log")
@@ -348,7 +351,7 @@
         ? s.log.map((t) => `<div class="log-line">${esc(t)}</div>`).join("")
         : '<p class="empty">ทุกการผจญภัยมีเรื่องราว • ออกไปเริ่มเรื่องของคุณ</p>';
     if (panel === "help")
-      html = `<div class="help-list"><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ ภาพตัวละครในฉากและหน้าต่างอุปกรณ์จะเปลี่ยนตาม ถอดได้ในเมนูอุปกรณ์</p><p>คุย Guild Guide เพื่อรับและส่งเควสต์ เมื่อ Job Lv.10 คุยอีกครั้งเพื่อเปลี่ยนเป็น Swordman และเรียนสกิล</p><p>ประตูอยู่ริมแผนที่ซ้ายและขวา Healer ที่หมู่บ้านฟื้น HP/SP ฟรี เมื่อล้มจะกลับหมู่บ้านพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
+      html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ ภาพตัวละครในฉากและหน้าต่างอุปกรณ์จะเปลี่ยนตาม ถอดได้ในเมนูอุปกรณ์</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ เมื่อ Job Lv.10 กลับมาฝากตัวเป็น${esc(jobName("Swordman"))}และเรียนวิชาดาบ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
     $("side-panel").innerHTML = html;
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
     if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
@@ -402,7 +405,7 @@
     const s = state,
       st = C.stats(s),
       map = D.maps[s.zone];
-    $("hero-name").textContent = s.job;
+    $("hero-name").textContent = jobName(s.job);
     $("job-level").textContent = `Job Lv.${s.jobLevel}`;
     $("silver").textContent = s.silver.toLocaleString();
     $("level").textContent = `Base Lv.${s.baseLevel}`;
@@ -430,7 +433,7 @@
     $("coordinates").textContent =
       `X:${Math.round(s.player.x)} Y:${Math.round(s.player.y)}`;
     $("mob-count").textContent =
-      s.monsters.filter((m) => !m.dead).length + " MONSTERS";
+      s.monsters.filter((m) => !m.dead).length + " มอนสเตอร์";
     $("clock").textContent =
       `${String(Math.floor(s.clock / 60)).padStart(2, "0")}:${String(Math.floor(s.clock % 60)).padStart(2, "0")}`;
     $("combat-mode").textContent = s.auto ? "ON" : "OFF";
@@ -438,15 +441,15 @@
       .querySelector('[data-action="auto"]')
       .setAttribute("aria-pressed", String(s.auto));
     const q = D.quests[s.quest];
-    $("quest-title").textContent = q ? q.title : "นักผจญภัยแห่ง Borderlands";
+    $("quest-title").textContent = q ? q.title : `ผู้กล้าแห่ง${world.title}`;
     $("quest-description").textContent = q
       ? s.questActive
         ? q.text
-        : "คุย Guild Guide เพื่อรับภารกิจ"
+        : `คุย${npc("guide").name}เพื่อรับภารกิจ`
       : "คุณทำภารกิจทั้งหมดสำเร็จแล้ว";
     $("quest-count").textContent = q
-      ? `${Math.min(s.kills[q.kind] || 0, q.count)} / ${q.count} · ${q.silver} Silver`
-      : "✦ การเดินทางยังดำเนินต่อ";
+      ? `${Math.min(s.kills[q.kind] || 0, q.count)} / ${q.count} · ${q.silver} ${world.currency}`
+      : "❧ การเดินทางยังดำเนินต่อ";
     $("quest-progress-bar").style.width = q
       ? Math.min(100, ((s.kills[q.kind] || 0) / q.count) * 100) + "%"
       : "100%";
@@ -814,12 +817,18 @@
     button.setAttribute("aria-label", titleNames[name]);
     button.innerHTML = artIcon(name) + `<span class="menu-label">${titleNames[name]}</span>`;
   });
+  document.title = `${world.title} · ${world.subtitle}`;
+  $("world-title").textContent = world.title;
+  $("world-tagline").textContent = world.subtitle;
+  $("currency-name").textContent = world.currency;
+  $("release-label").textContent = `รุ่น ${world.release}`;
+  document.querySelector(".brand").setAttribute("aria-label", `${world.title} หน้าแรก`);
   updateHUD();
   requestAnimationFrame(frame);
   if (storageError) setTimeout(() => toast(storageError), 100);
   else
     setTimeout(
-      () => toast("ยินดีต้อนรับ • คุย Guild Guide เพื่อรับภารกิจแรก"),
+      () => toast(`ยินดีต้อนรับสู่${world.title} • คุย${npc("guide").name}เพื่อรับภารกิจแรก`),
       500,
     );
 })();

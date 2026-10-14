@@ -3,19 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#414e5a" />
-    <title>Borderlands · นักผจญภัยแห่งพรมแดน</title>
+    <meta name="theme-color" content="#294e50" />
+    <meta name="description" content="สยามอรุณ — ออกเดินทางจากตลาดท่าน้ำ สู่ป่าหิมพานต์และถ้ำแก้วนาคา เกมผจญภัยแฟนตาซีเล่นคนเดียวบนเว็บ" />
+    <title>สยามอรุณ · ตำนานผู้กล้าแห่งลุ่มน้ำ</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%2323342d'/%3E%3Ctext x='7' y='30' font-size='30' fill='%23dcc48c'%3E✦%3C/text%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%23294e50'/%3E%3Cg stroke='%23e2bf78' stroke-width='1.5' stroke-linejoin='round' fill='%23f3e4c5'%3E%3Cpath d='M20 8c-7 7-8 14 0 20 8-6 7-13 0-20Z'/%3E%3Cpath d='M20 29C9 29 6 22 6 16c8 0 13 5 14 13Zm0 0c11 0 14-7 14-13-8 0-13 5-14 13Z'/%3E%3Cpath d='M10 32h20' fill='none'/%3E%3C/g%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="css/style.css?v=1.3" />
+    <link rel="stylesheet" href="css/style.css?v=1.4" />
   </head>
   <body class="game-fullscreen">
     <header class="topbar">
-      <a class="brand" href="index.html" aria-label="Borderlands หน้าแรก"
-        ><span class="brand-mark">✦</span
-        ><span><b>BORDERLANDS</b><small>THE SOLO CHRONICLES</small></span></a
+      <a class="brand" href="index.html" aria-label="สยามอรุณ หน้าแรก"
+        ><span class="brand-mark">❧</span
+        ><span><b id="world-title">สยามอรุณ</b><small id="world-tagline">ตำนานผู้กล้าแห่งลุ่มน้ำ</small></span></a
       >
       <div class="header-note">WASD เดิน · E คุย NPC · V ซ่อน/แสดง UI</div>
       <div class="header-actions">
@@ -58,7 +59,7 @@
               aria-label="ตัวละคร"
             ></canvas>
             <div>
-              <h1 id="hero-name">Novice</h1>
+              <h1 id="hero-name">ผู้เดินทาง</h1>
               <div class="subtle" id="job-level">Job Lv.1</div>
             </div>
           </div>
@@ -73,7 +74,7 @@
           </div>
           <div class="meter thin"><i id="jexp-bar" class="job"></i></div>
           <div class="weight">
-            <span class="money">◈ <b id="silver">45</b></span><span>Wt. <span id="weight-val"></span></span>
+            <span class="money">◈ <b id="silver">45</b> <span id="currency-name">อัฐ</span></span><span>Wt. <span id="weight-val"></span></span>
           </div>
         </section>
         <section class="card menu-card">
@@ -90,7 +91,7 @@
           </nav>
         </section>
         <section class="card guide-card">
-          <div class="eyebrow">A LITTLE GUIDANCE</div>
+          <div class="eyebrow">คำฝากจากท่าน้ำ</div>
           <p>ทุกการเดินทาง<br />เริ่มจากก้าวแรก</p>
           <div class="key-hint"><kbd>W A S D</kbd> เดินสำรวจ</div>
           <div class="key-hint"><kbd>SPACE</kbd> โจมตี</div>
@@ -104,19 +105,19 @@
       <section class="world-column">
         <div class="world-heading">
           <div>
-            <div class="eyebrow">FIELD <span id="zone-number">01</span></div>
-            <h2 id="zone-label">Starter Meadow</h2>
-            <p id="zone-subtitle">ลมอุ่น • หมู่บ้านนักเดินทาง</p>
+            <div class="eyebrow">เส้นทาง <span id="zone-number">01</span></div>
+            <h2 id="zone-label">ท่าน้ำอรุณ</h2>
+            <p id="zone-subtitle">ลมแม่น้ำ • บ้านของเหล่านักเดินทาง</p>
           </div>
           <div class="world-status">
-            <span class="live-dot"></span> SINGLE PLAYER<br /><span id="clock"
+            <span class="live-dot"></span> ผจญภัยคนเดียว<br /><span id="clock"
               >00:00</span
             >
           </div>
         </div>
         <div class="world-frame">
           <div class="world-corner">
-            ✦ <span id="world-caption">ทุ่งเริ่มต้น</span>
+            ❧ <span id="world-caption">ท่าน้ำอรุณ</span>
           </div>
           <canvas
             id="game"
@@ -137,7 +138,7 @@
           </div>
         </div>
         <div class="action-heading">
-          <span class="eyebrow">YOUR NEXT MOVE</span
+          <span class="eyebrow">ก้าวต่อไปของเจ้า</span
           ><button class="text-button" data-panel="hotbar">
             จัด Hotbar ⚙
           </button>
@@ -155,7 +156,7 @@
       </section>
       <aside class="side-right">
         <section class="card map-card">
-          <div class="eyebrow">WORLD AT A GLANCE <span>⌖</span></div>
+          <div class="eyebrow">แผนที่เส้นทาง <span>⌖</span></div>
           <canvas
             id="minimap"
             width="192"
@@ -164,7 +165,7 @@
           ></canvas>
           <div class="map-caption">
             <span class="live-dot"></span
-            ><span id="map-location">Starter Meadow</span>
+            ><span id="map-location">ท่าน้ำอรุณ</span>
           </div>
         </section>
         <button class="auto-button" data-action="auto" aria-pressed="false">
@@ -174,10 +175,10 @@
           ตั้งค่าการต่อสู้อัตโนมัติ ↗
         </button>
         <section class="card quest-card">
-          <div class="eyebrow">ON YOUR JOURNEY <span>◇</span></div>
-          <span class="quest-tag">MAIN QUEST</span>
-          <h3 id="quest-title">ก้าวแรกของนักผจญภัย</h3>
-          <p id="quest-description">คุยกับ Guild Guide เพื่อรับภารกิจแรก</p>
+          <div class="eyebrow">เรื่องเล่าระหว่างทาง <span>◇</span></div>
+          <span class="quest-tag">ภารกิจหลัก</span>
+          <h3 id="quest-title">คำฝากจากท่าน้ำ</h3>
+          <p id="quest-description">คุยกับครูอินเพื่อรับภารกิจแรก</p>
           <div class="quest-progress"><i id="quest-progress-bar"></i></div>
           <div id="quest-count" class="subtle"></div>
           <button data-panel="quest" class="outline-button">
@@ -187,14 +188,14 @@
         <section class="field-note">
           <span>❧</span>
           <h3>พักก่อนก็ได้</h3>
-          <p>Healer ที่หมู่บ้านช่วยฟื้น HP และ SP ให้เต็มได้เสมอ</p>
+          <p>หมอมะลิที่ศาลาสมุนไพรช่วยฟื้น HP และ SP ให้เต็มได้เสมอ</p>
         </section>
       </aside>
     </main>
     <footer class="site-footer">
-      <span>✦ BORDERLANDS · SOLO CHRONICLES</span
-      ><span>โลกออฟไลน์ · ความคืบหน้าของคุณ · การเดินทางของคุณ</span
-      ><span>REBUILT 1.3</span>
+      <span>❧ สยามอรุณ · ตำนานผู้กล้าแห่งลุ่มน้ำ</span
+      ><span>จากตลาดท่าน้ำ สู่เรื่องเล่าแห่งหิมพานต์</span
+      ><span id="release-label">รุ่น 1.4</span>
     </footer>
     <div id="panel-backdrop" hidden></div>
     <section
@@ -206,7 +207,7 @@
     >
       <header class="panel-header">
         <div>
-          <div class="eyebrow">ADVENTURER'S JOURNAL</div>
+          <div class="eyebrow">สมุดบันทึกผู้เดินทาง</div>
           <h2 id="panel-title"></h2>
         </div>
         <button data-action="close" aria-label="ปิดหน้าต่าง">✕</button>
@@ -219,10 +220,10 @@
       accept=".json,application/json"
       hidden
     />
-    <script src="js/classic-data.js?v=1.3"></script>
-    <script src="js/core.js?v=1.3"></script>
-    <script src="js/character.js?v=1.3"></script>
-    <script src="js/render.js?v=1.3"></script>
-    <script src="js/game.js?v=1.3"></script>
+    <script src="js/classic-data.js?v=1.4"></script>
+    <script src="js/core.js?v=1.4"></script>
+    <script src="js/character.js?v=1.4"></script>
+    <script src="js/render.js?v=1.4"></script>
+    <script src="js/game.js?v=1.4"></script>
   </body>
 </html>

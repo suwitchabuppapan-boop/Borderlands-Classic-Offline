@@ -5,6 +5,8 @@
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const jobName = (id) => D.jobs[id].name;
+  const npcName = (id) => D.npcs.find((n) => n.id === id).name;
   function createState() {
     const s = {
       version: 1,
@@ -138,7 +140,7 @@
       s.player.hp = st.maxHp;
       s.player.sp = st.maxSp;
       effect(s, s.player.x, s.player.y - 30, "LEVEL UP", "#f3d187");
-      note(s, `Base Lv.${s.baseLevel} • ได้รับแต้มสเตตัส`);
+      note(s, `ระดับตัวละคร ${s.baseLevel} • ได้รับแต้มสเตตัส`);
     }
   }
   const baseNeed = (s) => 25 + s.baseLevel * 18;
@@ -161,7 +163,7 @@
     s.silver += d.silver;
     s.inventory[d.drop] = (s.inventory[d.drop] || 0) + 1;
     gain(s, d.exp, d.jexp);
-    note(s, `${d.name} • +${d.exp} EXP · +${d.silver} Silver`);
+    note(s, `${d.name} • +${d.exp} EXP · +${d.silver} ${D.world.currency}`);
     effect(s, m.x, m.y, `+${d.exp} EXP`, "#e5d79c");
     if (s.target === m.uid) {
       s.target = null;
@@ -220,15 +222,16 @@
       s.auto = !s.auto;
       s.target = null;
       s.destination = null;
-      return ok(s.auto ? "เปิด Auto Battle" : "หยุด Auto Battle");
+      return ok(s.auto ? "เปิดต่อสู้อัตโนมัติ" : "หยุดต่อสู้อัตโนมัติ");
     }
     if (action === "attack" || action === "skill") {
       if (st.weight >= st.capacity * 0.9)
-        return fail("น้ำหนักเกิน 90% • ขายหรือเก็บของออกก่อน");
+        return fail("น้ำหนักเกิน 90% • ขายของที่ตลาดท่าน้ำก่อน");
       const id = action === "attack" ? "attack" : p.id;
       if (id !== "attack" && (!own(D.skills, id) || !s.skills[id]))
         return fail("ยังไม่ได้เรียนสกิลนี้");
-      if ((s.cooldowns[id] || 0) > 0) return fail("กำลังรอ cooldown");
+      if ((s.cooldowns[id] || 0) > 0)
+        return fail("กำลังรอสกิลหรือการโจมตีพร้อมใช้งาน");
       const skill = D.skills[id];
       if (skill && s.player.sp < skill.sp) return fail("SP ไม่เพียงพอ");
       const m = s.monsters.find(
@@ -241,7 +244,7 @@
       )
         return fail("เลือกศัตรูและเดินเข้าใกล้ก่อน");
       if (id === "provoke" && D.monsters[m.kind].boss)
-        return fail("บอสไม่ถูกยั่วยุ");
+        return fail("คำรามพิทักษ์ใช้กับบอสไม่ได้");
       if (
         id === "magnum" &&
         !s.monsters.some((m) => !m.dead && dist(s.player, m) < 100)
@@ -256,10 +259,10 @@
         s.monsters
           .filter((m) => !m.dead && dist(s.player, m) < 100)
           .forEach((m) => damage(s, m, 1.6 + s.skills.magnum * 0.25, true));
-        effect(s, s.player.x, s.player.y, "✹ MAGNUM", "#f4b489");
+        effect(s, s.player.x, s.player.y, `✹ ${D.skills.magnum.name}`, "#f4b489");
       } else if (id === "provoke") {
         m.provoke = 15;
-        effect(s, m.x, m.y - 30, "PROVOKE", "#d7b5ed");
+        effect(s, m.x, m.y - 30, D.skills.provoke.name, "#d7b5ed");
       } else {
         const dx = m.x - s.player.x,
           dy = m.y - s.player.y;
@@ -294,7 +297,7 @@
     }
     if (action === "buy" || action === "sell") {
       if (!nearby(s, "merchant"))
-        return fail("เดินเข้าใกล้ Merchant ในทุ่งเริ่มต้น");
+        return fail(`เดินเข้าใกล้${npcName("merchant")}ที่${D.maps[0].name}`);
       const qty = p.qty === undefined ? 1 : p.qty;
       if (!Number.isInteger(qty) || qty < 1 || qty > 999)
         return fail("จำนวนไม่ถูกต้อง");
@@ -302,7 +305,7 @@
       const i = D.items[p.id];
       if (action === "buy") {
         if (i.type === "loot") return fail("ร้านไม่ขายไอเทมนี้");
-        if (s.silver < i.price * qty) return fail("Silver ไม่เพียงพอ");
+        if (s.silver < i.price * qty) return fail(`${D.world.currency}ไม่เพียงพอ`);
         if (st.weight + i.weight * qty > st.capacity)
           return fail("น้ำหนักเกินความจุ");
         s.silver -= i.price * qty;
@@ -353,41 +356,44 @@
         s.skillPoints < 1 ||
         s.skills[p.id] >= D.skills[p.id].max
       )
-        return fail("ต้องเป็น Swordman และมีแต้มสกิล");
+        return fail(`ต้องเป็น${jobName("Swordman")}และมีแต้มสกิล`);
       if (p.id === "magnum" && s.skills.bash < 5)
-        return fail("ต้องเรียน Bash Lv.5 ก่อน");
+        return fail(`ต้องเรียน${D.skills.bash.name}ระดับ 5 ก่อน`);
       s.skills[p.id]++;
       s.skillPoints--;
       return ok(`เรียน ${D.skills[p.id].name}`);
     }
     if (action === "job") {
       if (s.job !== "Novice" || s.jobLevel < 10 || !nearby(s, "guide"))
-        return fail("Novice Job Lv.10 • คุย Guild Guide เพื่อเปลี่ยนอาชีพ");
+        return fail(
+          `${jobName("Novice")}ระดับอาชีพ 10 • คุย${npcName("guide")}เพื่อเปลี่ยนอาชีพ`,
+        );
       s.job = "Swordman";
       s.jobLevel = 1;
       s.jexp = 0;
       s.skillPoints = 1;
       s.player.hp = stats(s).maxHp;
-      return ok("ยินดีด้วย! คุณเป็น Swordman แล้ว");
+      return ok(`ยินดีด้วย! คุณเป็น${jobName("Swordman")}แล้ว`);
     }
     if (action === "quest") {
       if (!nearby(s, "guide"))
-        return fail("คุย Guild Guide เพื่อรับเควสต์หรือรับรางวัล");
+        return fail(`คุย${npcName("guide")}เพื่อรับภารกิจหรือรับรางวัล`);
       const q = D.quests[s.quest];
-      if (!q) return fail("คุณทำเควสต์ครบแล้ว • นักผจญภัยแห่ง Borderlands");
+      if (!q) return fail(`คุณทำภารกิจครบแล้ว • ผู้กล้าแห่ง${D.world.title}`);
       if (!s.questActive) {
         s.questActive = true;
-        return ok(`รับเควสต์: ${q.title}`);
+        return ok(`รับภารกิจ: ${q.title}`);
       }
       if ((s.kills[q.kind] || 0) < q.count) return fail("ยังทำภารกิจไม่ครบ");
       s.silver += q.silver;
       gain(s, q.exp, q.exp);
       s.quest++;
       s.questActive = false;
-      return ok(`เควสต์สำเร็จ! +${q.silver} Silver`);
+      return ok(`ภารกิจสำเร็จ! +${q.silver} ${D.world.currency}`);
     }
     if (action === "heal") {
-      if (!nearby(s, "healer")) return fail("เดินเข้าใกล้ Healer");
+      if (!nearby(s, "healer"))
+        return fail(`เดินเข้าใกล้${npcName("healer")}ที่ศาลาสมุนไพร`);
       s.player.hp = st.maxHp;
       s.player.sp = st.maxSp;
       return ok("พักฟื้น HP / SP เต็มแล้ว");
@@ -416,7 +422,7 @@
       if (!validBinding(p.value, s, true))
         return fail("เลือกสกิลที่เรียนแล้วหรือไอเทมใช้แล้วหมด");
       s.hotbar[p.slot] = p.value;
-      return ok("จัด Hotbar แล้ว");
+      return ok("จัดแถบลัดแล้ว");
     }
     return fail("คำสั่งไม่ถูกต้อง");
   }
@@ -436,7 +442,7 @@
     const st = stats(s);
     s.player.hp = st.maxHp;
     s.player.sp = st.maxSp;
-    note(s, "พักฟื้นที่หมู่บ้าน • อุปกรณ์และความคืบหน้ายังอยู่");
+    note(s, `พักฟื้นที่${D.maps[0].name} • อุปกรณ์และความคืบหน้ายังอยู่`);
   }
   function tick(s, seconds) {
     const dt = clamp(Number.isFinite(seconds) ? seconds : 0, 0, 0.1);
