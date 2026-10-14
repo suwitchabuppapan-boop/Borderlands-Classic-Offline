@@ -29,6 +29,7 @@
     hotSignature = "",
     selectedInventoryItem = "potion",
     inventoryCategory = "all",
+    shopVisit = false,
     lastFocus = null,
     protectStorage = false,
     storageError = "";
@@ -103,6 +104,7 @@
   }
   function loadSave(text) {
     const next = C.deserialize(text);
+    shopVisit = false;
     state = next;
     keys.clear();
     protectStorage = false;
@@ -113,6 +115,7 @@
     toast("นำเข้าเซฟสำเร็จ");
   }
   function run(action, p = {}) {
+    if (["move", "target", "auto", "travel"].includes(action)) shopVisit = false;
     const result = C.act(state, action, p);
     if (result.message) toast(result.message);
     updateHUD();
@@ -147,6 +150,7 @@
     .join("");
   function openPanel(name) {
     if (!titleNames[name]) return;
+    shopVisit = false;
     lastFocus = document.activeElement;
     panel = name;
     keys.clear();
@@ -158,12 +162,24 @@
     $("panel-window").querySelector('[data-action="close"]').focus();
   }
   function closePanel() {
+    if (shopVisit) state.destination = null;
+    shopVisit = false;
     panel = null;
     $("panel-window").hidden = true;
     $("panel-backdrop").hidden = true;
     if (lastFocus && lastFocus.isConnected)
       lastFocus.focus({ preventScroll: true });
     else $("game").focus({ preventScroll: true });
+  }
+  const nearMerchant = () => state.zone === 0 && C.dist(state.player, npc("merchant")) < 85;
+  function walkToShop() {
+    if (state.zone !== 0) return;
+    closePanel();
+    resume();
+    const merchant = npc("merchant");
+    const result = run("move", { x: merchant.x + 48, y: merchant.y });
+    shopVisit = result.ok;
+    if (shopVisit) toast(`กำลังเดินไปหา${merchant.name} · ถึงแล้วจะเปิดร้านให้`);
   }
   // Original compact item illustrations; each icon shares the same 32px canvas.
   function artIcon(id) {
@@ -308,10 +324,28 @@
           '<p class="panel-note">✦ บทแรกของคุณจบลงแล้ว แต่โลกนี้ยังรอให้คุณออกสำรวจเสมอ</p>';
     }
     if (panel === "shop") {
-      html = `<p class="panel-note">${esc(npc("merchant").dialogue)}<br>เงิน ${s.silver} ${esc(world.currency)} · ซื้อขายกับ${esc(npc("merchant").name)}ที่${esc(D.maps[0].name)}<br>หากอยู่ไกลให้คลิกกลับแผนที่ แล้วเดินมาที่ร้านก่อน</p>`;
-      for (const [id, d] of Object.entries(D.items))
-        if (d.type === "use" || equipmentTypes.includes(d.type))
-          html += itemRow(id, null, button("buy", d.price + " ◈", id));
+      const near = nearMerchant();
+      const location = near
+        ? `อยู่ใกล้${npc("merchant").name}แล้ว · เลือกซื้อของได้`
+        : s.zone === 0
+          ? `ยังอยู่ไกล · ต้องเดินเข้าใกล้${npc("merchant").name}ก่อนซื้อขาย`
+          : `กลับ${D.maps[0].name}ผ่านประตูแผนที่ แล้วไปหา${npc("merchant").name}เพื่อซื้อขาย`;
+      html = `<p class="panel-note">${esc(npc("merchant").dialogue)}<br>เงิน ${s.silver} ${esc(world.currency)}<br>${esc(location)}</p>`;
+      if (!near && s.zone === 0)
+        html += `<div class="settings-actions">${button("walk-shop", `เดินไปหา${esc(npc("merchant").name)}`, "", 'class="primary"')}</div>`;
+      const groups = [["weapon", "อาวุธ"], ["use", "ยาและเสบียง"], ["head", "เครื่องศีรษะ"], ["armor", "เกราะ"], ["accessory", "เครื่องประดับ"]];
+      for (const [type, title] of groups) {
+        html += `<div class="shop-title">${title}</div>`;
+        for (const [id, d] of Object.entries(D.items)) {
+          if (d.type !== type) continue;
+          const reason = !near ? location : s.silver < d.price
+            ? `${world.currency}ไม่เพียงพอ`
+            : st.weight + d.weight > st.capacity ? "น้ำหนักเกินความจุ" : "";
+          const unavailable = reason ? `disabled title="${esc(reason)}"` : "";
+          const explanation = near && reason ? `<small class="shop-reason">${esc(reason)}</small>` : "";
+          html += itemRow(id, null, button("buy", `ซื้อ · ${d.price} ${esc(world.currency)}`, id, unavailable) + explanation);
+        }
+      }
       html +=
         '<button data-open="inventory" class="outline-button">เปิดกระเป๋าเพื่อขายของ →</button>';
     }
@@ -624,6 +658,10 @@
       $("import-file").click();
       return;
     }
+    if (a === "walk-shop") {
+      walkToShop();
+      return;
+    }
     if (a === "reset") {
       if (
         confirm(
@@ -631,6 +669,7 @@
         )
       ) {
         state = C.createState();
+        shopVisit = false;
         protectStorage = false;
         hotSignature = "";
         keys.clear();
@@ -715,6 +754,7 @@
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
     if (movement[key]) {
       event.preventDefault();
+      shopVisit = false;
       keys.add(key);
       return;
     }
@@ -738,6 +778,7 @@
     if (!keys.size && !state.target) state.destination = null;
   });
   function suspend() {
+    shopVisit = false;
     keys.clear();
     state.destination = null;
     state.target = null;
@@ -788,6 +829,10 @@
           run("travel", { direction: 1 });
         else if (state.player.x < 56 && state.zone > 0)
           run("travel", { direction: -1 });
+      }
+      if (shopVisit && (state.zone !== 0 || !state.destination)) {
+        shopVisit = false;
+        if (nearMerchant()) openPanel("shop");
       }
     }
     R.draw($("game"), state);

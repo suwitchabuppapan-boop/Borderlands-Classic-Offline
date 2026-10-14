@@ -145,6 +145,7 @@ h1 { font-size: 12px; margin: 0; }
 .item-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #baa879; border-radius: 3px; background: #2e4946; font-size: 22px; }
 .item-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; max-width: 128px; }
 .item-actions button { padding: 3px 5px; font-size: 9px; }
+.shop-reason { width: 100%; color: #e2c890; font-size: 9px; text-align: right; }
 .inventory-tabs { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
 .inventory-tabs button { border-color: transparent; background: none; padding: 3px 7px; font-size: 10px; }
 .inventory-tabs button[aria-pressed="true"] { border-color: #b6ad8f; background: #6f8575; }
