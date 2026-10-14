@@ -165,8 +165,18 @@ h1 { font-size: 12px; margin: 0; }
 .paper-doll .equipment-slots { display: grid; gap: 7px; }
 .paper-doll button { padding: 0; width: 36px; height: 36px; background: #354454; }
 .paper-doll .empty-equipment .game-icon { opacity: .3; filter: grayscale(1); }
-.paper-doll canvas { display: block; width: 82px; height: 92px; margin: auto; }
+.paper-doll canvas { display: block; width: 96px; max-width: 100%; height: auto; margin: auto; }
 .paper-doll .job-label { grid-column: 1 / -1; text-align: center; color: #ccd6e7; font-size: 10px; }
+.equipment-caption { grid-column: 1 / -1; color: #c1cde0; text-align: center; font-size: 9px; line-height: 1.6; }
+.equipment-caption span { display: block; overflow-wrap: anywhere; }
+.equipment-layout { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: start; }
+.equipment-preview { padding: 7px; border: 1px solid #8192b060; border-radius: 4px; background: #39485580; text-align: center; }
+.equipment-preview canvas { display: block; width: 104px; max-width: 100%; height: auto; margin: auto; }
+.equipment-preview .job-label { margin: 5px 0; color: #ccd6e7; font-size: 10px; }
+.equipment-list .shop-title:first-child { margin-top: 0; }
+.equipment-list .item-row { gap: 6px; padding: 5px; }
+.equipment-list .item-actions { flex-shrink: 0; }
+.equipment-note { margin: 8px 0 0; }
 .stat-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 11px; }
 .stat-row span { flex: 1; }
 .stat-row b { min-width: 34px; border: 1px solid #a1b1d3; border-radius: 5px; text-align: center; font-weight: normal; color: white; }
@@ -223,7 +233,11 @@ kbd { color: #dbe4fa; font: 9px Tahoma, sans-serif; border: 1px solid #91a4c3; b
   .inventory-tile .game-icon { width: 26px; height: 26px; }
   .status-layout { gap: 8px; }
   .paper-doll { padding: 6px; gap: 4px; }
-  .paper-doll canvas { width: 65px; height: 76px; }
+  .paper-doll canvas { width: 82px; height: auto; }
+  .equipment-layout { grid-template-columns: 98px minmax(0, 1fr); gap: 8px; }
+  .equipment-preview { padding: 4px; }
+  .equipment-list .item-row { flex-wrap: wrap; }
+  .equipment-list .item-actions { width: 100%; max-width: none; }
 }
 @media (max-height: 500px) {
   .menu-card { position: fixed; left: 8px; bottom: 45px; width: 200px; }

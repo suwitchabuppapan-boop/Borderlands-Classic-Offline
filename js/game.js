@@ -132,6 +132,16 @@
     npc: "Guild Guide",
     map: "เส้นทางการเดินทาง",
   };
+  const equipmentSlots = [
+    ["head", "ศีรษะ", "novice_cap"],
+    ["weapon", "อาวุธ", "rusty_sword"],
+    ["armor", "เกราะ", "cloth_armor"],
+    ["accessory", "เครื่องประดับ", "bronze_ring"],
+  ];
+  const equipmentTypes = equipmentSlots.map(([slot]) => slot);
+  const equipmentCaption = (s) => ["head", "weapon"]
+    .map((slot) => `<span>${esc(D.items[s.equipment[slot]]?.name || (slot === "head" ? "ไม่สวมหมวก" : "มือเปล่า"))}</span>`)
+    .join("");
   function openPanel(name) {
     if (!titleNames[name]) return;
     lastFocus = document.activeElement;
@@ -161,6 +171,9 @@
     const book = (color) => `<path d="M6 4h20v24H6z" fill="${color}"/><path d="M4 5h4v24H4z" fill="#795d44"/><path d="M9 7h14v18H9z" fill="#eedcbd"/><path d="M12 11h8m-8 4h8m-8 4h5" stroke="#927b67"/><path d="M22 6h3v9l-1.5-2-1.5 2z" fill="#b6515f"/>`;
     let shape;
     if (['potion', 'ether', 'green_potion'].includes(id)) shape = bottle(D.items[id].color);
+    else if (id === 'novice_cap') shape = '<path d="M6 18C4 3 28 3 26 18l-3 5H9z" fill="#8ab5ae"/><path d="M6 17h20l2 6H4z" fill="#d8e6cc"/><path d="M9 9c3-4 10-4 13-1M6 20h20" fill="none" stroke="#f0edcf" stroke-width="2"/><path d="M20 8l2-4 6 2-2 8z" fill="#ddbd79"/><path d="M23 6v6" stroke="#997d55"/>';
+    else if (id === 'cat_ears') shape = '<path d="M5 22L3 3l11 8h4L29 3l-2 19z" fill="#676475"/><path d="M7 15L6 7l7 6m7 0l6-6-1 8" fill="#e7a3b2"/><path d="M5 21c4-8 18-8 22 0v5h-4v-4c-4-5-10-5-14 0v4H5z" fill="#b1a3bf"/><path d="M8 20c4-5 13-5 17 0" fill="none" stroke="#ede1e2"/>';
+    else if (id === 'silver_circlet') shape = '<path d="M3 12l6 3 7-7 7 7 6-3-3 12H6z" fill="#bbcbdc"/><path d="M5 18l6 2 5-7 5 7 6-2M7 23h18" fill="none" stroke="#f1f2ec" stroke-width="2"/><path d="M16 9l5 7-5 7-5-7z" fill="#8cbad7"/><path d="M16 11l-2 5 2 5 2-5z" fill="#dbeff3"/>';
     else if (id.includes('sword') || id === 'moon_blade' || ['attack','equipment','bash'].includes(id)) shape = blade(D.items[id]?.color || '#dbe5ef');
     else if (id.includes('armor')) shape = armor(D.items[id].color);
     else if (id === 'apple') shape = '<path d="M16 9c-7-7-14 2-11 11 2 7 7 11 11 7 5 4 10-1 12-8 2-8-5-15-12-10z" fill="#ce6471"/><path d="M16 10l1-6" stroke="#735439" stroke-width="2"/><path d="M18 5c0-4 7-4 8-2-1 4-5 5-8 2z" fill="#7ca769"/><path d="M9 12c-3 3-2 7-1 9" stroke="#f5b2a2" stroke-width="2"/>';
@@ -187,6 +200,7 @@
     `<button data-act="${act}"${id ? ` data-id="${id}"` : ""} ${extra}>${label}</button>`;
   const itemMeta = (i) =>
     [
+      i.type === "head" ? "ศีรษะ" : "",
       i.atk ? `ATK +${i.atk}` : "",
       i.def ? `DEF +${i.def}` : "",
       i.hp ? `ฟื้น HP ${i.hp}` : "",
@@ -226,7 +240,7 @@
       st = C.stats(s);
     let html = "";
     if (panel === "status") {
-      html = `<p class="panel-note">${s.job} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${["weapon", "armor", "accessory"].map(slot => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" title="${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ช่องอุปกรณ์ว่าง"}" aria-label="เปิดอุปกรณ์ ${slot}">${artIcon(s.equipment[slot] || ({weapon:"rusty_sword",armor:"cloth_armor",accessory:"bronze_ring"})[slot])}</button>`).join("")}</div><canvas id="status-portrait" width="68" height="76" aria-label="ตัวละครและอุปกรณ์"></canvas><div class="job-label">${s.job}</div></div><div>`;
+      html = `<p class="panel-note">${s.job} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${equipmentSlots.map(([slot, name, placeholder]) => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" data-slot="${slot}" title="${name}: ${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ยังไม่ได้สวมใส่"}" aria-label="เปิดอุปกรณ์ ${name}">${artIcon(s.equipment[slot] || placeholder)}</button>`).join("")}</div><canvas id="status-portrait" width="96" height="124" aria-label="ตัวละครพร้อมอาวุธและเครื่องประดับศีรษะ"></canvas><div class="job-label">${s.job}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div>`;
       for (const [id, name] of Object.entries(D.statNames))
         html += `<div class="stat-row"><span>${name}</span><b>${s.stats[id]}</b>${button("stat", "＋", id, s.statPoints > 0 && s.stats[id] < 99 ? "" : "disabled")}</div>`;
       html += `</div></div><div class="stat-summary">${[
@@ -242,7 +256,7 @@
     }
     if (panel === "inventory") {
       const allItems = Object.entries(s.inventory).filter(([, count]) => count > 0);
-      const items = allItems.filter(([id]) => inventoryCategory === "all" || (inventoryCategory === "equip" ? ["weapon", "armor", "accessory"].includes(D.items[id].type) : D.items[id].type === inventoryCategory));
+      const items = allItems.filter(([id]) => inventoryCategory === "all" || (inventoryCategory === "equip" ? equipmentTypes.includes(D.items[id].type) : D.items[id].type === inventoryCategory));
       if (!items.some(([id]) => id === selectedInventoryItem)) selectedInventoryItem = items[0]?.[0] || null;
       html = `<div class="inventory-tabs">${[["all","ทั้งหมด"],["use","ยา"],["equip","อุปกรณ์"],["loot","ของดรอป"]].map(([category,name]) => `<button data-item-category="${category}" aria-pressed="${inventoryCategory === category}">${name}</button>`).join("")}<span class="inventory-count">${allItems.length} ชนิด</span></div><div class="inventory-grid">`;
       for (const [id, count] of items) html += `<button class="inventory-tile" data-choose-item="${id}" aria-pressed="${id === selectedInventoryItem}" aria-label="${D.items[id].name} ×${count}" title="${D.items[id].name}">${icon(id)}<span class="quantity">${count}</span></button>`;
@@ -250,7 +264,7 @@
       html += `</div><div class="inventory-footer"><span>Wt. ${st.weight} / ${st.capacity}</span><span>◈ ${s.silver.toLocaleString()} Silver</span></div>`;
       if (selectedInventoryItem) {
         const id = selectedInventoryItem, i = D.items[id];
-        let actions = i.type === "use" ? button("use", "ใช้", id) : ["weapon", "armor", "accessory"].includes(i.type) ? button("equip", "สวมใส่", id) : "";
+        let actions = i.type === "use" ? button("use", "ใช้", id) : equipmentTypes.includes(i.type) ? button("equip", "สวมใส่", id) : "";
         actions += button("sell", "ขาย " + Math.max(1, Math.floor(i.price / 2)) + " ◈", id);
         html += `<div class="inventory-detail">${itemRow(id, s.inventory[id], "")}<div class="item-actions">${actions}</div></div>`;
       } else html += '<p class="empty">ไม่มีไอเทมในหมวดนี้</p>';
@@ -260,12 +274,8 @@
     }
     if (panel === "equipment") {
       html =
-        '<p class="panel-note">อุปกรณ์ที่สวมมีผลกับ ATK / DEF และนับรวมในน้ำหนักกระเป๋า</p>';
-      for (const [slot, name] of [
-        ["weapon", "อาวุธ"],
-        ["armor", "เกราะ"],
-        ["accessory", "เครื่องประดับ"],
-      ]) {
+        `<p class="panel-note">เปลี่ยนอาวุธหรือเครื่องประดับศีรษะ ภาพตัวละครจะเปลี่ยนตามทันที</p><div class="equipment-layout"><div class="equipment-preview"><canvas id="equipment-portrait" width="104" height="140" aria-label="ตัวละครพร้อมอุปกรณ์ที่สวมใส่"></canvas><div class="job-label">${s.job}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div class="equipment-list">`;
+      for (const [slot, name] of equipmentSlots) {
         html += `<div class="shop-title">${name}</div>`;
         html += s.equipment[slot]
           ? itemRow(
@@ -275,6 +285,7 @@
             )
           : '<p class="subtle">ยังไม่ได้สวมใส่</p>';
       }
+      html += '</div></div><button data-open="inventory" class="outline-button">เลือกอุปกรณ์จากกระเป๋า →</button><p class="panel-note equipment-note">อุปกรณ์มีผลกับ ATK / DEF และนับรวมในน้ำหนักกระเป๋า</p>';
     }
     if (panel === "skills") {
       html = `<p class="panel-note">${s.job} · Job Lv.${s.jobLevel} · แต้มสกิล <b>${s.skillPoints}</b><br>Novice Job Lv.10 → คุย Guild Guide เพื่อเปลี่ยนเป็น Swordman</p>`;
@@ -296,7 +307,7 @@
     if (panel === "shop") {
       html = `<p class="panel-note">เงิน ${s.silver} Silver · ซื้อขายกับ Merchant ใน Starter Meadow<br>หากอยู่ไกลให้คลิกกลับแผนที่ แล้วเดินมาที่ร้านก่อน</p>`;
       for (const [id, d] of Object.entries(D.items))
-        if (d.type !== "loot")
+        if (d.type === "use" || equipmentTypes.includes(d.type))
           html += itemRow(id, null, button("buy", d.price + " ◈", id));
       html +=
         '<button data-open="inventory" class="outline-button">เปิดกระเป๋าเพื่อขายของ →</button>';
@@ -337,9 +348,10 @@
         ? s.log.map((t) => `<div class="log-line">${esc(t)}</div>`).join("")
         : '<p class="empty">ทุกการผจญภัยมีเรื่องราว • ออกไปเริ่มเรื่องของคุณ</p>';
     if (panel === "help")
-      html = `<div class="help-list"><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>คุย Guild Guide เพื่อรับและส่งเควสต์ เมื่อ Job Lv.10 คุยอีกครั้งเพื่อเปลี่ยนเป็น Swordman และเรียนสกิล</p><p>ประตูอยู่ริมแผนที่ซ้ายและขวา Healer ที่หมู่บ้านฟื้น HP/SP ฟรี เมื่อล้มจะกลับหมู่บ้านพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
+      html = `<div class="help-list"><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ ภาพตัวละครในฉากและหน้าต่างอุปกรณ์จะเปลี่ยนตาม ถอดได้ในเมนูอุปกรณ์</p><p>คุย Guild Guide เพื่อรับและส่งเควสต์ เมื่อ Job Lv.10 คุยอีกครั้งเพื่อเปลี่ยนเป็น Swordman และเรียนสกิล</p><p>ประตูอยู่ริมแผนที่ซ้ายและขวา Healer ที่หมู่บ้านฟื้น HP/SP ฟรี เมื่อล้มจะกลับหมู่บ้านพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
     $("side-panel").innerHTML = html;
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
+    if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
   }
   function bindingInfo(value) {
     if (!value) return { label: "ว่าง", icon: "", color: "#879c7f" };
@@ -448,6 +460,7 @@
     R.minimap($("minimap"), s);
     R.portrait($("portrait"), s);
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
+    if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
     updateHotbar();
     updateSaveLabel();
   }

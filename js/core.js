@@ -18,11 +18,12 @@
       skillPoints: 0,
       stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5 },
       skills: { first_aid: 1, bash: 0, magnum: 0, provoke: 0 },
-      inventory: { potion: 5, ether: 3 },
+      inventory: { potion: 5, ether: 3, novice_cap: 1 },
       equipment: {
         weapon: "rusty_sword",
         armor: "cloth_armor",
         accessory: null,
+        head: null,
       },
       zone: 0,
       player: { x: 250, y: 310, hp: 150, sp: 50, facing: 0 },
@@ -260,6 +261,11 @@
         m.provoke = 15;
         effect(s, m.x, m.y - 30, "PROVOKE", "#d7b5ed");
       } else {
+        const dx = m.x - s.player.x,
+          dy = m.y - s.player.y;
+        if (dx || dy)
+          s.player.facing =
+            Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : dy > 0 ? 0 : 2;
         damage(s, m, id === "bash" ? 1.5 + s.skills.bash * 0.15 : 1);
         s.cooldowns.swing = 0.22;
       }
@@ -312,7 +318,7 @@
     if (action === "equip") {
       if (
         !own(D.items, p.id) ||
-        !["weapon", "armor", "accessory"].includes(D.items[p.id].type) ||
+        !["weapon", "armor", "accessory", "head"].includes(D.items[p.id].type) ||
         !s.inventory[p.id]
       )
         return fail("ใส่อุปกรณ์นี้ไม่ได้");
@@ -641,14 +647,21 @@
       bad();
     for (const [k, n] of Object.entries(v.inventory))
       if (!own(D.items, k) || !num(n, 0, 100000)) bad();
-    for (const slot of ["weapon", "armor", "accessory"])
+    const equipmentSlots = ["weapon", "armor", "accessory", "head"];
+    const legacyEquipment = !own(v.equipment, "head");
+    if (
+      Object.keys(v.equipment).length !== (legacyEquipment ? 3 : 4) ||
+      Object.keys(v.equipment).some((slot) => !equipmentSlots.includes(slot))
+    )
+      bad();
+    for (const slot of legacyEquipment ? equipmentSlots.slice(0, 3) : equipmentSlots)
       if (
-        v.equipment[slot] !== null &&
-        (!own(D.items, v.equipment[slot]) ||
-          D.items[v.equipment[slot]].type !== slot)
+        !own(v.equipment, slot) ||
+        (v.equipment[slot] !== null &&
+          (!own(D.items, v.equipment[slot]) ||
+            D.items[v.equipment[slot]].type !== slot))
       )
         bad();
-    if (Object.keys(v.equipment).length !== 3) bad();
     for (const [k, n] of Object.entries(v.kills))
       if (!own(D.monsters, k) || !num(n, 0, 1000000)) bad();
     if (
@@ -674,6 +687,7 @@
       bad();
     const s = createState();
     for (const k of Object.keys(JSON.parse(serialize(s)).state)) s[k] = v[k];
+    if (legacyEquipment) s.equipment = { ...v.equipment, head: null };
     const st = stats(s);
     s.player.hp = Math.min(s.player.hp, st.maxHp);
     s.player.sp = Math.min(s.player.sp, st.maxSp);
