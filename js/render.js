@@ -104,25 +104,38 @@
     c.drawImage(hair ? tintedAtlas(hair, name) : images[name], b.x, b.y, b.w, b.h,
       x - width / 2, y - height + bob, width, height);
   }
-  function weapon(c, x, y, id, pose) {
+  function weapon(c, x, y, id, pose, grip) {
     const appearance = D.items[id]?.appearance;
-    if (!appearance || appearance.layer !== "weapon") return;
+    if (!appearance || appearance.layer !== "weapon" || !grip) return false;
     const cell = { short_sword: 12, long_sword: 13, moon_blade: 14 }[appearance.style];
     const b = cells.gear?.[cell];
-    if (!b) return;
+    const model = root.BCWeaponRig.weapon(cell, b, appearance.length, pose);
+    if (!model) return false;
     c.save();
-    c.translate(x + pose.hand.x, y + pose.hand.y);
-    const restingAngle = pose.facing === 3 ? -.32 : .32;
-    c.rotate(pose.hand.angle + (pose.mode === "attack" ? 0 : restingAngle));
-    const height = appearance.length + 5;
-    const width = height * b.w / b.h;
-    c.drawImage(images.gear, b.x, b.y, b.w, b.h, -width / 2, -height * .81, width, height);
+    c.translate(x + grip.x, y + grip.y);
+    c.rotate(model.angle);
+    c.scale(model.scaleX, model.scaleY);
+    c.drawImage(images.gear, b.x, b.y, b.w, b.h,
+      model.dx, model.dy, model.width, model.height);
     // A short arc helps read the strike even at the small world sprite size.
     if (pose.mode === "attack" && pose.frame === 1) {
       c.strokeStyle = id === "moon_blade" ? "#cce5ffba" : "#fff5d68f";
       c.lineWidth = 1;
       c.beginPath(); c.arc(0, 0, appearance.length * .85, -2.9, -1.1); c.stroke();
     }
+    c.restore();
+    return true;
+  }
+  // Restore only the painted fingers over the hilt. The blade stays outside the
+  // hand, while the original glove visibly closes around the calibrated grip.
+  function fingers(c, x, y, grip, hair, name) {
+    const p = grip.patch;
+    c.save();
+    c.beginPath();
+    c.ellipse(x + grip.x, y + grip.y, p.dw / 2, p.dh / 2, 0, 0, Math.PI * 2);
+    c.clip();
+    c.drawImage(hair ? tintedAtlas(hair, name) : images[name],
+      p.sx, p.sy, p.sw, p.sh, x + p.dx, y + p.dy, p.dw, p.dh);
     c.restore();
   }
   function headgear(c, x, y, id, pose) {
@@ -155,9 +168,12 @@
       name = "sprites";
       cell = npc === "healer" ? 15 : (job === "Swordman" || npc === "guide" ? 4 : 0) + pose.facing;
     }
-    if (pose.hand.behind) weapon(c, x, y, id, pose);
+    const grip = npc ? null : root.BCWeaponRig.hand(name, cell, cells[name]?.[cell], height, pose);
+    let holding = false;
+    if (grip?.behind) holding = weapon(c, x, y, id, pose, grip);
     sprite(c, cell, x + pose.lean, y, height, npc ? 0 : hair, pose.bob, name);
-    if (!pose.hand.behind) weapon(c, x, y, id, pose);
+    if (!grip?.behind) holding = weapon(c, x, y, id, pose, grip);
+    if (holding) fingers(c, x, y, grip, hair, name);
     headgear(c, x, y, head, pose);
   }
   function monster(c, m, t, selected) {

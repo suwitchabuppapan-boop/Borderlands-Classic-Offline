@@ -9,7 +9,8 @@
   const facingOf = (facing) => Math.max(0, Math.min(3, Math.round(finite(facing))));
   const SWING_DURATION = 0.22;
   const STEP_DISTANCE = 8;
-  // Foot-relative gloves in the two attack-atlas frames, ordered by facing.
+  // Compatibility offsets for older callers. Rendering uses painted-frame
+  // hand sockets and weapon hilt pivots from weapon-rig.js.
   const ATTACK_HANDS = [
     [[-8, -23], [-8, -22], [8, -21], [7, -23]],
     [[12, -17], [13, -18], [12, -18], [-13, -17]],
@@ -20,6 +21,7 @@
     return {
       mode: "idle",
       frame: 0,
+      progress: 0,
       facing,
       bob: 0,
       lean: 0,
@@ -79,6 +81,7 @@
       const progress = 1 - remaining / SWING_DURATION;
       const bodyShift = Math.sin(progress * Math.PI);
       pose.mode = "attack";
+      pose.progress = progress;
       pose.frame = remaining > 0.11 ? 0 : 1;
       const hand = ATTACK_HANDS[pose.frame][pose.facing];
       pose.hand.x = hand[0];
