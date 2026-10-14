@@ -143,9 +143,12 @@ h1 { font-size: 12px; margin: 0; }
 .item-info b { display: block; color: #f6f1e6; font-weight: normal; font-size: 11px; }
 .item-info small { display: block; margin-top: 2px; color: #ccd8c4; font-size: 9px; line-height: 1.6; }
 .item-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #baa879; border-radius: 3px; background: #2e4946; font-size: 22px; }
+.game-icon.item-art { width: 32px; height: 32px; }
 .item-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; max-width: 128px; }
 .item-actions button { padding: 3px 5px; font-size: 9px; }
 .shop-reason { width: 100%; color: #e2c890; font-size: 9px; text-align: right; }
+.shop-filter { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 5px 0; color: #d7ddce; font-size: 10px; }
+.shop-filter select { width: 60%; }
 .inventory-tabs { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
 .inventory-tabs button { border-color: transparent; background: none; padding: 3px 7px; font-size: 10px; }
 .inventory-tabs button[aria-pressed="true"] { border-color: #b6ad8f; background: #6f8575; }
@@ -232,7 +235,7 @@ kbd { color: #e9e0c8; font: 9px Tahoma, sans-serif; border: 1px solid #b3ac84; b
   .auto-button kbd { display: none; }
   .inventory-grid { gap: 3px; }
   .inventory-tile, .inventory-empty-slot { height: 38px; }
-  .inventory-tile .game-icon { width: 26px; height: 26px; }
+  .inventory-tile .game-icon:not(.item-art) { width: 26px; height: 26px; }
   .status-layout { gap: 8px; }
   .paper-doll { padding: 6px; gap: 4px; }
   .paper-doll canvas { width: 82px; height: auto; }

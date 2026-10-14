@@ -88,6 +88,13 @@
       capacity: 2000 + a.str * 30 + (s.job === "Swordman" ? 800 : 0),
     };
   }
+  function weaponProfile(s) {
+    const item = D.items[s.equipment.weapon];
+    return D.weaponTypes[item?.weaponType] || D.weaponTypes.sword;
+  }
+  function attackRange(s) {
+    return weaponProfile(s).range;
+  }
   function random(s) {
     s.seed = (s.seed * 1664525 + 1013904223) >>> 0;
     return s.seed / 4294967296;
@@ -240,7 +247,8 @@
       if (
         id !== "first_aid" &&
         id !== "magnum" &&
-        (!m || dist(s.player, m) > (id === "provoke" ? 180 : 58))
+        (!m || dist(s.player, m) >
+          (id === "attack" ? attackRange(s) : id === "provoke" ? 180 : 58))
       )
         return fail("เลือกศัตรูและเดินเข้าใกล้ก่อน");
       if (id === "provoke" && D.monsters[m.kind].boss)
@@ -471,7 +479,8 @@
     }
     const target = s.monsters.find((m) => m.uid === s.target && !m.dead);
     if (target) {
-      if (dist(target, s.player) > 48)
+      const gap = dist(target, s.player);
+      if (gap > weaponProfile(s).approachRange)
         s.destination = { x: target.x, y: target.y };
       else {
         s.destination = null;
@@ -479,6 +488,7 @@
           s.auto &&
           s.settings.autoSkill &&
           s.skills.bash &&
+          gap <= 58 &&
           s.player.sp >= D.skills.bash.sp &&
           !(s.cooldowns.bash > 0)
         )
@@ -703,6 +713,7 @@
   const api = {
     createState,
     stats,
+    attackRange,
     act,
     tick,
     serialize,

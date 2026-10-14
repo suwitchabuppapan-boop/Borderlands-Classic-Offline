@@ -29,6 +29,7 @@
     hotSignature = "",
     selectedInventoryItem = "potion",
     inventoryCategory = "all",
+    shopWeaponType = "",
     shopVisit = false,
     lastFocus = null,
     protectStorage = false,
@@ -145,8 +146,12 @@
     ["accessory", "เครื่องประดับ", "bronze_ring"],
   ];
   const equipmentTypes = equipmentSlots.map(([slot]) => slot);
+  const weaponTypeName = (item) => D.weaponTypes?.[item?.weaponType]?.name || "";
   const equipmentCaption = (s) => ["head", "weapon"]
-    .map((slot) => `<span>${esc(D.items[s.equipment[slot]]?.name || (slot === "head" ? "ไม่สวมหมวก" : "มือเปล่า"))}</span>`)
+    .map((slot) => {
+      const item = D.items[s.equipment[slot]], type = weaponTypeName(item);
+      return `<span>${esc(item?.name || (slot === "head" ? "ไม่สวมหมวก" : "มือเปล่า"))}${type ? ` · ${esc(type)}` : ""}</span>`;
+    })
     .join("");
   function openPanel(name) {
     if (!titleNames[name]) return;
@@ -181,8 +186,28 @@
     shopVisit = result.ok;
     if (shopVisit) toast(`กำลังเดินไปหา${merchant.name} · ถึงแล้วจะเปิดร้านให้`);
   }
-  // Original compact item illustrations; each icon shares the same 32px canvas.
+  // Equipment uses the same atlas art as the character; other icons stay compact SVGs.
   function artIcon(id) {
+    const item = D.items[id], art = item?.iconArt;
+    if (art) {
+      const atlas = window.BCSiamArt?.atlases?.[art.atlas] || { width: 128, height: 64, columns: 4, rows: 2 },
+        cellWidth = atlas.width / atlas.columns,
+        cellHeight = atlas.height / atlas.rows,
+        sourceX = (art.cell % atlas.columns) * cellWidth,
+        sourceY = Math.floor(art.cell / atlas.columns) * cellHeight,
+        url = `assets/art/${art.atlas}.webp?v=${encodeURIComponent(world.release)}`;
+      const boxes = item.weaponType === "dual_sword"
+        ? [[0, 1, 23, 30, -16], [9, 1, 23, 30, 16]]
+        : item.weaponType === "knuckle"
+          ? [[0, 7, 21, 21, -12], [11, 4, 21, 21, 12]]
+          : [[0, 0, 32, 32, 0]];
+      const instances = boxes.map(([x, y, width, height, angle]) => {
+        const scale = Math.min(width / cellWidth, height / cellHeight),
+          w = cellWidth * scale, h = cellHeight * scale;
+        return `<g transform="rotate(${angle} ${x + width / 2} ${y + height / 2})"><svg class="item-art-instance" x="${x + (width - w) / 2}" y="${y + (height - h) / 2}" width="${w}" height="${h}" viewBox="${sourceX} ${sourceY} ${cellWidth} ${cellHeight}" overflow="hidden"><image href="${esc(url)}" x="0" y="0" width="${atlas.width}" height="${atlas.height}"/></svg></g>`;
+      }).join("");
+      return `<svg class="game-icon item-art" data-atlas="${esc(art.atlas)}" data-cell="${art.cell}" viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">${instances}</svg>`;
+    }
     const ink = '#273143';
     const bottle = (color) => `<path d="M12 3h8v5l-2 3c6 3 8 15 2 18h-8c-6-3-4-15 2-18l-2-3z" fill="#e1e7db"/><path d="M9 18c-1 5 0 9 4 10h6c4-1 5-5 4-10z" fill="${color}"/><path d="M12 3h8v4h-8z" fill="#b79b6c"/><path d="M12 13l-2 8" stroke="#fff" stroke-width="2" opacity=".75"/><path d="M16 25v-8c-4-3-6 1-1 3m1 2c6-4 7 1 0 2" fill="none" stroke="#edf2d6" stroke-width="1.5"/>`;
     const blade = (color) => `<path d="M5 27l4-6 3 3-4 6z" fill="#785238"/><path d="M6 24l5-2m-3 5l4-2" stroke="#d6b476" stroke-width="1.5"/><path d="M9 22C17 15 21 11 25 3c4 7-1 16-13 22z" fill="${color}"/><path d="M12 23c8-6 13-13 13-18" fill="none" stroke="#f7eed7"/><path d="M9 20l5 5" stroke="#d5b05c" stroke-width="2"/>`;
@@ -214,12 +239,13 @@
     else shape = '<path d="M16 2l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#b7addf"/><path d="M16 6v20M6 16h20" stroke="#f7ecff"/><circle cx="16" cy="16" r="4" fill="#e1d9f9"/>';
     return `<svg class="game-icon" viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><g stroke="${ink}" stroke-width=".8" stroke-linejoin="round">${shape}</g></svg>`;
   }
-  const icon = (id) => `<span class="item-icon">${artIcon(id)}</span>`;
+  const icon = (id) => `<span class="item-icon" aria-hidden="true">${artIcon(id)}</span>`;
   const button = (act, label, id = "", extra = "") =>
     `<button data-act="${act}"${id ? ` data-id="${id}"` : ""} ${extra}>${label}</button>`;
   const itemMeta = (i) =>
     [
       i.type === "head" ? "ศีรษะ" : "",
+      weaponTypeName(i),
       i.atk ? `ATK +${i.atk}` : "",
       i.def ? `DEF +${i.def}` : "",
       i.hp ? `ฟื้น HP ${i.hp}` : "",
@@ -229,7 +255,7 @@
       .filter(Boolean)
       .join(" · ");
   const itemRow = (id, count, actions) =>
-    `<div class="item-row">${icon(id)}<div class="item-info"><b>${D.items[id].name}${count === null ? "" : ` <span class="subtle">×${count}</span>`}</b><small>${itemMeta(D.items[id])}</small></div><div class="item-actions">${actions}</div></div>`;
+    `<div class="item-row" data-item="${id}"${D.items[id].weaponType ? ` data-weapon-type="${D.items[id].weaponType}"` : ""}>${icon(id)}<div class="item-info"><b>${D.items[id].name}${count === null ? "" : ` <span class="subtle">×${count}</span>`}</b><small>${itemMeta(D.items[id])}</small></div><div class="item-actions">${actions}</div></div>`;
   function optionsBinding(selected) {
     let opts = [
       ["", "ช่องว่าง"],
@@ -335,9 +361,10 @@
         html += `<div class="settings-actions">${button("walk-shop", `เดินไปหา${esc(npc("merchant").name)}`, "", 'class="primary"')}</div>`;
       const groups = [["weapon", "อาวุธ"], ["use", "ยาและเสบียง"], ["head", "เครื่องศีรษะ"], ["armor", "เกราะ"], ["accessory", "เครื่องประดับ"]];
       for (const [type, title] of groups) {
-        html += `<div class="shop-title">${title}</div>`;
+        html += `<section class="shop-section" data-slot="${type}" aria-labelledby="shop-title-${type}"><div class="shop-title" id="shop-title-${type}">${title}</div>`;
+        if (type === "weapon") html += `<div class="shop-filter"><label for="shop-weapon-type">ประเภทอาวุธ</label><select id="shop-weapon-type"><option value="">ทั้งหมด</option>${Object.entries(D.weaponTypes || {}).map(([id, weapon]) => `<option value="${id}"${shopWeaponType === id ? " selected" : ""}>${esc(weapon.name)}</option>`).join("")}</select></div>`;
         for (const [id, d] of Object.entries(D.items)) {
-          if (d.type !== type) continue;
+          if (d.type !== type || (type === "weapon" && shopWeaponType && d.weaponType !== shopWeaponType)) continue;
           const reason = !near ? location : s.silver < d.price
             ? `${world.currency}ไม่เพียงพอ`
             : st.weight + d.weight > st.capacity ? "น้ำหนักเกินความจุ" : "";
@@ -345,6 +372,7 @@
           const explanation = near && reason ? `<small class="shop-reason">${esc(reason)}</small>` : "";
           html += itemRow(id, null, button("buy", `ซื้อ · ${d.price} ${esc(world.currency)}`, id, unavailable) + explanation);
         }
+        html += "</section>";
       }
       html +=
         '<button data-open="inventory" class="outline-button">เปิดกระเป๋าเพื่อขายของ →</button>';
@@ -684,7 +712,11 @@
   });
   document.addEventListener("change", (event) => {
     const el = event.target;
-    if (el.dataset.bind !== undefined) {
+    if (el.id === "shop-weapon-type") {
+      shopWeaponType = Object.hasOwn(D.weaponTypes || {}, el.value) ? el.value : "";
+      renderPanel();
+      $("shop-weapon-type").focus({ preventScroll: true });
+    } else if (el.dataset.bind !== undefined) {
       const result = C.act(state, "bind", {
         slot: Number(el.dataset.bind),
         value: el.value || null,
