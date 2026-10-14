@@ -16,10 +16,12 @@
   };
   // The center of the painted handle, not the center/bottom of a weapon cell.
   const HILTS = { 12: [161, 1125], 13: [469, 1125], 14: [790, 1126] };
-  const REST = [-.6, .48, .18, -.48];
+  // Carry below the face, outward from the hip. Near-vertical profile blades
+  // passed through the painted eyes even though the hilt met the glove.
+  const REST = [-1.95, 1.45, 1.10, -1.45];
   const WALK = [
-    [-.65, -.5, -.85, -.58], [.4, .6, .15, .45],
-    [.28, .12, .4, .18], [-.4, -.6, -.15, -.45],
+    [-1.90, -2.02, -1.94, -2.06], [1.40, 1.51, 1.44, 1.55],
+    [1.04, 1.15, 1.08, 1.18], [-1.40, -1.51, -1.44, -1.55],
   ];
   const WINDUP = [[-1.1, -.8], [-1.15, -.55], [.95, .45], [1.15, .55]];
   const SLASH = [[1.35, 2.15], [1.05, 1.75], [-.35, .2], [-1.05, -1.75]];
