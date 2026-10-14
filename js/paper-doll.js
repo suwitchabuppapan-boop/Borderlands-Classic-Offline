@@ -25,13 +25,13 @@
 
   function elbow(shoulder, wrist, side, scale) {
     const dx = wrist.x - shoulder.x, dy = wrist.y - shoulder.y;
-    const distance = Math.hypot(dx, dy);
-    // A small outward bend gives an actual upper arm and forearm, even while a
-    // two-hand grip dictates the exact endpoint. Rounded sleeves cover the join.
-    const bend = Math.min(2.2 * scale, distance * .25);
-    const normal = (side === "left" ? -1 : 1) * (dy < 0 ? -1 : 1);
-    return { x: (shoulder.x + wrist.x) / 2 + (distance ? dy / distance : 1) * bend * normal,
-      y: (shoulder.y + wrist.y) / 2 - (distance ? dx / distance : 0) * bend * normal };
+    const distance = Math.max(.0001, Math.hypot(dx, dy)), bone = 4.8 * scale;
+    const bend = Math.sqrt(Math.max(0, bone * bone - distance * distance / 4));
+    // The two equal-length links use one bend branch for each screen-side arm.
+    // Crossing shoulder height never flips an elbow to the other solution.
+    const sign = side === "left" ? 1 : -1;
+    return { x: (shoulder.x + wrist.x) / 2 - dy / distance * bend * sign,
+      y: (shoulder.y + wrist.y) / 2 + dx / distance * bend * sign };
   }
 
   function plan(appearance, pose = {}, options = {}) {
@@ -50,6 +50,7 @@
     const progress = mode === "attack" ? clamp(finite(pose.progress, frame * .5), 0, 1) : 0;
     const walk = mode === "walk" ? [0, 1, 0, -1][frame] : 0;
     const attack = mode === "attack";
+    const attackMix = attack ? Math.sin(Math.PI * progress) ** 2 : 0;
     const strike = attack ? Math.sin(Math.PI * clamp((progress - .18) / .82, 0, 1)) : 0;
     const windup = attack ? Math.sin(Math.PI * clamp(progress / .55, 0, 1)) : 0;
     const mirror = facing === 0 || facing === 3 ? -1 : 1;
@@ -88,6 +89,13 @@
       arm(hand).wrist = project(model, art.support);
       arm(hand).behind = model.behind;
     };
+    const centerGrips = (model, x, y) => {
+      const other = project(model, art.support), target = offset(x, y);
+      model.wrist.x += target.x - (model.wrist.x + other.x) / 2;
+      model.wrist.y += target.y - (model.wrist.y + other.y) / 2;
+      arm(model.hand).wrist = { ...model.wrist };
+    };
+    const angleBetween = (carry, active) => carry + Math.atan2(Math.sin(active-carry), Math.cos(active-carry)) * attackMix;
     const carryAngle = mirror * (facing === 2 ? .65 : .78 + walk * .035);
 
     // A source blade points upward. Attack rotations are based on the target's
@@ -101,8 +109,8 @@
       const thrust = profile === "dagger" ? strike * 3.2 : strike * 1.5;
       put(main, mirror * 7.5 + (attack ? dir[0] * thrust : 0),
         -12.8 - windup * 1.6 + walk * .3 + (attack ? dir[1] * thrust : 0));
-      const angle = !attack ? carryAngle : profile === "dagger" ? aim : aim + mirror * lerp(-.72, .22, strike);
-      addWeapon(main, angle, length, 1, attack && foreshorten ? .48 : 1);
+      const angle = angleBetween(carryAngle, profile === "dagger" ? aim : aim + mirror * lerp(-.72, .22, strike));
+      addWeapon(main, angle, length, 1, foreshorten ? lerp(1,.48,attackMix) : 1);
     } else if (profile === "dual_sword") {
       for (const side of ["left", "right"]) {
         const sideSign = side === "left" ? -1 : 1;
@@ -110,20 +118,22 @@
         const x = facing === 1 && side === "left" ? -.5 : facing === 3 && side === "right" ? .5 : sideSign * 7.5;
         put(side, x + (attack ? dir[0] * active * 1.4 : 0),
           -12.7 - active * 1.8 + sideSign * walk * .3 + (attack ? dir[1] * active * 1.2 : 0));
-        addWeapon(side, attack ? aim + sideSign * lerp(-.5, .22, active) : sideSign * (.8 + sideSign * walk * .035),
-          length, 1, attack && foreshorten ? .5 : 1);
+        addWeapon(side, angleBetween(sideSign * (.8 + sideSign * walk * .035), aim + sideSign * lerp(-.5,.22,active)),
+          length, 1, foreshorten ? lerp(1,.5,attackMix) : 1);
       }
     } else if (profile === "greatsword") {
       put(main, mirror * 7.8 + (attack ? dir[0] * strike * 1.6 : 0),
         -13.8 - windup * 2 + walk * .25 + (attack ? dir[1] * strike * 1.6 : 0));
-      const model = addWeapon(main, attack ? aim + mirror * lerp(-.75, .15, strike) : mirror * .8,
-        length, 1, attack && foreshorten ? .45 : 1);
+      const model = addWeapon(main, angleBetween(mirror*1.25,aim + mirror * lerp(-.75,.15,strike)),
+        length, 1, foreshorten ? lerp(1,.45,attackMix) : 1);
+      centerGrips(model,(facing===1?4.8:facing===3?-4.8:0)+dir[0]*strike*.8,(facing===0?-12:facing===2?-13.5:-12)+dir[1]*strike*.8+walk*.15);
       support(model, off);
     } else if (profile === "staff") {
       put(main, mirror * 8.7 + (attack ? dir[0] * strike * 1.8 : 0),
         -12.5 - strike * 1.3 + walk * .3 + (attack ? dir[1] * strike * 1.8 : 0));
-      const model = addWeapon(main, attack ? aim + mirror * lerp(-.3, .08, strike) : mirror * (.22 + walk * .02),
-        length, 1, attack && foreshorten ? .52 : 1);
+      const model = addWeapon(main, angleBetween(mirror*(.9+walk*.02),aim + mirror * lerp(-.3,.08,strike)),
+        length, 1, foreshorten ? lerp(1,.52,attackMix) : 1);
+      centerGrips(model,(facing===1?4.8:facing===3?-4.8:0)+dir[0]*strike*.8,(facing===0?-12.5:facing===2?-13.5:-12)+dir[1]*strike*.8+walk*.15);
       support(model, off);
       if (attack) extras.push({ kind: "magic", point: project(model, [art.pivot[0], b.y + b.h * .12]), phase: progress, color: "#9ef4e2", behind: model.behind });
     } else if (profile === "book") {
@@ -132,10 +142,10 @@
       const bookHand = "left";
       const sx = facing === 1 || facing === 3 ? .72 : 1;
       const angle = facing === 3 ? -.08 : facing === 1 ? .08 : 0;
-      const model = addWeapon(bookHand, angle, Math.min(length, 10.5 * scale), sx);
+      const model = addWeapon(bookHand, angle, Math.min(length, (facing===1||facing===3?9.5:10.5) * scale), sx);
       model.behind = facing === 2; arm(bookHand).behind = model.behind;
       const center = project(model, [b.x + b.w / 2, b.y + b.h / 2]);
-      const target = offset(facing === 1 ? 4.5 : facing === 3 ? -4.5 : 0, -11.8 - strike * .5 + walk * .2);
+      const target = offset(facing === 1 ? 2.5 : facing === 3 ? -2.5 : 0, -12.2 - strike * .5 + walk * .2);
       const dx = target.x - center.x, dy = target.y - center.y;
       model.wrist.x += dx; model.wrist.y += dy; arm(bookHand).wrist = { ...model.wrist };
       support(model, bookHand === "left" ? "right" : "left");
@@ -145,19 +155,19 @@
         const sign = side === "left" ? -1 : 1;
         const punch = side === main ? strike : windup * .65;
         const dir = forward[facing];
-        put(side, sign * 6.4 + dir[0] * punch * 6.4, -12.8 + dir[1] * punch * 3.2 - punch * 1.2 + walk * sign * .4);
-        addWeapon(side, attack ? Math.atan2(dir[1], dir[0]) + Math.PI / 2 : sign * .2, Math.min(length, 6.5 * scale));
+        put(side, sign * 5.5 + dir[0] * punch * 4.5, -12.8 + dir[1] * punch * 3.2 - punch * 1.2 + walk * sign * .4);
+        addWeapon(side, angleBetween(sign*.2,Math.atan2(dir[1],dir[0])+Math.PI/2), Math.min(length, 6.5 * scale));
       }
     } else if (profile === "bow") {
       // The naga's head curls inward from its actual grip. A modest side-view
       // cant and a lower front carry keep that painted curl below/outside eyes.
-      const angle = [Math.PI / 2, .4, -Math.PI / 2, -.4][facing];
+      const angle = [Math.PI / 2, .75, -Math.PI / 2, -.75][facing];
       const flip = facing === 3 ? -1 : 1;
       // The naga sprite is canted for face clearance; its firing axis is the world target heading.
       const dir = forward[facing];
       // Hold with anatomical left; the dominant right arm pulls the string.
-      put(off, facing === 0 || facing === 2 ? (facing === 2 ? -4.5 : 4.5) : mirror * (12.8 + strike), facing === 2 ? -16.5 : facing === 0 ? -8.3 : -13.5);
-      const model = addWeapon(off, angle, length, flip);
+      put(off, facing === 0 || facing === 2 ? (facing === 2 ? -.5 : 3.5) : mirror * (6 + strike*.4), facing === 2 ? -17 : facing === 0 ? -9.8 : -10.4);
+      const model = addWeapon(off, angle, length, flip*(facing===0||facing===2?.55:1));
       model.behind = facing === 2; arm(off).behind = model.behind;
       const ends = Array.isArray(art.string) && art.string.length === 2 && art.string.every(point)
         ? art.string.map(p => project(model, p))
@@ -169,31 +179,48 @@
       const midpoint = { x: (ends[0].x + ends[1].x) / 2, y: (ends[0].y + ends[1].y) / 2 };
       // A relaxed carry lets the string slack toward the bow. Pulling it back
       // in idle lifts the opposite forearm across the front-facing mouth.
-      const draw = !attack ? -1.7 : progress < .6 ? 2.5 + Math.sin(progress / .6 * Math.PI / 2) * 5.2 : 2.3;
+      // A continuous draw/release returns to the same resting grip. Depth in
+      // front/rear projection is shorter than a side-view string pull.
+      const peak = facing===0||facing===2 ? 1.8 : 3.6;
+      const pull = progress<=.6 ? Math.sin(progress/.6*Math.PI/2)**2 : Math.cos((progress-.6)/.4*Math.PI/2)**2;
+      const draw = .4 + (peak-.4)*(attack?pull:0);
       arm(main).wrist = { x: midpoint.x - dir[0] * draw * scale, y: midpoint.y - dir[1] * draw * scale };
       arm(main).behind = model.behind;
+      model.drawHand=main;
       extras.push({ kind: "bowstring", points: [ends[0], { ...arm(main).wrist }, ends[1]], behind: model.behind });
       if (attack) extras.push({ kind: "arrow", from: { ...arm(main).wrist }, direction: { x: dir[0], y: dir[1] }, phase: progress, behind: model.behind });
     }
 
-    // Painted pivots can sit far from a crop's center (especially crescent bows).
-    // Keep its complete painted extent off the floor while moving the actual
-    // wrist and any supporting palm with it, so clearance cannot detach gear.
+    // Move a rigid held object and all its hands together into the intersection
+    // of the arms' reachable regions. Preserve painted grips/string endpoints.
+    const minReach=3.1*scale,maxReach=9.3*scale;
+    const correction=a=>{
+      const dx=a.wrist.x-a.shoulder.x,dy=a.wrist.y-a.shoulder.y,d=Math.hypot(dx,dy);
+      const target=clamp(d,minReach,maxReach),factor=(target-d)/(d||1);
+      return d ? {x:dx*factor,y:dy*factor} : {x:(a.side==='left'?-minReach:minReach),y:0};
+    };
+    const held=new Set();
     for (const model of weapons) {
+      const hands=[...new Set([model.hand,model.supportHand,model.drawHand].filter(Boolean))].map(arm);
+      hands.forEach(a=>held.add(a.side));
       const outline = Array.isArray(b.hull) && b.hull.length >= 3 && b.hull.every(point)
         ? b.hull : [[b.x,b.y],[b.x+b.w,b.y],[b.x,b.y+b.h],[b.x+b.w,b.y+b.h]];
-      const bottom = Math.max(...outline.map(p => project(model, p).y));
-      const lift = Math.max(0, bottom + .8 * scale);
-      if (!lift) continue;
-      model.wrist.y -= lift; arm(model.hand).wrist.y -= lift;
-      if (model.supportHand) arm(model.supportHand).wrist.y -= lift;
-      if (weapons.length === 1) for (const extra of extras) {
-        if (extra.point) extra.point.y -= lift;
-        if (extra.from) extra.from.y -= lift;
-        if (extra.points) for (const p of extra.points) p.y -= lift;
+      let bottom = Math.max(...outline.map(p => project(model, p).y));
+      const move=(dx,dy)=>{
+        model.wrist.x+=dx;model.wrist.y+=dy;bottom+=dy;
+        for(const a of hands){a.wrist.x+=dx;a.wrist.y+=dy;}
+        if(weapons.length===1)for(const e of extras){
+          for(const p of [e.point,e.from,...(e.points||[])].filter(Boolean)){p.x+=dx;p.y+=dy;}
+        }
+      };
+      for(let iteration=0;iteration<32;iteration++){
+        let amount=0;
+        for(const a of hands){const d=correction(a);move(d.x,d.y);amount+=Math.hypot(d.x,d.y);}
+        const lift=Math.max(0,bottom+.8*scale);if(lift){move(0,-lift);amount+=lift;}
+        if(amount<1e-8)break;
       }
-      if (profile === "bow") arm(main).wrist.y -= lift;
     }
+    for(const a of arms)if(!held.has(a.side)){const d=correction(a);a.wrist.x+=d.x;a.wrist.y+=d.y;}
     for (const a of arms) a.elbow = elbow(a.shoulder, a.wrist, a.side, scale);
     const head = validBounds(options.bodyBounds) && sourceBody && point(sourceBody.head)
       ? bodyPoint(sourceBody.head) : offset(0, -30);
