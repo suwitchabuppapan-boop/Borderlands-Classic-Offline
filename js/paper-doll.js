@@ -90,28 +90,42 @@
     };
     const carryAngle = mirror * (facing === 2 ? .65 : .78 + walk * .035);
 
+    // A source blade points upward. Attack rotations are based on the target's
+    // world heading; carrying remains outward from the anatomical holding hand.
+    const dir = forward[facing];
+    const aim = Math.atan2(dir[1], dir[0]) + Math.PI / 2;
+    // Toward-camera attacks shorten in projection; rear blades retain their
+    // length so the strike remains visible above/beside the back of the head.
+    const foreshorten = facing === 0;
     if (profile === "sword" || profile === "dagger") {
       const thrust = profile === "dagger" ? strike * 3.2 : strike * 1.5;
-      put(main, mirror * (7.5 + (facing === 1 || facing === 3 ? thrust : strike)), -12.8 - windup * 1.6 + walk * .3);
-      const angle = attack ? mirror * lerp(.12, profile === "dagger" ? 1.35 : 1.95, strike) : carryAngle;
-      addWeapon(main, angle);
+      put(main, mirror * 7.5 + (attack ? dir[0] * thrust : 0),
+        -12.8 - windup * 1.6 + walk * .3 + (attack ? dir[1] * thrust : 0));
+      const angle = !attack ? carryAngle : profile === "dagger" ? aim : aim + mirror * lerp(-.72, .22, strike);
+      addWeapon(main, angle, length, 1, attack && foreshorten ? .48 : 1);
     } else if (profile === "dual_sword") {
       for (const side of ["left", "right"]) {
         const sideSign = side === "left" ? -1 : 1;
         const active = side === main ? strike : windup;
-        const x = facing === 1 && side === "left" ? -.5 : facing === 3 && side === "right" ? .5 : sideSign * (7.5 + active * 1.4);
-        put(side, x, -12.7 - active * 1.8 + sideSign * walk * .3);
-        addWeapon(side, sideSign * (attack ? lerp(.25, 1.95, active) : .8 + sideSign * walk * .035));
+        const x = facing === 1 && side === "left" ? -.5 : facing === 3 && side === "right" ? .5 : sideSign * 7.5;
+        put(side, x + (attack ? dir[0] * active * 1.4 : 0),
+          -12.7 - active * 1.8 + sideSign * walk * .3 + (attack ? dir[1] * active * 1.2 : 0));
+        addWeapon(side, attack ? aim + sideSign * lerp(-.5, .22, active) : sideSign * (.8 + sideSign * walk * .035),
+          length, 1, attack && foreshorten ? .5 : 1);
       }
     } else if (profile === "greatsword") {
-      put(main, mirror * (7.8 + strike * 1.6), -13.8 - windup * 2 + walk * .25);
-      const model = addWeapon(main, attack ? mirror * lerp(.2, 1.72, strike) : mirror * .8);
+      put(main, mirror * 7.8 + (attack ? dir[0] * strike * 1.6 : 0),
+        -13.8 - windup * 2 + walk * .25 + (attack ? dir[1] * strike * 1.6 : 0));
+      const model = addWeapon(main, attack ? aim + mirror * lerp(-.75, .15, strike) : mirror * .8,
+        length, 1, attack && foreshorten ? .45 : 1);
       support(model, off);
     } else if (profile === "staff") {
-      put(main, mirror * (8.7 + strike * 1.8), -12.5 - strike * 1.3 + walk * .3);
-      const model = addWeapon(main, mirror * (attack ? .32 + strike * .5 : .22 + walk * .02));
+      put(main, mirror * 8.7 + (attack ? dir[0] * strike * 1.8 : 0),
+        -12.5 - strike * 1.3 + walk * .3 + (attack ? dir[1] * strike * 1.8 : 0));
+      const model = addWeapon(main, attack ? aim + mirror * lerp(-.3, .08, strike) : mirror * (.22 + walk * .02),
+        length, 1, attack && foreshorten ? .52 : 1);
       support(model, off);
-      if (attack) extras.push({ kind: "magic", point: project(model, [art.pivot[0], b.y + b.h * .12]), phase: progress, color: "#9ef4e2" });
+      if (attack) extras.push({ kind: "magic", point: project(model, [art.pivot[0], b.y + b.h * .12]), phase: progress, color: "#9ef4e2", behind: model.behind });
     } else if (profile === "book") {
       // The source artwork is an open book. Its two measured bottom grips, not
       // the sprite center, determine both palms; its top stays below the face.
@@ -125,7 +139,7 @@
       const dx = target.x - center.x, dy = target.y - center.y;
       model.wrist.x += dx; model.wrist.y += dy; arm(bookHand).wrist = { ...model.wrist };
       support(model, bookHand === "left" ? "right" : "left");
-      if (attack) extras.push({ kind: "magic", point: { x: target.x, y: target.y - 8 * scale }, phase: progress, color: "#ffdf8a" });
+      if (attack) extras.push({ kind: "magic", point: { x: target.x + dir[0] * 6 * scale, y: target.y + dir[1] * 6 * scale }, phase: progress, color: "#ffdf8a", behind: model.behind });
     } else if (profile === "knuckle") {
       for (const side of ["left", "right"]) {
         const sign = side === "left" ? -1 : 1;
@@ -139,7 +153,8 @@
       // cant and a lower front carry keep that painted curl below/outside eyes.
       const angle = [Math.PI / 2, .4, -Math.PI / 2, -.4][facing];
       const flip = facing === 3 ? -1 : 1;
-      const dir = [Math.cos(angle) * flip, Math.sin(angle) * flip];
+      // The naga sprite is canted for face clearance; its firing axis is the world target heading.
+      const dir = forward[facing];
       // Hold with anatomical left; the dominant right arm pulls the string.
       put(off, facing === 0 || facing === 2 ? (facing === 2 ? -4.5 : 4.5) : mirror * (12.8 + strike), facing === 2 ? -16.5 : facing === 0 ? -8.3 : -13.5);
       const model = addWeapon(off, angle, length, flip);
@@ -186,8 +201,8 @@
       face: { x: (facing === 1 ? -1 : facing === 3 ? -6 : -4.6) * scale + lean,
         y: -29.5 * scale + bob, w: (facing === 1 || facing === 3 ? 7 : 9.2) * scale, h: 11.5 * scale },
       palette: options.job === "Swordman"
-        ? { outline: "#392c38", sleeve: "#405676", light: "#7186a1", cuff: "#dbb767", glove: "#e0c39c", shadow: "#977451" }
-        : { outline: "#453934", sleeve: "#e9ddc0", light: "#fff2d4", cuff: "#b88e42", glove: "#edc59a", shadow: "#a57450" } };
+        ? { outline: "#633e34", skin: "#fbc5a9", light: "#ffddc3", shade: "#be8268", cuff: "#deaa6a", trim: "#f6d28e", glove: "#fbc5a9", shadow: "#b87c62" }
+        : { outline: "#694335", skin: "#fdcfb2", light: "#ffdfc5", shade: "#c48b6d", cuff: "#83252a", trim: "#b5734d", glove: "#fdcfb2", shadow: "#be8268" } };
   }
 
   function frame(plan, width, height, options = {}) {
@@ -215,14 +230,26 @@
       c.strokeStyle = color; c.lineWidth = width * s;
       c.beginPath(); c.moveTo(x + from.x, y + from.y); c.lineTo(x + to.x, y + to.y); c.stroke();
     };
+    const skin = (from, to, width) => {
+      const dx=to.x-from.x, dy=to.y-from.y, length=Math.hypot(dx,dy) || 1;
+      const nx=-dy/length*width*s/2, ny=dx/length*width*s/2;
+      const paint=c.createLinearGradient(x+from.x+nx,y+from.y+ny,x+from.x-nx,y+from.y-ny);
+      paint.addColorStop(0,p.shade); paint.addColorStop(.4,p.skin); paint.addColorStop(.8,p.light); paint.addColorStop(1,p.skin);
+      line(from,to,paint,width);
+    };
     c.save(); c.lineCap = "round"; c.lineJoin = "round";
     for (const a of plan.arms.filter(a => a.behind === behind)) {
-      const cuff = { x: lerp(a.elbow.x, a.wrist.x, .68), y: lerp(a.elbow.y, a.wrist.y, .68) };
+      const cuff = { x: lerp(a.elbow.x, a.wrist.x, .72), y: lerp(a.elbow.y, a.wrist.y, .72) };
       if (!glovesOnly) {
-        line(a.shoulder, a.elbow, p.outline, 3.5); line(a.elbow, a.wrist, p.outline, 2.8);
-        line(a.shoulder, a.elbow, p.sleeve, 2.7); line(a.elbow, a.wrist, p.sleeve, 2.15);
-        line({ x: a.shoulder.x - .4 * s, y: a.shoulder.y - .5 * s }, { x: a.elbow.x - .4 * s, y: a.elbow.y - .5 * s }, p.light, .7);
-        line(cuff, a.wrist, p.cuff, 2.3);
+        // Both authored job costumes are sleeveless. Skin continues from the
+        // measured bare shoulder; only the small wrist binding is clothing.
+        line(a.shoulder, a.elbow, p.outline, 3); line(a.elbow, a.wrist, p.outline, 2.5);
+        skin(a.shoulder,a.elbow,2.2); skin(a.elbow,a.wrist,1.75);
+        c.save(); c.lineCap="butt";
+        line(cuff,a.wrist,p.outline,2.35); line(cuff,a.wrist,p.cuff,1.9);
+        const dx=a.wrist.x-cuff.x,dy=a.wrist.y-cuff.y,d=Math.hypot(dx,dy) || 1;
+        line({x:cuff.x-dy/d*.85*s,y:cuff.y+dx/d*.85*s},{x:cuff.x+dy/d*.85*s,y:cuff.y-dx/d*.85*s},p.trim,.4);
+        c.restore();
       }
       // The equipment has already been drawn when restoring the tiny gripping
       // fingers. Knuckles cover the fist; do not paint a large hand over them.
