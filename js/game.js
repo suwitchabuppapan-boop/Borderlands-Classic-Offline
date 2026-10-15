@@ -272,9 +272,11 @@
       weaponTypeName(i),
       i.type === "weapon" ? `${i.weaponType === classInfo(state).weaponType ? "สวมได้" : "ต้องเป็นอาชีพ"} · ${compatibleClasses(i.weaponType)}` : "",
       i.atk ? `ATK +${i.atk}` : "",
+      i.matk ? `MATK +${i.matk}` : "",
       i.def ? `DEF +${i.def}` : "",
-      i.hp ? `ฟื้น HP ${i.hp}` : "",
-      i.sp ? `ฟื้น SP ${i.sp}` : "",
+      i.mdef ? `MDEF +${i.mdef}` : "",
+      i.hp ? `ฟื้น HP ${Math.round(i.hp * C.stats(state).hpItemMultiplier)} (พื้นฐาน ${i.hp})` : "",
+      i.sp ? `ฟื้น SP ${Math.round(i.sp * C.stats(state).spItemMultiplier)} (พื้นฐาน ${i.sp})` : "",
       `น้ำหนัก ${i.weight}`,
     ]
       .filter(Boolean)
@@ -329,6 +331,40 @@
     const reason = C.learnReason(s, id);
     return `<div class="skill-card" data-skill="${id}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small>${owner ? `${esc(owner.name)} · Class ${owner.tier}` : id === "first_aid" ? "ใช้ได้ทุกอาชีพ" : "สกิลเดิมที่เรียนไว้"} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, reason ? `disabled title="${esc(reason)}"` : "")}</div>`;
   }
+  const statNumber = (value) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 1, useGrouping: false });
+  function statBuild(s, st) {
+    const type = classInfo(s).weaponType;
+    const detail = type === "magic_bow"
+      ? "DEX สำหรับยิงปกติ · INT สำหรับสกิลเวท · AGI ช่วยยิงไว และ VIT ช่วยยืนสู้"
+      : st.basicMagic
+        ? "INT เพิ่มพลังเวทและ SP · DEX ช่วยความเร็วโจมตีเล็กน้อย · VIT ช่วยยืนสู้"
+        : type === "bow"
+          ? "DEX เพิ่มพลังธนูและความแม่นยำ · AGI ช่วยยิงไว · VIT เพิ่ม HP"
+          : type === "sword_shield"
+            ? "STR เพิ่มพลังดาบ · VIT เพิ่ม HP และป้องกัน · DEX ช่วยความแม่นยำ"
+            : "STR เพิ่มพลังโจมตีประชิด · AGI ช่วยตีไว · DEX ช่วยความแม่นยำ · VIT เพิ่ม HP";
+    return `<p class="stat-build"><b>${esc(D.weaponTypes[type].name)} · ตีปกติ${st.basicMagic ? "เวท" : "กายภาพ"} ใช้ ${esc(st.primaryStat.toUpperCase())}</b><span>${esc(detail)}</span></p>`;
+  }
+  function statResetCard(s) {
+    const refund = C.statRefund(s), reason = C.statResetReason(s);
+    const unavailable = reason || (refund ? "" : "ค่าสเตตัสทั้ง 6 เป็น 1 แล้ว ยังไม่มีแต้มให้คืน");
+    return `<section class="stat-reset" aria-label="รีสเตตัสฟรี"><div><b>รีสเตตัสฟรีที่${esc(npc("guide").name)}</b><small>คืน ${refund} แต้มที่ลงไว้ · คงแต้มที่เหลือ ${s.statPoints} แต้ม</small><small>${esc(reason || (refund ? "คืนค่าสเตตัสทั้ง 6 เป็น 1 แล้วเลือกลงแต้มใหม่ได้" : "ยังไม่ได้ลงแต้มสเตตัส"))}</small></div><div class="stat-reset-actions">${button("reset-stats", "คืนแต้มทั้งหมด", "", unavailable ? `disabled title="${esc(unavailable)}"` : "")}${reason && s.zone === 0 ? button("walk-guide", `เดินไปหา${esc(npc("guide").name)}`, "", 'class="outline-button"') : ""}</div></section>`;
+  }
+  function statSummary(s, st) {
+    const cells = [
+      ["atk", "ATK", st.atk, "พลังโจมตีกายภาพ"],
+      ["matk", "MATK", st.matk, "พลังโจมตีเวท · คทา หนังสือ แก้วมณีใช้ตีปกติด้วย"],
+      ["def", "DEF", st.def, "ป้องกันกายภาพ · ดูส่วนพื้นฐานและอุปกรณ์ในรายละเอียด"],
+      ["mdef", "MDEF", st.mdef, `ป้องกันเวท · มีผลกับการโจมตีเวทของ${D.monsters.willow.name}`],
+      ["hit", "HIT", st.hit, "ความแม่นยำของการโจมตีกายภาพ"],
+      ["flee", "FLEE", st.flee, "หลบการโจมตีกายภาพทั่วไป"],
+      ["crit", "CRIT", `${statNumber(st.crit)}%`, "โอกาสคริติคอลเฉพาะตีปกติกายภาพ · ความเสียหาย ×1.4"],
+      ["aspd", "ASPD", st.aspd, "ความเร็วโจมตี · ค่าสูงขึ้น ตีได้เร็วขึ้น"],
+      ["interval", "ตีทุก", `${st.interval.toFixed(2)}s`, "ระยะห่างระหว่างการตีปกติ · ไม่เปลี่ยนความเร็วเดินหรือคูลดาวน์สกิล"],
+    ];
+    const contribution = (base, gear) => `${statNumber(base)} + ${statNumber(gear)}`;
+    return `<div class="stat-summary" aria-label="พลังต่อสู้">${cells.map(([id, label, value, help]) => `<div title="${esc(help)}"><span>${label}</span><b data-derived="${id}">${typeof value === "number" ? statNumber(value) : value}</b></div>`).join("")}</div><details class="stat-details"><summary>รายละเอียดพลังป้องกันและฟื้นฟู</summary><dl class="stat-detail-grid"><div><dt>ATK พื้นฐาน + อุปกรณ์</dt><dd>${contribution(st.baseAtk, st.gearAtk)}</dd></div><div><dt>MATK พื้นฐาน + อุปกรณ์</dt><dd>${contribution(st.baseMatk, st.gearMatk)}</dd></div><div><dt>DEF พื้นฐาน + เกราะ</dt><dd>${contribution(st.softDef, st.hardDef)}</dd></div><div><dt>MDEF พื้นฐาน + เกราะเวท</dt><dd>${contribution(st.softMdef, st.hardMdef)}</dd></div><div><dt>HP / SP สูงสุด</dt><dd>${st.maxHp} / ${st.maxSp}</dd></div><div><dt>ฟื้น HP / SP ทุก 4 วินาที</dt><dd><span data-derived="hpRegen">${st.hpRegen}</span> / <span data-derived="spRegen">${st.spRegen}</span></dd></div><div><dt>หลบสมบูรณ์ (ตีปกติกายภาพ)</dt><dd>${statNumber(st.perfectDodge)}%</dd></div><div><dt>ความจุน้ำหนัก</dt><dd>${st.capacity}</dd></div></dl><p class="panel-note">เกราะลดความเสียหายด้วย 100 / (100 + เกราะ) แล้วหักป้องกันพื้นฐาน ×0.25 แยก DEF / MDEF ตามชนิดโจมตี ค่าคริติคอลใช้กับตีปกติกายภาพเท่านั้น</p><p class="panel-note">ฟื้นฟูทุก 4 วินาทีเมื่อน้ำหนักต่ำกว่า 50% · VIT เพิ่มผลยา HP, INT เพิ่มผลยา SP · AGI ไม่เพิ่มความเร็วเดินหรือทำให้คูลดาวน์สกิลสั้นลง</p></details>`;
+  }
   function renderPanel() {
     $("panel-title").textContent = titleNames[panel] + (["status", "equipment"].includes(panel) ? ` · ${className(state)}` : "");
     const s = state,
@@ -336,19 +372,12 @@
     let html = "";
     if (panel === "status") {
       html = `<p class="panel-note">${esc(className(s))} · Class ${classInfo(s).tier} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${equipmentSlots.map(([slot, name, placeholder]) => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" data-slot="${slot}" title="${name}: ${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ยังไม่ได้สวมใส่"}" aria-label="เปิดอุปกรณ์ ${name}">${artIcon(s.equipment[slot] || placeholder)}</button>`).join("")}</div><canvas id="status-portrait" width="96" height="124" aria-label="ตัวละครพร้อมอาวุธและเครื่องประดับศีรษะ"></canvas><div class="job-label">${esc(className(s))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div>`;
-      for (const [id, name] of Object.entries(D.statNames))
-        html += `<div class="stat-row"><span>${name}</span><b>${s.stats[id]}</b>${button("stat", "＋", id, s.statPoints > 0 && s.stats[id] < 99 ? "" : "disabled")}</div>`;
-      html += `</div></div><div class="stat-summary">${[
-        ["ATK", st.atk],
-        ["MATK", st.matk, "พลังโจมตีเวท • เพิ่มจาก INT"],
-        ["DEF", st.def],
-        ["CRIT", st.crit + "%"],
-        ["HIT", st.hit],
-        ["FLEE", st.flee],
-        ["ตีทุก", st.interval.toFixed(2) + "s"],
-      ]
-        .map(([k, v, title]) => `<div${title ? ` title="${esc(title)}"` : ""}>${k}<b>${v}</b></div>`)
-        .join("")}</div>`;
+      for (const [id, name] of Object.entries(D.statNames)) {
+        const cost = C.statCost(s.stats[id]);
+        const reason = s.stats[id] >= 99 ? "เต็ม 99 แล้ว" : s.statPoints < cost ? `แต้มไม่พอ ต้องใช้ ${cost} แต้ม` : "";
+        html += `<div class="stat-row" data-stat="${id}"><span class="stat-name" title="${esc(name)}">${id.toUpperCase()}</span><b>${s.stats[id]}</b><small class="stat-cost${reason ? " unavailable" : ""}">${s.stats[id] >= 99 ? "เต็ม 99" : `${cost} แต้ม${s.statPoints < cost ? '<em class="stat-short-reason">ไม่พอ</em>' : ''}`}</small>${button("stat", "＋", id, `${reason ? "disabled " : ""}title="${esc(reason || `เพิ่ม ${name} ใช้ ${cost} แต้ม`)}" aria-label="${esc(`เพิ่ม ${name}${reason ? ` · ${reason}` : ` ใช้ ${cost} แต้ม`}`)}" aria-describedby="stat-effect-${id}"`)}</div>`;
+      }
+      html += `</div></div>${statBuild(s, st)}<details class="stat-guide"><summary>ผลของสเตตัสทั้ง 6 · ดูก่อนลงแต้ม</summary><dl>${Object.entries(D.statNames).map(([id, name]) => `<div><dt>${esc(name)}</dt><dd id="stat-effect-${id}">${esc(D.statHelp[id])}</dd></div>`).join("")}</dl><p class="panel-note">เริ่มต้นค่า 1 · สูงสุด 99 · เพิ่ม 1 ค่าใช้ 2 + ปัดลง((ค่าปัจจุบัน − 1) / 10) แต้ม เมื่อ Base Lv.เพิ่ม ได้ 4 + ปัดลง(Base Lv.ใหม่ / 5) แต้ม</p></details>${statSummary(s, st)}${statResetCard(s)}`;
     }
     if (panel === "inventory") {
       const allItems = Object.entries(s.inventory).filter(([, count]) => count > 0);
@@ -382,7 +411,7 @@
             )
           : `<p class="subtle">${slot === "weapon" ? "แสดงอาวุธฝึกประจำอาชีพถาวร · ไม่มีโบนัสจากไอเทม" : "ยังไม่ได้สวมใส่"}</p>`;
       }
-      html += '</div></div><button data-open="inventory" class="outline-button">เลือกอุปกรณ์จากกระเป๋า →</button><p class="panel-note equipment-note">อุปกรณ์มีผลกับ ATK / DEF และนับรวมในน้ำหนักกระเป๋า</p>';
+      html += '</div></div><button data-open="inventory" class="outline-button">เลือกอุปกรณ์จากกระเป๋า →</button><p class="panel-note equipment-note">อุปกรณ์แยกโบนัส ATK / MATK และ DEF / MDEF ตามที่ระบุ และนับรวมในน้ำหนักกระเป๋า</p>';
     }
     if (panel === "skills") {
       const ids = C.skillsFor(s), legacy = new Set(["bash", "magnum", "provoke"]);
@@ -404,6 +433,7 @@
       if (s.quest >= D.quests.length)
         html +=
           '<p class="panel-note">✦ บทแรกของคุณจบลงแล้ว แต่โลกนี้ยังรอให้คุณออกสำรวจเสมอ</p>';
+      if (panel === "npc") html += statResetCard(s);
     }
     if (panel === "shop") {
       const near = nearMerchant();
@@ -451,7 +481,7 @@
       html =
         `<p class="panel-note">${esc(world.intro)}</p><p class="panel-note">สิ่งมีชีวิตแห่งลุ่มน้ำและป่าหิมพานต์ · สมดุลสำหรับการผจญภัยคนเดียว</p>`;
       for (const [id, m] of Object.entries(D.monsters))
-        html += `<div class="item-row"><span class="item-icon" style="color:${m.color}">${m.boss ? "◆" : "●"}</span><div class="item-info"><b>${m.name} · Lv.${m.level}</b><small>HP ${m.hp} · ATK ${m.atk} · DEF ${m.def}<br>EXP ${m.exp} / Job EXP ${m.jexp} · ของดรอป ${D.items[m.drop].name}<br>${esc(m.description)}</small></div></div>`;
+        html += `<div class="item-row" data-monster="${id}"><span class="item-icon" style="color:${m.color}">${m.boss ? "◆" : "●"}</span><div class="item-info"><b>${m.name} · Lv.${m.level}</b><small>HP ${m.hp} · ${m.attackMagic ? "MATK" : "ATK"} ${m.atk} · DEF ${m.def} / MDEF ${m.mdef}<br>โจมตี${m.attackMagic ? "เวท · ป้องกันด้วย MDEF" : "กายภาพ · ป้องกันด้วย DEF"}<br>EXP ${m.exp} / Job EXP ${m.jexp} · ของดรอป ${D.items[m.drop].name}<br>${esc(m.description)}</small></div></div>`;
       html +=
         '<button data-open="map" class="outline-button">ดูเส้นทางทั้งสามแผนที่ →</button>';
     }
@@ -470,6 +500,8 @@
         : '<p class="empty">ทุกการผจญภัยมีเรื่องราว • ออกไปเริ่มเรื่องของคุณ</p>';
     if (panel === "help")
       html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ อาวุธต้องตรงกับประเภทของอาชีพ ซื้ออาวุธสำหรับอาชีพถัดไปเก็บได้ ภาพชุดและท่าถือเป็นแบบประจำอาชีพถาวร อาวุธที่สวมเพิ่มค่าสถานะ ถอดแล้วใช้รูปลักษณ์อาวุธฝึกโดยไม่มีโบนัส ดาบและโล่อยู่ในช่องอาวุธเดียวกัน</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ ชาวบ้าน Job Lv.10 เลือก Class 1 ได้ 5 อาชีพ จากนั้น Job Lv.40 รับการทดสอบเพื่อเลือก Class 2 หนึ่งในสองเส้นทาง ต้องอยู่ใกล้ครูอิน การทดสอบนับเฉพาะตัวที่กำจัดหลังรับ เมื่อเปลี่ยนอาชีพ Job Lv.เริ่มที่ 1 และสืบทอดสกิลเดิม โดยไม่แจกอาวุธหรืออัฐ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
+    if (panel === "help")
+      html += `<div class="help-list stat-guide-note"><p>สเตตัสเริ่มที่ 1 ทั้ง 6 ค่า พร้อม 48 แต้ม ใช้แต้มมากขึ้นทุกช่วง 10 ค่า ดูค่าใช้จ่ายที่ปุ่ม ＋ ในหน้าสเตตัส STR ใช้กับอาวุธประชิด, DEX ใช้กับธนู, INT ใช้กับคทา หนังสือ และแก้วมณี ธนูมนตรายิงปกติใช้ DEX แต่สกิลเวทใช้ INT</p><p>AGI ช่วยความเร็วตีและหลบกายภาพ, VIT เพิ่ม HP ป้องกันและผลยา HP, INT เพิ่ม SP ป้องกันเวทและผลยา SP ส่วน LUK ช่วยคริติคอลกายภาพและหลบสมบูรณ์ คริเฉพาะตีปกติกายภาพ ความเสียหาย ×1.4 ไม่ใช้กับสกิลหรือเวท ความเร็วเดินและคูลดาวน์สกิลคงเดิม</p><p>DEF ป้องกันกายภาพ ส่วน MDEF ป้องกันเวท เช่น ${esc(D.monsters.willow.name)} อุปกรณ์ระบุ ATK / MATK แยกกัน เปิดรายละเอียดในหน้าสเตตัสเพื่อดูส่วนพื้นฐาน ส่วนเกราะ และอัตราฟื้นฟู</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรีสเตตัสฟรี คืนแต้มที่ลงไว้ทั้งหมดและจัดบิลด์ใหม่ได้ โดยคงอาชีพ อุปกรณ์ และความคืบหน้า</p></div>`;
     $("side-panel").innerHTML = html;
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
     if (["status", "equipment", "npc"].includes(panel)) $("side-panel").insertAdjacentHTML("beforeend", classSelector(s));
@@ -579,7 +611,7 @@
     if (target) {
       const d = D.monsters[target.kind];
       $("target-box").innerHTML =
-        `${d.name} · ${Math.ceil(target.hp)} / ${d.hp}<div class="target-meter"><i style="width:${Math.max(0, (target.hp / d.hp) * 100)}%"></i></div>`;
+        `${d.name} · ${Math.ceil(target.hp)} / ${d.hp}${d.attackMagic ? ' · เวท (MDEF)' : ''}<div class="target-meter"><i style="width:${Math.max(0, (target.hp / d.hp) * 100)}%"></i></div>`;
     }
     R.minimap($("minimap"), s);
     R.portrait($("portrait"), s);

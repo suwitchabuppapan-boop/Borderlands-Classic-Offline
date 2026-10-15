@@ -2,6 +2,7 @@
   "use strict";
   const D =
     typeof module === "object" ? require("./classic-data.js") : root.BCData;
+  const Rules = typeof module === "object" ? require("./stat-rules.js") : root.BCStatRules;
   const Combat = typeof module === "object" ? require("./class-combat.js") : root.BCClassCombat;
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -20,9 +21,10 @@
       classTrial: null,
       weaponSchool: "training",
       silver: 45,
-      statPoints: 0,
+      statVersion: 2,
+      statPoints: 48,
       skillPoints: 0,
-      stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5 },
+      stats: { str: 1, agi: 1, vit: 1, int: 1, dex: 1, luk: 1 },
       skills: Object.fromEntries(Object.keys(D.skills).map(id => [id, id === "first_aid" ? 1 : 0])),
       inventory: { potion: 5, ether: 3, novice_cap: 1 },
       equipment: {
@@ -65,31 +67,10 @@
     spawn(s);
     return s;
   }
-  function stats(s) {
-    const equipment = Object.values(s.equipment)
-      .filter(Boolean)
-      .map((id) => D.items[id]);
-    let weight = equipment.reduce((n, i) => n + i.weight, 0);
-    for (const [id, n] of Object.entries(s.inventory))
-      weight += D.items[id].weight * n;
-    const a = s.stats, mods = Combat.modifiers(s);
-    const gearAtk = equipment.reduce((n, i) => n + (i.atk || 0), 0);
-    return {
-      maxHp:
-        90 + a.vit * 10 + s.baseLevel * 10 + (s.job === "Swordman" ? 60 : 0),
-      maxSp: 25 + a.int * 5 + s.baseLevel * 2,
-      atk: (8 + a.str * 2 + s.baseLevel + gearAtk) * (mods.atkMultiplier || 1),
-      matk: 8 + a.int * 2 + s.baseLevel + gearAtk,
-      def:
-        Math.floor(a.vit / 3) + equipment.reduce((n, i) => n + (i.def || 0), 0) + (mods.defBonus || 0),
-      hit: 80 + a.dex + s.baseLevel,
-      flee: a.agi + s.baseLevel + (mods.fleeBonus || 0),
-      crit: Math.min(35, 3 + a.luk * 0.5),
-      interval: Math.max(0.3, 1.05 - a.agi * 0.012 - a.dex * 0.003),
-      weight,
-      capacity: 2000 + a.str * 30 + (s.job === "Swordman" ? 800 : 0),
-    };
-  }
+  function stats(s) { return Rules.calculate(s, Combat.modifiers(s)); }
+  const statCost = Rules.statCost;
+  const statRefund = Rules.statRefund;
+  function statResetReason(s) { return nearby(s, "guide") ? "" : `คุย${npcName("guide")}ที่เมืองเพื่อรีสเตตัสฟรี`; }
   function classInfo(s) {
     return typeof s.classId === "string" && own(D.classes, s.classId) ? D.classes[s.classId] : D.classes.villager;
   }
@@ -187,7 +168,7 @@
     while (s.baseLevel < 30 && s.exp >= baseNeed(s)) {
       s.exp -= baseNeed(s);
       s.baseLevel++;
-      s.statPoints += 3;
+      s.statPoints += Rules.levelAward(s.baseLevel);
       leveled = true;
     }
     while (
@@ -237,32 +218,18 @@
   }
   function damage(s, m, mult = 1, always = false, options = {}) {
     if (!m || m.dead || m.hp <= 0) return false;
-    const d = D.monsters[m.kind],
-      st = stats(s),
-      critical = random(s) * 100 < st.crit;
-    if (
-      !always &&
-      !critical &&
-      random(s) * 100 > clamp(st.hit - d.level * 2, 75, 98)
-    ) {
+    const d = D.monsters[m.kind], st = stats(s), magic = !!options.magic;
+    // Random criticals belong only to ordinary physical attacks, never spells,
+    // signatures, legacy skills, traps, or DOT. Magic also bypasses ordinary FLEE.
+    const critical = options.normal === true && !magic && random(s) * 100 < Math.max(0, st.crit - (d.luk || 0) / 5);
+    if (!magic && !always && !critical && random(s) * 100 > Rules.playerHitChance(st, d)) {
       effect(s, m.x, m.y - 20, "MISS", "#bec8cd");
       return false;
     }
-    const amount = Math.max(
-      1,
-      Math.round(
-        (options.magic ? st.matk : st.atk) * mult * (critical ? 1.65 : 1) -
-          d.def * (m.provoke > 0 ? 0.5 : 1) * (options.defenseScale ?? 1),
-      ),
-    );
+    const defense = (magic ? d.mdef || 0 : d.def) * (!magic && m.provoke > 0 ? 0.5 : 1) * (options.defenseScale ?? 1);
+    const amount = Rules.damageTaken((magic ? st.matk : st.atk) * mult * (critical ? 1.4 : 1), 0, defense);
     m.hp -= amount;
-    effect(
-      s,
-      m.x,
-      m.y - 25,
-      (critical ? "CRIT " : "") + amount,
-      critical ? "#ffdc82" : "#fff3cf",
-    );
+    effect(s, m.x, m.y - 25, (critical ? "CRIT " : "") + amount, critical ? "#ffdc82" : magic ? "#d6c7ff" : "#fff3cf");
     if (m.hp <= 0) kill(s, m);
     return true;
   }
@@ -339,7 +306,7 @@
         if (dx || dy)
           s.player.facing =
             Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : dy > 0 ? 0 : 2;
-        const landed = damage(s, m, id === "bash" ? 1.5 + s.skills.bash * 0.15 : 1);
+        const landed = damage(s, m, id === "bash" ? 1.5 + s.skills.bash * 0.15 : 1, id !== "attack", { normal: id === "attack", magic: id === "attack" && st.basicMagic });
         if (id === "attack" && landed) Combat.afterAttack(s, m, combatHelpers);
         s.cooldowns.swing = 0.22;
       }
@@ -355,13 +322,14 @@
       const i = D.items[p.id];
       s.inventory[p.id]--;
       if (!s.inventory[p.id]) delete s.inventory[p.id];
-      s.player.hp = Math.min(st.maxHp, s.player.hp + (i.hp || 0));
-      s.player.sp = Math.min(st.maxSp, s.player.sp + (i.sp || 0));
+      const hp = Math.round((i.hp || 0) * st.hpItemMultiplier), sp = Math.round((i.sp || 0) * st.spItemMultiplier);
+      s.player.hp = Math.min(st.maxHp, s.player.hp + hp);
+      s.player.sp = Math.min(st.maxSp, s.player.sp + sp);
       effect(
         s,
         s.player.x,
         s.player.y - 30,
-        i.hp ? `+${i.hp} HP` : `+${i.sp} SP`,
+        i.hp ? `+${hp} HP` : `+${sp} SP`,
         i.color,
       );
       return ok(`ใช้ ${i.name}`);
@@ -441,11 +409,27 @@
       return ok("ถอดอุปกรณ์แล้ว");
     }
     if (action === "stat") {
-      if (!own(s.stats, p.id) || s.statPoints < 1 || s.stats[p.id] >= 99)
-        return fail("ไม่มีแต้ม หรือค่าสถานะเต็มแล้ว");
+      if (typeof p.id !== "string" || !own(s.stats, p.id) || !own(D.statNames, p.id)) return fail("ค่าสเตตัสไม่ถูกต้อง");
+      const cost = statCost(s.stats[p.id]);
+      if (!Number.isFinite(cost)) return fail("ค่าสเตตัสเต็ม 99 แล้ว");
+      if (s.statPoints < cost) return fail(`ต้องใช้แต้มสเตตัส ${cost} แต้ม`);
       s.stats[p.id]++;
-      s.statPoints--;
+      s.statPoints -= cost;
       return ok("เพิ่มสเตตัสแล้ว");
+    }
+    if (action === "reset-stats") {
+      const reason = statResetReason(s);
+      if (reason) return fail(reason);
+      const refund = statRefund(s);
+      s.statPoints += refund;
+      for (const key of Object.keys(D.statNames)) s.stats[key] = 1;
+      delete s.classCombat;
+      s.auto = false; s.target = null; s.destination = null; s.cooldowns = {};
+      for (const m of s.monsters) { delete m.classDots; m.snare = 0; m.provoke = 0; }
+      const reset = stats(s);
+      s.player.hp = Math.min(s.player.hp, reset.maxHp);
+      s.player.sp = Math.min(s.player.sp, reset.maxSp);
+      return ok(`รีสเตตัสฟรี • คืน ${refund} แต้ม`);
     }
     if (action === "learn") {
       const reason = learnReason(s, p.id);
@@ -556,7 +540,7 @@
         s.destination = { x: target.x, y: target.y };
       else {
         s.destination = null;
-        const suggested = s.auto && s.settings.autoSkill ? Combat.suggestSkill(s, target) : null;
+        const suggested = s.auto && s.settings.autoSkill ? Combat.suggestSkill(s, target, combatHelpers) : null;
         if (suggested && skillAvailable(s, suggested)) {
           const result = doAction(s, "skill", { id: suggested, target: target.uid });
           if (!result.ok) doAction(s, "attack", { target: target.uid });
@@ -600,14 +584,18 @@
         } else if (!m.cd) {
           m.cd = d.boss ? 1.5 : 1.8;
           const defense = stats(s);
-          if (random(s) * 100 < clamp(88 + d.level - defense.flee, 55, 96)) {
-            const hit = Math.max(
-              1,
-              Math.round((d.atk * (m.provoke ? 1.2 : 1) - defense.def) * (Combat.modifiers(s).damageTaken || 1)),
+          const magic = !!d.attackMagic;
+          const perfect = !magic && random(s) * 100 < defense.perfectDodge;
+          if (!perfect && (magic || random(s) * 100 < Rules.enemyHitChance(d, defense))) {
+            const hit = Rules.damageTaken(
+              d.atk * (m.provoke ? 1.2 : 1),
+              magic ? defense.softMdef : defense.softDef,
+              magic ? defense.hardMdef : defense.hardDef,
+              Combat.modifiers(s).damageTaken || 1,
             );
             s.player.hp = Math.max(0, s.player.hp - hit);
-            effect(s, s.player.x, s.player.y - 35, `−${hit}`, "#ffa7a1");
-          } else effect(s, s.player.x, s.player.y - 35, "DODGE", "#aee0cd");
+            effect(s, s.player.x, s.player.y - 35, `${magic ? "เวท " : ""}−${hit}`, magic ? "#cab4ff" : "#ffa7a1");
+          } else effect(s, s.player.x, s.player.y - 35, perfect ? "LUCKY" : "DODGE", "#aee0cd");
         }
       }
     }
@@ -621,11 +609,11 @@
       if (st.weight < st.capacity * 0.5) {
         s.player.hp = Math.min(
           st.maxHp,
-          s.player.hp + Math.max(2, Math.floor(s.stats.vit / 2)),
+          s.player.hp + st.hpRegen,
         );
         s.player.sp = Math.min(
           st.maxSp,
-          s.player.sp + Math.max(2, Math.floor(s.stats.int / 3)),
+          s.player.sp + st.spRegen,
         );
       }
     }
@@ -654,6 +642,7 @@
       "classTrial",
       "weaponSchool",
       "silver",
+      "statVersion",
       "statPoints",
       "skillPoints",
       "stats",
@@ -701,6 +690,8 @@
       n <= max &&
       (!int || Number.isInteger(n));
     if (!["Novice", "Swordman"].includes(v.job)) bad();
+    if (own(v, "statVersion") && v.statVersion !== 2) bad();
+    const legacyStats = !own(v, "statVersion");
     const legacyClass = !own(v, "classId");
     const legacyClasses = { training: "villager", sword: "swordsman", dual_sword: "royal_duelist", greatsword: "city_guardian", sword_shield: "city_guardian", staff: "lotus_mage", book: "divine_scribe", knuckle: "garuda_monk", dagger: "moon_shadow", bow: "naga_ranger" };
     if (!obj(v.equipment) || !obj(v.skills) || !obj(v.kills)) bad();
@@ -715,7 +706,7 @@
       ["exp", 0, 100000],
       ["jexp", 0, 100000],
       ["silver", 0, 100000000],
-      ["statPoints", 0, 10000],
+      ["statPoints", 0, 100000],
       ["skillPoints", 0, 10000],
       ["zone", 0, 2],
       ["quest", 0, 3],
@@ -792,6 +783,8 @@
       bad();
     const s = createState();
     for (const k of Object.keys(JSON.parse(serialize(s)).state)) s[k] = v[k];
+    s.statVersion = 2;
+    if (legacyStats) s.statPoints += Rules.levelTotal(s.baseLevel) - 3 * (s.baseLevel - 1);
     s.classId = classId;
     s.classTrial = classTrial;
     s.skills = skills;
@@ -806,6 +799,9 @@
   const api = {
     createState,
     stats,
+    statCost,
+    statRefund,
+    statResetReason,
     attackRange,
     equipReason,
     classInfo,

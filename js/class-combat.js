@@ -2,13 +2,13 @@
 (function (root) {
   "use strict";
   const D = typeof module === "object" ? require("./classic-data.js") : root.BCData;
+  const Rules = typeof module === "object" ? require("./stat-rules.js") : root.BCStatRules;
   const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const live = (m) => !!m && !m.dead && m.hp > 0;
   const scaled = (skill, key, perKey, level) => (skill[key] || 0) + (skill[perKey] || 0) * (level - 1);
-  const maxHp = (s, h) => h?.stats ? h.stats(s).maxHp :
-    90 + (s.stats?.vit || 0) * 10 + (s.baseLevel || 1) * 10 + (s.job === "Swordman" ? 60 : 0);
+  const maxHp = (s, h) => h?.stats ? h.stats(s).maxHp : Rules.maxHp(s);
 
   function accessible(s, id) {
     if (!own(D.skills, id) || !D.skills[id].owner || !own(D.classes, s.classId)) return false;
@@ -175,16 +175,16 @@
       return false;
     });
   }
-  function suggestSkill(s, m) {
+  function suggestSkill(s, m, h) {
     const seen = new Set();
     for (let cid = s.classId; own(D.classes, cid) && !seen.has(cid); cid = D.classes[cid].parent) {
       seen.add(cid);
       const id = D.classes[cid].skill;
       if (!accessible(s, id)) continue;
       const skill = D.skills[id];
-      if (skill.kind === "self" && s.player.hp >= maxHp(s) * 0.8) continue;
+      if (skill.kind === "self" && s.player.hp >= maxHp(s, h) * 0.8) continue;
       if (skill.kind === "trap" && s.classCombat?.traps?.length) continue;
-      if (!inspect(s, id, { target: m?.uid }).error) return id;
+      if (!inspect(s, id, { target: m?.uid }, h).error) return id;
     }
     return null;
   }

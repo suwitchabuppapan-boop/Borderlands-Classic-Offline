@@ -2,18 +2,18 @@
 (function (root) {
   "use strict";
   const weaponTypes = {
-    training: { name: "ไม้ฝึก", hands: 1, range: 48, approachRange: 38, attack: "swing" },
-    sword: { name: "ดาบ", hands: 1, range: 58, approachRange: 48, attack: "swing" },
-    dual_sword: { name: "ดาบคู่", hands: 2, range: 58, approachRange: 48, attack: "dual_swing" },
-    sword_shield: { name: "ดาบและโล่", hands: 2, range: 58, approachRange: 48, attack: "guard_swing" },
-    orb: { name: "แก้วมณี", hands: 2, range: 155, approachRange: 145, attack: "cast" },
-    claw: { name: "กรงเล็บ", hands: 2, range: 48, approachRange: 38, attack: "rend" },
-    magic_bow: { name: "ธนูมนตรา", hands: 2, range: 190, approachRange: 180, attack: "draw" },
-    staff: { name: "คทา", hands: 2, range: 135, approachRange: 125, attack: "cast" },
-    book: { name: "หนังสือ", hands: 2, range: 125, approachRange: 115, attack: "read" },
-    knuckle: { name: "สนับมือ", hands: 2, range: 48, approachRange: 38, attack: "punch" },
-    dagger: { name: "มีดสั้น", hands: 1, range: 50, approachRange: 40, attack: "thrust" },
-    bow: { name: "ธนู", hands: 2, range: 200, approachRange: 190, attack: "draw" },
+    training: { primaryStat: "str", basicMagic: false, interval: 1.05, name: "ไม้ฝึก", hands: 1, range: 48, approachRange: 38, attack: "swing" },
+    sword: { primaryStat: "str", basicMagic: false, interval: 1.05, name: "ดาบ", hands: 1, range: 58, approachRange: 48, attack: "swing" },
+    dual_sword: { primaryStat: "str", basicMagic: false, interval: 1.08, name: "ดาบคู่", hands: 2, range: 58, approachRange: 48, attack: "dual_swing" },
+    sword_shield: { primaryStat: "str", basicMagic: false, interval: 1.2, name: "ดาบและโล่", hands: 2, range: 58, approachRange: 48, attack: "guard_swing" },
+    orb: { primaryStat: "int", basicMagic: true, interval: 1.0, name: "แก้วมณี", hands: 2, range: 155, approachRange: 145, attack: "cast" },
+    claw: { primaryStat: "str", basicMagic: false, interval: 0.85, name: "กรงเล็บ", hands: 2, range: 48, approachRange: 38, attack: "rend" },
+    magic_bow: { primaryStat: "dex", basicMagic: false, interval: 1.1, name: "ธนูมนตรา", hands: 2, range: 190, approachRange: 180, attack: "draw" },
+    staff: { primaryStat: "int", basicMagic: true, interval: 1.15, name: "คทา", hands: 2, range: 135, approachRange: 125, attack: "cast" },
+    book: { primaryStat: "int", basicMagic: true, interval: 1.12, name: "หนังสือ", hands: 2, range: 125, approachRange: 115, attack: "read" },
+    knuckle: { primaryStat: "str", basicMagic: false, interval: 0.9, name: "สนับมือ", hands: 2, range: 48, approachRange: 38, attack: "punch" },
+    dagger: { primaryStat: "str", basicMagic: false, interval: 0.92, name: "มีดสั้น", hands: 1, range: 50, approachRange: 40, attack: "thrust" },
+    bow: { primaryStat: "dex", basicMagic: false, interval: 1.12, name: "ธนู", hands: 2, range: 200, approachRange: 190, attack: "draw" },
   };
   const classes = {
     villager: {"name": "ชาวบ้าน", "tier": 0, "parent": null, "weaponType": "training", "atlas": "class-villager", "trainingWeapon": "training_stick", "description": "ชาวบ้าน ฝึกวิถีชาวบ้านแห่งสยาม", "skill": "first_aid"},
@@ -175,7 +175,7 @@
         length: 34, width: 9,
       },
     },
-    lotus_staff: {
+    lotus_staff: { matk: 14,
       name: "คทาบัวแก้ว",
       type: "weapon",
       weaponType: "staff",
@@ -190,7 +190,7 @@
         length: 37, width: 9,
       },
     },
-    golden_scripture: {
+    golden_scripture: { matk: 12,
       name: "คัมภีร์ทองอรุณ",
       type: "weapon",
       weaponType: "book",
@@ -251,10 +251,10 @@
       },
     },
     arun_sword_shield: {"name": "ชุดดาบโล่อรุณ", "type": "weapon", "weaponType": "sword_shield", "price": 10, "weight": 130, "atk": 14, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 1}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 1, "profile": "sword_shield", "length": 30, "width": 13}},
-    jade_orb: {"name": "แก้วมณีหยก", "type": "weapon", "weaponType": "orb", "price": 10, "weight": 65, "atk": 14, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 2}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 2, "profile": "orb", "length": 30, "width": 13}},
+    jade_orb: { matk: 16,"name": "แก้วมณีหยก", "type": "weapon", "weaponType": "orb", "price": 10, "weight": 65, "atk": 14, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 2}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 2, "profile": "orb", "length": 30, "width": 13}},
     tiger_claws: {"name": "กรงเล็บพยัคฆ์", "type": "weapon", "weaponType": "claw", "price": 10, "weight": 55, "atk": 12, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 3}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 3, "profile": "claw", "length": 30, "width": 13}},
-    arcane_bow: {"name": "ธนูศรมนตรา", "type": "weapon", "weaponType": "magic_bow", "price": 10, "weight": 85, "atk": 14, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 4}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 4, "profile": "magic_bow", "length": 30, "width": 13}},
-    cloth_armor: {
+    arcane_bow: { matk: 12,"name": "ธนูศรมนตรา", "type": "weapon", "weaponType": "magic_bow", "price": 10, "weight": 85, "atk": 14, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 4}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 4, "profile": "magic_bow", "length": 30, "width": 13}},
+    cloth_armor: { mdef: 1,
       name: "เสื้อผ้าทอคราม",
       type: "armor",
       price: 35,
@@ -264,7 +264,7 @@
       icon: "▣",
       iconArt: { atlas: "siam-equipment", cell: 0 },
     },
-    leather_armor: {
+    leather_armor: { mdef: 3,
       name: "เกราะหนังลายกนก",
       type: "armor",
       price: 110,
@@ -274,7 +274,7 @@
       icon: "▣",
       iconArt: { atlas: "siam-equipment", cell: 1 },
     },
-    moon_armor: {
+    moon_armor: { mdef: 8,
       name: "เกราะยักษ์แก้วนาคา",
       type: "armor",
       price: 400,
@@ -295,7 +295,7 @@
       icon: "○",
       iconArt: { atlas: "siam-equipment", cell: 3 },
     },
-    moon_charm: {
+    moon_charm: { matk: 8, mdef: 3,
       name: "เครื่องรางแก้วนาคา",
       type: "accessory",
       price: 300,
@@ -322,7 +322,7 @@
         trim: "#e7ceb0",
       },
     },
-    cat_ears: {
+    cat_ears: { mdef: 1,
       name: "รัดเกล้ากินรี",
       type: "head",
       price: 75,
@@ -338,7 +338,7 @@
         trim: "#eab3b0",
       },
     },
-    silver_circlet: {
+    silver_circlet: { mdef: 3,
       name: "รัดเกล้านาคาแก้ว",
       type: "head",
       price: 160,
@@ -397,7 +397,7 @@
     },
   };
   const monsters = {
-    poring: {
+    poring: { agi: 1, dex: 2, luk: 0, mdef: 0, attackMagic: false,
       name: "หยดบัว",
       description: "หยดน้ำสีชมพูที่ตื่นขึ้นบนใบบัว ชอบกลิ้งตามนักเดินทางริมท่าน้ำ",
       level: 1,
@@ -412,7 +412,7 @@
       shape: "slime",
       speed: 34,
     },
-    fabre: {
+    fabre: { agi: 2, dex: 3, luk: 0, mdef: 0, attackMagic: false,
       name: "หนอนใบตอง",
       description: "หนอนน้อยที่ห่มใบตองอ่อน กินยอดหญ้าอยู่ข้างแปลงนุ่น",
       level: 2,
@@ -427,7 +427,7 @@
       shape: "bug",
       speed: 30,
     },
-    lunatic: {
+    lunatic: { agi: 7, dex: 5, luk: 1, mdef: 1, attackMagic: false,
       name: "กระต่ายจันทร์",
       description: "กระต่ายขนขาวที่รับแสงจันทร์ไว้ในปลายหู ว่องไวแต่ขี้ตกใจ",
       level: 3,
@@ -442,9 +442,9 @@
       shape: "rabbit",
       speed: 50,
     },
-    willow: {
+    willow: { agi: 2, dex: 7, luk: 2, mdef: 6, attackMagic: true,
       name: "ภูตไทร",
-      description: "วิญญาณไม้เฝ้ารากไทรเก่าในป่าหิมพานต์ ฟื้นขึ้นเมื่อกระแสแก้วเสียสมดุล",
+      description: "วิญญาณไม้เฝ้ารากไทรเก่า โจมตีด้วยเวทที่หลบด้วย FLEE ไม่ได้ ใช้ MDEF ลดความเสียหาย",
       level: 5,
       hp: 115,
       atk: 17,
@@ -457,7 +457,7 @@
       shape: "tree",
       speed: 25,
     },
-    hornet: {
+    hornet: { agi: 10, dex: 10, luk: 2, mdef: 2, attackMagic: false,
       name: "ต่อปีกแก้ว",
       description: "ต่อป่าปีกใสวาวคล้ายแก้ว คอยปกป้องรังเรซินตามพุ่มไม้",
       level: 6,
@@ -472,7 +472,7 @@
       shape: "bee",
       speed: 65,
     },
-    poporing: {
+    poporing: { agi: 4, dex: 9, luk: 1, mdef: 4, attackMagic: false,
       name: "วุ้นมรกต",
       description: "หยดวุ้นที่ดูดซับประกายมรกตจากธารใต้ดิน กระโดดล้อมผู้บุกรุกถ้ำ",
       level: 8,
@@ -487,7 +487,7 @@
       shape: "slime",
       speed: 38,
     },
-    guardian: {
+    guardian: { agi: 8, dex: 14, luk: 5, mdef: 8, attackMagic: false,
       name: "ยักษ์แก้วพิทักษ์",
       description: "ผู้เฝ้าแก่นแก้วนาคาโบราณ ตื่นขึ้นจากเสียงสะท้อนที่รบกวนธารใต้เมือง",
       level: 12,
@@ -654,7 +654,7 @@
       title: "สยามอรุณ",
       subtitle: "ตำนานผู้กล้าแห่งลุ่มน้ำ",
       currency: "อัฐ",
-      release: "1.8",
+      release: "1.9",
       intro: "ท่าน้ำอรุณเคยมีสายน้ำใสไหลจากป่าหิมพานต์ แต่ยามนี้ประกายแก้วประหลาดปลุกเหล่าภูตให้ปั่นป่วน เริ่มต้นเป็นชาวบ้าน ฝึกวิชากับครูอิน และออกตามหาแก่นแก้วนาคาเพื่อคืนความสงบให้เมืองริมน้ำแห่งสยามแฟนตาซี",
     },
     jobs: {
@@ -677,6 +677,14 @@
       int: "INT · ปัญญา",
       dex: "DEX · แม่นยำ",
       luk: "LUK · โชค",
+    },
+    statHelp: {
+      str: "เพิ่ม ATK อาวุธประชิด และน้ำหนักบรรทุก 30 ต่อแต้ม; ธนูได้ ATK รองทุก 5 แต้ม",
+      agi: "เพิ่ม FLEE และความเร็วโจมตี; เพิ่ม DEF พื้นฐานทุก 5 แต้ม ไม่เพิ่มความเร็วเดิน",
+      vit: "เพิ่ม HP สูงสุด 1% ต่อแต้ม, DEF พื้นฐาน, ประสิทธิภาพยา HP 2% และการฟื้น HP",
+      int: "เพิ่ม MATK, SP สูงสุด 1% ต่อแต้ม, MDEF พื้นฐาน, ประสิทธิภาพยา SP 1% และการฟื้น SP",
+      dex: "เพิ่ม ATK ของธนู, HIT และความเร็วโจมตีเล็กน้อย; เพิ่ม ATK ประชิดและ MATK รองทุก 5 แต้ม",
+      luk: "เพิ่ม CRIT กายภาพปกติ 0.3% ต่อแต้ม, ATK/MATK/HIT รอง, FLEE และหลบสมบูรณ์; ไม่เพิ่มดรอป",
     },
     saveKey: "borderlands-solo-rebuilt-v1",
   };

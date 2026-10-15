@@ -165,7 +165,7 @@ h1 { font-size: 12px; margin: 0; }
 .inventory-detail .item-actions { max-width: none; margin-top: 6px; justify-content: flex-start; }
 .inventory-detail .item-info b { font-weight: bold; }
 .outline-button { font-size: 10px; margin-top: 7px; }
-.status-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.status-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .paper-doll { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 7px; padding: 8px; border: 1px solid #a8987460; border-radius: 4px; background: #304c4a80; }
 .paper-doll .equipment-slots { display: grid; gap: 7px; }
 .paper-doll button { padding: 0; width: 36px; height: 36px; background: #2e4946; }
@@ -182,11 +182,35 @@ h1 { font-size: 12px; margin: 0; }
 .equipment-list .item-row { gap: 6px; padding: 5px; }
 .equipment-list .item-actions { flex-shrink: 0; }
 .equipment-note { margin: 8px 0 0; }
-.stat-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 11px; }
-.stat-row span { flex: 1; }
-.stat-row b { min-width: 34px; border: 1px solid #a6b294; border-radius: 5px; text-align: center; font-weight: normal; color: white; }
-.stat-row button { color: #d6c995; background: none; border: 0; box-shadow: none; padding: 0 4px; font-size: 16px; line-height: 20px; }
-.stat-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 10px 0 0; padding-top: 6px; border-top: 1px solid #aaa07c70; }
+.stat-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; min-height: 29px; font-size: 11px; }
+.stat-row .stat-name { flex: 1; }
+.stat-row b { min-width: 26px; border: 1px solid #a6b294; border-radius: 5px; text-align: center; font-weight: normal; color: white; }
+.stat-row .stat-cost { min-width: 35px; color: #e1c78f; font-size: 9px; text-align: center; white-space: nowrap; }
+.stat-row .stat-cost.unavailable { color: #c6bca1; }
+.stat-short-reason { display: block; font-size: 8px; line-height: 10px; font-style: normal; color: #e4b5a5; }
+.stat-row button { flex-shrink: 0; width: 24px; height: 25px; color: #e6d49d; background: #425e58; border: 1px solid #a6b29480; box-shadow: none; padding: 0; font-size: 16px; line-height: 20px; }
+.stat-build { margin: 8px 0; padding: 6px 7px; border-left: 2px solid #c8b37d; background: #304c4a80; color: #d7ddce; font-size: 10px; line-height: 1.7; }
+.stat-build b, .stat-build span { display: block; }
+.stat-build b { color: #e1c78f; font-size: 10px; font-weight: normal; }
+.stat-guide, .stat-details { margin: 7px 0; border: 1px solid #a5977466; border-radius: 3px; background: #294c4730; font-size: 10px; line-height: 1.7; }
+.stat-guide > summary, .stat-details > summary { padding: 5px 7px; color: #eee0b9; cursor: pointer; }
+.stat-guide dl { margin: 0; padding: 0 7px 5px; }
+.stat-guide dl > div { padding: 4px 0; border-top: 1px solid #a5977433; }
+.stat-guide dt { color: #e1c78f; }
+.stat-guide dd { margin: 0; color: #d7ddce; }
+.stat-guide .panel-note, .stat-details .panel-note { padding: 0 7px; margin: 5px 0 7px; font-size: 9px; }
+.stat-detail-grid { margin: 0; padding: 0 7px 5px; display: grid; gap: 3px; }
+.stat-detail-grid > div { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 3px 0; border-top: 1px solid #a5977433; }
+.stat-detail-grid dt { color: #d7ddce; font-size: 9px; }
+.stat-detail-grid dd { margin: 0; flex-shrink: 0; color: #e1c78f; font-size: 10px; }
+.stat-reset { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 9px 0; padding: 7px; border: 1px solid #a5977466; border-radius: 3px; background: #294c4760; }
+.stat-reset b, .stat-reset small { display: block; font-size: 10px; line-height: 1.7; }
+.stat-reset b { color: #e1c78f; font-weight: normal; }
+.stat-reset small { color: #d7ddce; font-size: 9px; }
+.stat-reset-actions { display: grid; flex-shrink: 0; gap: 5px; }
+.stat-reset-actions button { font-size: 9px; padding: 4px 6px; }
+.stat-reset-actions .outline-button { margin: 0; }
+.stat-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 10px 0 0; padding-top: 6px; border-top: 1px solid #aaa07c70; }
 .stat-summary div { display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; font-size: 10px; }
 .stat-summary b { color: #e1c78f; font-weight: normal; }
 .skill-card { align-items: flex-start; }
@@ -237,6 +261,10 @@ kbd { color: #e9e0c8; font: 9px Tahoma, sans-serif; border: 1px solid #b3ac84; b
   .inventory-tile, .inventory-empty-slot { height: 38px; }
   .inventory-tile .game-icon:not(.item-art) { width: 26px; height: 26px; }
   .status-layout { gap: 8px; }
+  .stat-row { gap: 3px; }
+  .stat-row .stat-cost { min-width: 31px; font-size: 8px; }
+  .stat-row button { width: 24px; }
+  .stat-reset { align-items: flex-start; }
   .paper-doll { padding: 6px; gap: 4px; }
   .paper-doll canvas { width: 82px; height: auto; }
   .equipment-layout { grid-template-columns: 98px minmax(0, 1fr); gap: 8px; }
