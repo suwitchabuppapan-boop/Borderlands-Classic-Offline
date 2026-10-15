@@ -15,6 +15,7 @@
       exp: 0,
       jexp: 0,
       job: "Novice",
+      weaponSchool: "sword",
       silver: 45,
       statPoints: 0,
       skillPoints: 0,
@@ -90,10 +91,21 @@
   }
   function weaponProfile(s) {
     const item = D.items[s.equipment.weapon];
-    return D.weaponTypes[item?.weaponType] || D.weaponTypes.sword;
+    return D.weaponTypes[item?.weaponType || s.weaponSchool] || D.weaponTypes.sword;
   }
   function attackRange(s) {
     return weaponProfile(s).range;
+  }
+  function equipReason(s, id) {
+    if (
+      typeof id !== "string" || !own(D.items, id) ||
+      !["weapon", "armor", "accessory", "head"].includes(D.items[id].type)
+    ) return "ใส่อุปกรณ์นี้ไม่ได้";
+    const item = D.items[id];
+    if (item.type === "weapon" && item.weaponType !== (s.weaponSchool || "sword"))
+      return `อาวุธนี้ใช้ได้เฉพาะสาย${D.weaponSchools[item.weaponType].name} • เปลี่ยนสายที่เมืองก่อน`;
+    if (!(s.inventory[id] > 0)) return "ไม่มีอุปกรณ์นี้ในกระเป๋า";
+    return "";
   }
   function random(s) {
     s.seed = (s.seed * 1664525 + 1013904223) >>> 0;
@@ -326,13 +338,36 @@
       }
       return ok(`${action === "buy" ? "ซื้อ" : "ขาย"} ${i.name} ×${qty}`);
     }
+    if (action === "school") {
+      if (s.zone !== 0) return fail("เปลี่ยนสายอาวุธได้เฉพาะในเมืองท่าน้ำอรุณ");
+      if (typeof p.id !== "string" || !own(D.weaponSchools, p.id))
+        return fail("ไม่พบสายอาวุธนี้");
+      const school = D.weaponSchools[p.id];
+      const owned = (id) => typeof id === "string" && own(D.items, id) &&
+        D.items[id].type === "weapon" && D.items[id].weaponType === school.weaponType &&
+        (s.inventory[id] > 0 || s.equipment.weapon === id);
+      const id = p.weapon === undefined
+        ? Object.keys(D.items).filter(owned).sort((a, b) => D.items[b].atk - D.items[a].atk)[0]
+        : p.weapon;
+      if (!owned(id))
+        return fail(`ต้องมีอาวุธประเภท${D.weaponTypes[school.weaponType].name}ของตนเองเพื่อเปลี่ยนสาย`);
+      if (s.weaponSchool === p.id && s.equipment.weapon === id) return ok();
+      const old = s.equipment.weapon;
+      if (old !== id) {
+        s.inventory[id]--;
+        if (!s.inventory[id]) delete s.inventory[id];
+        if (old) s.inventory[old] = (s.inventory[old] || 0) + 1;
+        s.equipment.weapon = id;
+      }
+      s.weaponSchool = p.id;
+      s.destination = null;
+      s.target = null;
+      s.auto = false;
+      return ok(`เปลี่ยนเป็นสาย${school.name}แล้ว • สวม ${D.items[id].name}`);
+    }
     if (action === "equip") {
-      if (
-        !own(D.items, p.id) ||
-        !["weapon", "armor", "accessory", "head"].includes(D.items[p.id].type) ||
-        !s.inventory[p.id]
-      )
-        return fail("ใส่อุปกรณ์นี้ไม่ได้");
+      const reason = equipReason(s, p.id);
+      if (reason) return fail(reason);
       const slot = D.items[p.id].type,
         old = s.equipment[slot];
       s.inventory[p.id]--;
@@ -579,6 +614,7 @@
       "exp",
       "jexp",
       "job",
+      "weaponSchool",
       "silver",
       "statPoints",
       "skillPoints",
@@ -678,6 +714,12 @@
             D.items[v.equipment[slot]].type !== slot))
       )
         bad();
+    const wornWeaponType = D.items[v.equipment.weapon]?.weaponType;
+    const weaponSchool = own(v, "weaponSchool") ? v.weaponSchool : wornWeaponType || "sword";
+    if (
+      typeof weaponSchool !== "string" || !own(D.weaponSchools, weaponSchool) ||
+      (wornWeaponType && wornWeaponType !== weaponSchool)
+    ) bad();
     for (const [k, n] of Object.entries(v.kills))
       if (!own(D.monsters, k) || !num(n, 0, 1000000)) bad();
     if (
@@ -703,6 +745,7 @@
       bad();
     const s = createState();
     for (const k of Object.keys(JSON.parse(serialize(s)).state)) s[k] = v[k];
+    s.weaponSchool = weaponSchool;
     if (legacyEquipment) s.equipment = { ...v.equipment, head: null };
     const st = stats(s);
     s.player.hp = Math.min(s.player.hp, st.maxHp);
@@ -714,6 +757,7 @@
     createState,
     stats,
     attackRange,
+    equipReason,
     act,
     tick,
     serialize,

@@ -249,3 +249,16 @@ kbd { color: #e9e0c8; font: 9px Tahoma, sans-serif; border: 1px solid #b3ac84; b
   .quest-card { display: none; }
   .character .level-row.small, .character .level-row.small + .thin { display: none; }
 }
+
+/* Compact eight-school selection, contained inside existing dialogs. */
+.school-selector { margin-top:12px; border-top:1px solid #9caecc66; padding-top:8px; }
+.school-selector h3 { margin:3px 0 7px; font-size:13px; }
+.school-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+.school-card { display:flex; flex-direction:column; align-items:center; gap:4px; padding:7px 4px; border:1px solid #8a9cba; border-radius:5px; min-width:0; text-align:center; background:#344556; }
+.school-card.current { border-color:#e6c986; background:#465950; }
+.school-card b { font-size:11px; }
+.school-card small { font-size:10px; line-height:1.4; }
+.school-card p { font-size:10px; line-height:1.5; margin:0; flex:1; }
+.school-card button { font-size:10px; padding:4px; width:100%; }
+.school-card .item-icon { width:30px; height:30px; }
+@media(max-width:600px) { .school-grid {grid-template-columns:repeat(2,minmax(0,1fr));} }

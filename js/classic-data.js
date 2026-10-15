@@ -11,6 +11,40 @@
     dagger: { name: "มีดสั้น", hands: 1, range: 50, approachRange: 40, attack: "thrust" },
     bow: { name: "ธนู", hands: 2, range: 200, approachRange: 190, attack: "draw" },
   };
+  const weaponSchools = {
+    sword: {
+      name: "นักดาบอรุณ", weaponType: "sword", atlas: "school-sword", trainingWeapon: "arun_sword",
+      description: "ผู้ฝึกดาบแห่งท่าน้ำอรุณ ใช้ดาบคมเดียวกับชุดนักเดินทางสยาม",
+    },
+    dual_sword: {
+      name: "ทวิคมราชวัง", weaponType: "dual_sword", atlas: "school-dual-sword", trainingWeapon: "palace_dual_blades",
+      description: "นักดาบคู่ผู้สืบกระบวนท่าราชวัง เคลื่อนไหวคล่องตัวด้วยคมดาบสองมือ",
+    },
+    greatsword: {
+      name: "นักรบดาบยักษ์", weaponType: "greatsword", atlas: "school-greatsword", trainingWeapon: "yak_greatsword",
+      description: "ผู้พิทักษ์เกราะยักษ์แก้ว ฝึกยกมหาดาบด้วยสองมืออย่างมั่นคง",
+    },
+    staff: {
+      name: "จอมเวทบัวแก้ว", weaponType: "staff", atlas: "school-staff", trainingWeapon: "lotus_staff",
+      description: "ผู้รวบรวมมนตราแห่งสายน้ำ ใช้คทาบัวแก้วเป็นอาวุธประจำสาย",
+    },
+    book: {
+      name: "อาลักษณ์มนตรา", weaponType: "book", atlas: "school-book", trainingWeapon: "golden_scripture",
+      description: "อาลักษณ์ผู้จารอาคมสยาม อ่านคัมภีร์ทองเพื่อส่งพลังมนตรา",
+    },
+    knuckle: {
+      name: "นักสู้ครุฑ", weaponType: "knuckle", atlas: "school-knuckle", trainingWeapon: "garuda_knuckles",
+      description: "นักสู้หมัดประชิดผู้ฝึกท่าครุฑ สวมสนับมือคู่กับชุดนักสู้",
+    },
+    dagger: {
+      name: "เงาจันทร์", weaponType: "dagger", atlas: "school-dagger", trainingWeapon: "moon_kris",
+      description: "ผู้ลาดตระเวนยามจันทร์ ใช้มีดสั้นกริชนาคาและท่าจู่โจมว่องไว",
+    },
+    bow: {
+      name: "พรานนาคา", weaponType: "bow", atlas: "school-bow", trainingWeapon: "naga_bow",
+      description: "พรานแห่งป่าหิมพานต์ ฝึกธนูนาคาเพื่อโจมตีจากระยะไกล",
+    },
+  };
   const items = {
     potion: {
       name: "ยาดอกคำฝอย",
@@ -609,15 +643,16 @@
       title: "สยามอรุณ",
       subtitle: "ตำนานผู้กล้าแห่งลุ่มน้ำ",
       currency: "อัฐ",
-      release: "1.6.2",
+      release: "1.7",
       intro: "ท่าน้ำอรุณเคยมีสายน้ำใสไหลจากป่าหิมพานต์ แต่ยามนี้ประกายแก้วประหลาดปลุกเหล่าภูตให้ปั่นป่วน เริ่มต้นเป็นผู้เดินทาง ฝึกวิชากับครูอิน และออกตามหาแก่นแก้วนาคาเพื่อคืนความสงบให้เมืองริมน้ำแห่งสยามแฟนตาซี",
     },
     jobs: {
       Novice: { name: "ผู้เดินทาง" },
-      Swordman: { name: "นักดาบพิทักษ์" },
+      Swordman: { name: "ผู้พิทักษ์สยาม" },
     },
     items,
     weaponTypes,
+    weaponSchools,
     monsters,
     maps,
     skills,

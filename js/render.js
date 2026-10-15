@@ -1,99 +1,117 @@
-/* Original illustrated maps and chibi sprite atlas. See ASSET_PROVENANCE.md. */
+/* Original Siam maps and complete authored school sprites. See ASSET_PROVENANCE.md. */
 (function (root) {
   "use strict";
   const D = root.BCData;
-  const atlasGrids = {
-    townsfolk: [2, 2], "siam-weapons": [4, 2], "siam-equipment": [4, 2],
-    "siam-headgear": [4, 3], "siam-novice-body": [4, 4], "siam-swordman-body": [4, 4],
-  };
-  const assetNames = ["meadow", "woodland", "cavern", "sprites", "novice-walk", "swordman-walk", "attacks", "gear", "townsfolk",
-    "siam-weapons", "siam-equipment", "siam-headgear", "siam-novice-body", "siam-swordman-body"];
+  const schoolAtlases = Object.freeze({
+    sword: "school-sword", dual_sword: "school-dual-sword", greatsword: "school-greatsword",
+    staff: "school-staff", book: "school-book", knuckle: "school-knuckle",
+    dagger: "school-dagger", bow: "school-bow",
+  });
+  const atlasGrids = { townsfolk: [2, 2], "siam-weapons": [4, 2], "siam-equipment": [4, 2],
+    "siam-headgear": [4, 3], ...Object.fromEntries(Object.values(schoolAtlases).map(name => [name, [6, 4]])) };
+  const assetNames = ["meadow", "woodland", "cavern", "sprites", "townsfolk",
+    "siam-weapons", "siam-equipment", "siam-headgear", ...Object.values(schoolAtlases)];
   const assets = { ready: false, failed: [], loaded: 0, total: assetNames.length };
-  const images = {};
-  const cells = {};
-  const hairAtlases = new Map();
-  const trackers = new WeakMap();
-  let textScale = 1;
+  const images = {}, cells = {};
+  const hairAtlases = new Map(), trackers = new WeakMap();
+  const own = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
   const hairColors = ["#956446", "#c49c56", "#49434a", "#b45d45", "#dcc484", "#718ca6"];
-  // This illustrated equipment sheet has taller weapon cells. Keep the full blades
-  // in their own source band instead of cutting them into the circlet frames.
-  const gearRowBands = [0, .25, .47, .605, 1];
   const monsterCells = { poring: 8, fabre: 9, lunatic: 10, willow: 11, hornet: 12, poporing: 13, guardian: 14 };
   const monsterHeights = { poring: 20, fabre: 23, lunatic: 29, willow: 30, hornet: 28, poporing: 22, guardian: 48 };
+  let textScale = 1;
 
   function load(name) {
-    const img = new Image();
-    images[name] = img;
+    const img = new Image(); images[name] = img;
     img.onload = () => {
       if (!["meadow", "woodland", "cavern"].includes(name)) measureCells(img, name);
       assets.loaded++;
       assets.ready = assets.loaded === assets.total;
     };
-    img.onerror = () => assets.failed.push(name);
+    img.onerror = () => { if (!assets.failed.includes(name)) assets.failed.push(name); };
     img.src = `assets/art/${name}.webp?v=${encodeURIComponent(D.world.release)}`;
   }
-  function convexHull(points) {
-    points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    const cross = (a, b, p) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
-    const chain = values => {
-      const hull = [];
-      for (const p of values) {
-        while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) hull.pop();
-        hull.push(p);
-      }
-      return hull.slice(0, -1);
-    };
-    return chain(points).concat(chain([...points].reverse()));
-  }
-  // Atlas gutters vary slightly; painted bounds put every sprite's feet on the ground.
+  // Character bounds are measured offline from the authored art. Measuring the
+  // full alpha box alone would shrink a character whenever its weapon is raised.
   function measureCells(img, name) {
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const c = canvas.getContext("2d", { willReadFrequently: true });
-    c.drawImage(img, 0, 0);
-    const pixels = c.getImageData(0, 0, canvas.width, canvas.height).data;
-    const [columns, rows] = atlasGrids[name] || [4, 4];
-    const rowPixels = name === "siam-headgear" ? root.BCSiamArt?.headgear?.rowPixelBands : null;
-    cells[name] = [];
-    for (let cell = 0; cell < columns * rows; cell++) {
-      const sx = Math.round((cell % columns) * canvas.width / columns);
-      const row = Math.floor(cell / columns);
-      const sy = Math.round(rowPixels?.[row] ?? (name === "gear" ? gearRowBands[row] * canvas.height : row * canvas.height / rows));
-      const ex = Math.round((cell % columns + 1) * canvas.width / columns);
-      const ey = Math.round(rowPixels?.[row + 1] ?? (name === "gear" ? gearRowBands[row + 1] * canvas.height : (row + 1) * canvas.height / rows));
-      let left = ex, top = ey, right = sx, bottom = sy;
-      const outline = [];
-      for (let y = sy; y < ey; y++) {
-        let rowLeft = ex, rowRight = sx - 1;
-        for (let x = sx; x < ex; x++) {
-          if (pixels[(y * canvas.width + x) * 4 + 3] < 64) continue;
-          left = Math.min(left, x); right = Math.max(right, x);
-          top = Math.min(top, y); bottom = Math.max(bottom, y);
-          rowLeft = Math.min(rowLeft, x); rowRight = Math.max(rowRight, x);
-        }
-        if (name === "siam-weapons" && rowRight >= rowLeft) outline.push([rowLeft, y], [rowRight, y]);
-      }
-      cells[name][cell] = right >= left && bottom >= top
-        ? { x: left, y: top, w: right - left + 1, h: bottom - top + 1, ...(outline.length ? { hull: convexHull(outline) } : {}) }
-        : null;
+    const school = Object.keys(schoolAtlases).find(key => schoolAtlases[key] === name);
+    if (school) {
+      cells[name] = (root.BCSchoolArt?.frames?.[school] || []).map(frame => frame?.bounds || null);
+      return;
     }
-  }
-  function tintedAtlas(hair, name) {
-    if (!hair || !["sprites", "novice-walk", "swordman-walk", "attacks", "siam-novice-body", "siam-swordman-body"].includes(name)) return images[name];
-    const key = `${name}:${hair}`;
-    if (hairAtlases.has(key)) return hairAtlases.get(key);
-    const img = images[name];
     const canvas = document.createElement("canvas");
     canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
     const c = canvas.getContext("2d", { willReadFrequently: true });
     c.drawImage(img, 0, 0);
+    const pixels = c.getImageData(0, 0, canvas.width, canvas.height).data;
+    const [columns, rows] = atlasGrids[name] || [4, 4];
+    const bands = name === "siam-headgear" ? root.BCSiamArt?.headgear?.rowPixelBands : null;
+    cells[name] = [];
+    for (let cell = 0; cell < columns * rows; cell++) {
+      const column = cell % columns, row = Math.floor(cell / columns);
+      const sx = Math.round(column * canvas.width / columns), ex = Math.round((column + 1) * canvas.width / columns);
+      const sy = Math.round(bands?.[row] ?? row * canvas.height / rows);
+      const ey = Math.round(bands?.[row + 1] ?? (row + 1) * canvas.height / rows);
+      let left = ex, top = ey, right = sx - 1, bottom = sy - 1;
+      for (let y = sy; y < ey; y++) for (let x = sx; x < ex; x++) {
+        if (pixels[(y * canvas.width + x) * 4 + 3] < 64) continue;
+        left = Math.min(left, x); right = Math.max(right, x);
+        top = Math.min(top, y); bottom = Math.max(bottom, y);
+      }
+      cells[name][cell] = right >= left && bottom >= top
+        ? { x: left, y: top, w: right - left + 1, h: bottom - top + 1 } : null;
+    }
+  }
+  function schoolOf(opts) {
+    // An explicit school owns the silhouette even when its weapon slot is empty.
+    // Invalid explicit values never silently render another school's outfit.
+    if (own(opts, "school")) return own(schoolAtlases, opts.school) ? opts.school : null;
+    const type = D.items[opts.weapon]?.weaponType;
+    return own(schoolAtlases, type) ? type : "sword";
+  }
+  function frameCell(pose = {}) {
+    const facing = Number.isFinite(pose.facing) ? Math.max(0, Math.min(3, Math.round(pose.facing))) : 0;
+    let column = 0;
+    if (pose.mode === "walk") {
+      const step = Number.isFinite(pose.frame) ? ((Math.round(pose.frame) % 4) + 4) % 4 : 0;
+      column = [1, 2, 1, 2][step];
+    } else if (pose.mode === "attack") {
+      const progress = Number.isFinite(pose.progress) ? Math.max(0, Math.min(1, pose.progress)) : 0;
+      column = progress < .3 ? 3 : progress < .7 ? 4 : 5;
+    }
+    return { facing, column, cell: facing * 6 + column };
+  }
+  function authoredFrame(school, pose = {}, height = 34) {
+    if (!own(schoolAtlases, school)) return null;
+    const atlas = schoolAtlases[school], frame = frameCell(pose);
+    const art = root.BCSchoolArt?.frames?.[school]?.[frame.cell], img = images[atlas];
+    const b = art?.bounds;
+    if (!img?.complete || !img.naturalWidth || !b || ![b.x, b.y, b.w, b.h, art?.bodyHeight,
+      ...(art?.foot || []), ...(art?.head || [])].every(Number.isFinite)
+      || b.w <= 0 || b.h <= 0 || art.bodyHeight <= 0 || art.foot?.length !== 2 || art.head?.length !== 2
+      || b.x < 0 || b.y < 0 || b.x + b.w > img.naturalWidth || b.y + b.h > img.naturalHeight) return null;
+    const scale = height / art.bodyHeight;
+    return { authored: true, school, atlas, ...frame, scale, source: b,
+      bounds: { x: (b.x - art.foot[0]) * scale, y: (b.y - art.foot[1]) * scale, w: b.w * scale, h: b.h * scale },
+      head: { x: (art.head[0] - art.foot[0]) * scale, y: (art.head[1] - art.foot[1]) * scale },
+      silhouette: art.silhouette, sourceFoot: art.foot, foot: { x: 0, y: 0 }, bodyHeight: height };
+  }
+  function tintedAtlas(hair, name, school) {
+    const palette = Number.isFinite(hair) ? ((Math.round(hair) % hairColors.length) + hairColors.length) % hairColors.length : 0;
+    if (!palette || !school) return images[name];
+    const key = `${name}:${palette}`;
+    if (hairAtlases.has(key)) return hairAtlases.get(key);
+    const img = images[name], canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    const c = canvas.getContext("2d", { willReadFrequently: true });
+    c.drawImage(img, 0, 0);
     const data = c.getImageData(0, 0, canvas.width, canvas.height);
-    const rgb = hairColors[hair % hairColors.length].match(/\w\w/g).map(n => parseInt(n, 16));
-    for (let cell = 0; cell < (name === "sprites" ? 8 : cells[name].length); cell++) {
-      const b = cells[name][cell];
-      if (!b) continue;
-      for (let y = b.y; y < b.y + b.h * .44; y++) for (let x = b.x; x < b.x + b.w; x++) {
+    const rgb = hairColors[palette].match(/\w\w/g).map(value => parseInt(value, 16));
+    for (const frame of root.BCSchoolArt?.frames?.[school] || []) {
+      const b = frame.hair;
+      if (!b || ![b.x, b.y, b.w, b.h].every(Number.isFinite)) continue;
+      const left = Math.max(0, Math.ceil(b.x)), top = Math.max(0, Math.ceil(b.y));
+      const right = Math.min(canvas.width, Math.floor(b.x + b.w)), bottom = Math.min(canvas.height, Math.floor(b.y + b.h));
+      for (let y = top; y < bottom; y++) for (let x = left; x < right; x++) {
         const i = (y * canvas.width + x) * 4;
         const r = data.data[i], g = data.data[i + 1], blue = data.data[i + 2], alpha = data.data[i + 3];
         if (alpha < 64 || r < 48 || r > 185 || g > r * .87 || blue > g * .93) continue;
@@ -102,196 +120,71 @@
       }
     }
     c.putImageData(data, 0, 0);
-    // Bound palette memory while retaining the recently used animation atlases.
     if (hairAtlases.size >= 12) hairAtlases.delete(hairAtlases.keys().next().value);
     hairAtlases.set(key, canvas);
     return canvas;
   }
   function ellipse(c, x, y, rx, ry, color) {
-    c.fillStyle = color;
-    c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = color; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); c.fill();
   }
   function label(c, text, x, y, color = "#fff", size = 11) {
-    c.font = `${size / textScale}px Tahoma, sans-serif`;
-    c.textAlign = "center";
-    c.lineWidth = 2.4 / textScale;
-    c.strokeStyle = "#344039ce";
-    c.lineJoin = "round";
+    c.font = `${size / textScale}px Tahoma, sans-serif`; c.textAlign = "center";
+    c.lineWidth = 2.4 / textScale; c.strokeStyle = "#344039ce"; c.lineJoin = "round";
     c.strokeText(text, x, y); c.fillStyle = color; c.fillText(text, x, y);
   }
   function sprite(c, cell, x, y, height, hair = 0, bob = 0, name = "sprites") {
     const b = cells[name]?.[cell];
-    if (!b) {
-      ellipse(c, x, y - height / 2, height / 4, height / 2, "#d8cab2");
-      return;
-    }
+    if (!b) { ellipse(c, x, y - height / 2, height / 4, height / 2, "#d8cab2"); return; }
     const width = height * b.w / b.h;
-    c.drawImage(hair ? tintedAtlas(hair, name) : images[name], b.x, b.y, b.w, b.h,
-      x - width / 2, y - height + bob, width, height);
-  }
-  function weapon(c, x, y, id, pose, grip) {
-    const appearance = D.items[id]?.appearance;
-    if (!appearance || appearance.layer !== "weapon" || !grip) return false;
-    const cell = { short_sword: 12, long_sword: 13, moon_blade: 14 }[appearance.style];
-    const b = cells.gear?.[cell];
-    const model = root.BCWeaponRig.weapon(cell, b, appearance.length, pose);
-    if (!model) return false;
-    c.save();
-    c.translate(x + grip.x, y + grip.y);
-    c.rotate(model.angle);
-    c.scale(model.scaleX, model.scaleY);
-    c.drawImage(images.gear, b.x, b.y, b.w, b.h,
-      model.dx, model.dy, model.width, model.height);
-    // A short arc helps read the strike even at the small world sprite size.
-    if (pose.mode === "attack" && pose.frame === 1) {
-      c.strokeStyle = id === "moon_blade" ? "#cce5ffba" : "#fff5d68f";
-      c.lineWidth = 1;
-      c.beginPath(); c.arc(0, 0, appearance.length * .85, -2.9, -1.1); c.stroke();
-    }
-    c.restore();
-    return true;
-  }
-  // Restore only the painted fingers over the hilt. The blade stays outside the
-  // hand, while the original glove visibly closes around the calibrated grip.
-  function fingers(c, x, y, grip, hair, name) {
-    const p = grip.patch;
-    c.save();
-    c.beginPath();
-    c.ellipse(x + grip.x, y + grip.y, p.dw / 2, p.dh / 2, 0, 0, Math.PI * 2);
-    c.clip();
-    c.drawImage(hair ? tintedAtlas(hair, name) : images[name],
-      p.sx, p.sy, p.sw, p.sh, x + p.dx, y + p.dy, p.dw, p.dh);
-    c.restore();
+    c.drawImage(images[name], b.x, b.y, b.w, b.h, x - width / 2, y - height + bob, width, height);
   }
   function headgearModel(id, pose) {
     const appearance = D.items[id]?.appearance;
-    if (!appearance || appearance.layer !== "head") return;
+    if (appearance?.layer !== "head") return null;
     const row = { cap: 0, cat_ears: 1, circlet: 2 }[appearance.style];
     const sourceFacing = root.BCSiamArt?.headgear?.runtimeDirectionColumns?.[pose.facing] ?? pose.facing;
-    const name = cells["siam-headgear"]?.[row * 4 + sourceFacing] ? "siam-headgear" : "gear";
-    const b = cells[name]?.[row * 4 + (name === "gear" ? pose.facing : sourceFacing)];
-    if (!b) return;
-    const width = pose.facing === 1 || pose.facing === 3 ? 13 : 15;
-    const height = width * b.h / b.w;
+    const b = cells["siam-headgear"]?.[row * 4 + sourceFacing];
+    if (!b) return null;
+    const width = pose.facing === 1 || pose.facing === 3 ? 13 : 15, height = width * b.h / b.w;
     const offset = appearance.style === "circlet" ? 4.8 : appearance.style === "cap" ? 3.5 : 1;
-    return { name, bounds:b, x:pose.head.x-width/2, y:pose.head.y+offset-height, w:width, h:height };
+    return { name: "siam-headgear", source: b, x: pose.head.x - width / 2, y: pose.head.y + offset - height, w: width, h: height };
   }
-  function headgear(c, x, y, id, pose) {
-    const model = headgearModel(id, pose);
-    if (!model) return;
-    const b = model.bounds;
-    c.drawImage(images[model.name], b.x, b.y, b.w, b.h,
-      x + model.x, y + model.y, model.w, model.h);
-  }
-  function dollWeapon(c, x, y, model) {
-    const b = model.bounds;
-    c.save(); c.translate(x + model.wrist.x, y + model.wrist.y);
-    c.rotate(model.angle); c.scale(model.scaleX, model.scaleY);
-    if (model.string) {
-      // Remove only the painted taut string from this draw. The live string
-      // below follows the draw hand; the naga limbs and source art stay intact.
-      const local = p => ({ x:model.dx+(p[0]-b.x)*model.width/b.w, y:model.dy+(p[1]-b.y)*model.height/b.h });
-      const a = local(model.string[0]), z = local(model.string[1]);
-      const distance = Math.hypot(z.x-a.x,z.y-a.y), end = 11*model.height/b.h;
-      if (model.stringMask) {
-        const mask = model.stringMask, from = local([mask.x,mask.y]);
-        c.beginPath(); c.rect(model.dx,model.dy,model.width,model.height);
-        c.rect(from.x,from.y,mask.w*model.width/b.w,mask.h*model.height/b.h); c.clip("evenodd");
-      } else if (distance > end*2) {
-        const dx = (z.x-a.x)/distance, dy = (z.y-a.y)/distance;
-        const half = 4.5*model.width/b.w;
-        const from = { x:a.x+dx*end,y:a.y+dy*end }, to = { x:z.x-dx*end,y:z.y-dy*end };
-        c.beginPath(); c.rect(model.dx,model.dy,model.width,model.height);
-        c.moveTo(from.x-dy*half,from.y+dx*half); c.lineTo(to.x-dy*half,to.y+dx*half);
-        c.lineTo(to.x+dy*half,to.y-dx*half); c.lineTo(from.x+dy*half,from.y-dx*half); c.closePath();
-        c.clip("evenodd");
-      }
+  function paintPerson(c, x, y, plan, hair, head) {
+    const b = plan.source, box = plan.bounds;
+    c.save();
+    if (plan.silhouette?.length) {
+      c.beginPath();
+      plan.silhouette.forEach(([sx, sy], i) => {
+        const px = x + (sx - plan.sourceFoot[0]) * plan.scale;
+        const py = y + (sy - plan.sourceFoot[1]) * plan.scale;
+        if (i) c.lineTo(px, py); else c.moveTo(px, py);
+      });
+      c.closePath(); c.clip();
     }
-    c.drawImage(images["siam-weapons"], b.x, b.y, b.w, b.h,
-      model.dx, model.dy, model.width, model.height);
+    c.drawImage(tintedAtlas(hair, plan.atlas, plan.school), b.x, b.y, b.w, b.h,
+      x + box.x, y + box.y, box.w, box.h);
     c.restore();
-  }
-  function dollExtras(c, x, y, plan, behind) {
-    c.save(); c.lineWidth = .65 * plan.scale; c.lineCap = "round";
-    for (const extra of plan.extras) {
-      if (Boolean(extra.behind) !== behind) continue;
-      if (extra.kind === "bowstring") {
-        c.strokeStyle = "#f5e9c7";
-        c.beginPath(); extra.points.forEach((p, i) => c[i ? "lineTo" : "moveTo"](x + p.x, y + p.y)); c.stroke();
-      } else if (extra.kind === "arrow") {
-        const distance = extra.phase > .6 ? (extra.phase - .6) * 23 * plan.scale : 0;
-        const from = { x: x + extra.from.x + extra.direction.x * distance, y: y + extra.from.y + extra.direction.y * distance };
-        const to = { x: from.x + extra.direction.x * 11 * plan.scale, y: from.y + extra.direction.y * 11 * plan.scale };
-        c.strokeStyle = "#ecd39b"; c.beginPath(); c.moveTo(from.x, from.y); c.lineTo(to.x, to.y); c.stroke();
-        const dx = extra.direction.x, dy = extra.direction.y;
-        c.fillStyle = "#d3eadb"; c.beginPath(); c.moveTo(to.x + dx * 1.6, to.y + dy * 1.6);
-        c.lineTo(to.x - dx * 1.4 + dy * 1.3, to.y - dy * 1.4 - dx * 1.3);
-        c.lineTo(to.x - dx * 1.4 - dy * 1.3, to.y - dy * 1.4 + dx * 1.3); c.fill();
-      } else if (extra.kind === "magic") {
-        const p = extra.point, size = (.9 + Math.sin(extra.phase * Math.PI) * 1.3) * plan.scale;
-        c.strokeStyle = extra.color; c.lineWidth = .8 * plan.scale;
-        c.beginPath(); c.moveTo(x + p.x - size, y + p.y); c.lineTo(x + p.x + size, y + p.y);
-        c.moveTo(x + p.x, y + p.y - size); c.lineTo(x + p.x, y + p.y + size); c.stroke();
-        ellipse(c, x + p.x + size * 2, y + p.y - size * 1.5, .55 * plan.scale, .55 * plan.scale, extra.color);
-      }
+    const hat = headgearModel(head, plan);
+    if (hat) {
+      const source = hat.source;
+      c.drawImage(images[hat.name], source.x, source.y, source.w, source.h, x + hat.x, y + hat.y, hat.w, hat.h);
     }
-    c.restore();
-  }
-  function dollPlan(id, job, pose, height) {
-    const appearance = D.items[id]?.appearance;
-    if (appearance?.atlas !== "siam-weapons" || !root.BCPaperDoll) return null;
-    const name = job === "Swordman" ? "siam-swordman-body" : "siam-novice-body";
-    const column = pose.mode === "attack" ? 3 : pose.mode === "walk" ? [1, 2, 1, 2][pose.frame] : 0;
-    const cell = pose.facing * 4 + column;
-    const bodyBounds = cells[name]?.[cell], bounds = cells["siam-weapons"]?.[appearance.cell];
-    // New items keep the existing fully painted body while their new art loads.
-    // An uncalibrated weapon is never placed at an invented grip.
-    if (!bodyBounds || !bounds) return null;
-    return root.BCPaperDoll.plan(appearance, pose, { job, height,
-      art: root.BCSiamArt?.weapons?.[appearance.cell], bounds, bodyBounds,
-      bodyArt: root.BCSiamArt?.bodies?.[name]?.[cell] });
-  }
-  function paintDoll(c, x, y, head, hair, pose, plan) {
-    root.BCPaperDoll.drawArms(c, plan, x, y, true);
-    for (const model of plan.weapons.filter(w => w.behind)) dollWeapon(c, x, y, model);
-    dollExtras(c, x, y, plan, true);
-    root.BCPaperDoll.drawArms(c, plan, x, y, true, true);
-    sprite(c, plan.body.cell, x + pose.lean, y, plan.body.height, hair, pose.bob, plan.body.atlas);
-    root.BCPaperDoll.drawArms(c, plan, x, y, false);
-    for (const model of plan.weapons.filter(w => !w.behind)) dollWeapon(c, x, y, model);
-    dollExtras(c, x, y, plan, false);
-    root.BCPaperDoll.drawArms(c, plan, x, y, false, true);
-    headgear(c, x, y, head, { ...pose, head: plan.head });
   }
   function person(c, x, y, opts = {}) {
-    const { job = "Novice", hair = 0, facing = 0, weapon: id, head, pose = root.BCAppearance.idle(facing), npc } = opts;
     ellipse(c, x, y + 1.5, 7, 2.6, "#293c3b48");
-    const height = npc === "healer" ? 35 : 34;
-    if (!npc) {
-      const plan = dollPlan(id, job, pose, height);
-      if (plan) { paintDoll(c, x, y, head, hair, pose, plan); return plan; }
+    if (opts.npc) {
+      const cell = { guide: 0, merchant: 1, healer: 2 }[opts.npc];
+      sprite(c, cell, x, y, opts.npc === "healer" ? 35 : 34, 0, 0, "townsfolk");
+      return { npc: opts.npc, atlas: "townsfolk", cell };
     }
-    let name = "sprites", cell = npc === "healer" ? 15 : (job === "Swordman" || npc === "guide" ? 4 : 0) + pose.facing;
-    if (npc) {
-      name = "townsfolk"; cell = { guide: 0, merchant: 1, healer: 2 }[npc];
-    } else if (pose.mode === "walk") {
-      name = job === "Swordman" ? "swordman-walk" : "novice-walk";
-      cell = pose.facing * 4 + pose.frame;
-    } else if (!npc && pose.mode === "attack") {
-      name = "attacks"; cell = pose.facing * 4 + (job === "Swordman" ? 2 : 0) + pose.frame;
+    const school = schoolOf(opts), pose = opts.pose || root.BCAppearance.idle(opts.facing || 0);
+    const plan = authoredFrame(school, pose);
+    if (!plan) {
+      ellipse(c, x, y - 17, 6, 16, "#d8cab2");
+      return { authored: false, school, loading: true };
     }
-    // Keep the base character visible while an animation atlas is still downloading.
-    if (!cells[name]?.[cell]) {
-      name = "sprites";
-      cell = npc === "healer" ? 15 : (job === "Swordman" || npc === "guide" ? 4 : 0) + pose.facing;
-    }
-    const grip = npc ? null : root.BCWeaponRig.hand(name, cell, cells[name]?.[cell], height, pose);
-    let holding = false;
-    if (grip?.behind) holding = weapon(c, x, y, id, pose, grip);
-    sprite(c, cell, x + pose.lean, y, height, npc ? 0 : hair, pose.bob, name);
-    if (!grip?.behind) holding = weapon(c, x, y, id, pose, grip);
-    if (holding) fingers(c, x, y, grip, hair, name);
-    headgear(c, x, y, head, pose);
+    paintPerson(c, x, y, plan, opts.hair || 0, opts.head);
+    return plan;
   }
   function monster(c, m, t, selected) {
     const d = D.monsters[m.kind], height = monsterHeights[m.kind];
@@ -358,8 +251,8 @@
     entities.push({ y: s.player.y, draw: () => {
       ellipse(c, s.player.x, s.player.y + 4, 15, 6, "#d6eced15");
       person(c, s.player.x, s.player.y, { job: s.job, hair: s.settings.hair, facing: s.player.facing,
-        weapon: s.equipment.weapon, head: s.equipment.head, pose });
-      label(c, D.jobs[s.job].name, s.player.x, s.player.y - (s.equipment.head ? 46 : 39), "#fff", 11);
+        school: s.weaponSchool, weapon: s.equipment.weapon, head: s.equipment.head, pose });
+      label(c, D.weaponSchools?.[s.weaponSchool]?.name || D.jobs[s.job].name, s.player.x, s.player.y - (s.equipment.head ? 46 : 39), "#fff", 11);
     } });
     entities.sort((a, b) => a.y - b.y).forEach(e => e.draw());
     for (const e of s.effects) {
@@ -384,26 +277,37 @@
     ellipse(c, s.player.x * sx, s.player.y * sy, 3, 3, "#fff");
     c.strokeStyle = "#546180"; c.lineWidth = 1; c.stroke();
   }
+  function portraitFrame(s, width, height, options = {}) {
+    const pose = options.pose || root.BCAppearance.idle(0);
+    const school = schoolOf(own(s, "weaponSchool") ? { school: s.weaponSchool } : { weapon: s.equipment.weapon });
+    const plan = authoredFrame(school, pose);
+    if (!plan) return null;
+    const bodyBounds = plan.bounds, headBounds = headgearModel(s.equipment.head, plan);
+    const shadowBounds = { x: -7, y: -1.1, w: 14, h: 5.2 };
+    const bounds = [bodyBounds, headBounds, shadowBounds].filter(Boolean);
+    const left = Math.min(...bounds.map(b => b.x)), top = Math.min(...bounds.map(b => b.y));
+    const right = Math.max(...bounds.map(b => b.x + b.w)), bottom = Math.max(...bounds.map(b => b.y + b.h));
+    const padding = Number.isFinite(options.padding) ? Math.max(0, options.padding) : 4;
+    const scale = Math.max(0, Math.min((width - padding * 2) / (right - left), (height - padding * 2) / (bottom - top)));
+    return { plan, scale, x: width / 2 - (left + right) * scale / 2,
+      y: height / 2 - (top + bottom) * scale / 2, bodyBounds, headBounds,
+      bounds: { x: left, y: top, w: right - left, h: bottom - top } };
+  }
   function portrait(canvas, s) {
-    const c = canvas.getContext("2d");
-    c.clearRect(0, 0, canvas.width, canvas.height);
+    const c = canvas.getContext("2d"); c.clearRect(0, 0, canvas.width, canvas.height);
     c.imageSmoothingEnabled = true;
-    c.save();
-    const pose = root.BCAppearance.idle(0);
-    const plan = dollPlan(s.equipment.weapon, s.job, pose, 34);
-    if (plan) {
-      const headBounds = headgearModel(s.equipment.head, { ...pose, head:plan.head });
-      const frame = root.BCPaperDoll.frame(plan, canvas.width, canvas.height, { padding:4, headBounds });
-      c.translate(frame.x, frame.y); c.scale(frame.scale, frame.scale);
-      ellipse(c, 0, 1.5, 7, 2.6, "#293c3b48");
-      paintDoll(c, 0, 0, s.equipment.head, s.settings.hair, pose, plan);
-    } else {
-      const scale = Math.min(canvas.width / 40, canvas.height / 45);
-      c.translate(canvas.width / 2, canvas.height - 4); c.scale(scale, scale);
-      person(c, 0, 0, { job:s.job, hair:s.settings.hair, weapon:s.equipment.weapon, head:s.equipment.head, pose });
+    const frame = portraitFrame(s, canvas.width, canvas.height);
+    if (!frame) {
+      c.save(); c.translate(canvas.width / 2, canvas.height - 5);
+      person(c, 0, 0, { school: s.weaponSchool, head: s.equipment.head }); c.restore();
+      return null;
     }
+    c.save(); c.translate(frame.x, frame.y); c.scale(frame.scale, frame.scale);
+    ellipse(c, 0, 1.5, 7, 2.6, "#293c3b48");
+    paintPerson(c, 0, 0, frame.plan, s.settings.hair, s.equipment.head);
     c.restore();
+    return frame;
   }
   assetNames.forEach(load);
-  root.BCRender = { draw, minimap, portrait, view, assets, person, cells, images };
+  root.BCRender = { draw, minimap, portrait, portraitFrame, authoredFrame, frameCell, view, assets, person, cells, images };
 })(window);

@@ -147,10 +147,11 @@
   ];
   const equipmentTypes = equipmentSlots.map(([slot]) => slot);
   const weaponTypeName = (item) => D.weaponTypes?.[item?.weaponType]?.name || "";
+  const schoolName = (s) => D.weaponSchools[s.weaponSchool].name;
   const equipmentCaption = (s) => ["head", "weapon"]
     .map((slot) => {
       const item = D.items[s.equipment[slot]], type = weaponTypeName(item);
-      return `<span>${esc(item?.name || (slot === "head" ? "ไม่สวมหมวก" : "มือเปล่า"))}${type ? ` · ${esc(type)}` : ""}</span>`;
+      return `<span>${esc(item?.name || (slot === "head" ? "ไม่สวมหมวก" : "อาวุธฝึกประจำสาย"))}${type ? ` · ${esc(type)}` : ""}</span>`;
     })
     .join("");
   function openPanel(name) {
@@ -246,6 +247,7 @@
     [
       i.type === "head" ? "ศีรษะ" : "",
       weaponTypeName(i),
+      i.type === "weapon" ? (i.weaponType === state.weaponSchool ? "ใช้ได้กับสายปัจจุบัน" : `เปลี่ยนสาย${D.weaponSchools[i.weaponType].name}เพื่อสวม`) : "",
       i.atk ? `ATK +${i.atk}` : "",
       i.def ? `DEF +${i.def}` : "",
       i.hp ? `ฟื้น HP ${i.hp}` : "",
@@ -279,13 +281,20 @@
       )
       .join("");
   }
+  function schoolSelector(s) {
+    return `<section class="school-selector"><h3>สายอาวุธ · ${esc(schoolName(s))}</h3><p class="panel-note">เปลี่ยนสายฟรีในท่าน้ำอรุณ ต้องมีอาวุธประเภทนั้นในกระเป๋า อาวุธที่สวมเพิ่มค่าสถานะ ส่วนท่าจับและชุดเป็นแบบประจำสาย</p><div class="school-grid">${Object.entries(D.weaponSchools).map(([id, school]) => {
+      const owned = Object.keys(D.items).some(item => D.items[item].weaponType === id && (s.inventory[item] > 0 || s.equipment.weapon === item));
+      const reason = s.zone !== 0 ? "กลับเมืองก่อน" : !owned ? "ซื้ออาวุธประเภทนี้ก่อน" : "";
+      return `<article class="school-card${id === s.weaponSchool ? " current" : ""}"><span class="item-icon">${artIcon(school.trainingWeapon)}</span><b>${esc(school.name)}</b><small>${esc(D.weaponTypes[id].name)}</small><p>${esc(school.description)}</p>${button("school", id === s.weaponSchool ? "สายปัจจุบัน" : "เลือกสาย", id, reason ? `disabled title="${esc(reason)}"` : "")}<small>${esc(reason || (id === s.weaponSchool ? "กำลังฝึกสายนี้" : "พร้อมเปลี่ยนสาย"))}</small></article>`;
+    }).join("")}</div></section>`;
+  }
   function renderPanel() {
-    $("panel-title").textContent = titleNames[panel];
+    $("panel-title").textContent = titleNames[panel] + (["status", "equipment"].includes(panel) ? ` · ${schoolName(state)}` : "");
     const s = state,
       st = C.stats(s);
     let html = "";
     if (panel === "status") {
-      html = `<p class="panel-note">${esc(jobName(s.job))} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${equipmentSlots.map(([slot, name, placeholder]) => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" data-slot="${slot}" title="${name}: ${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ยังไม่ได้สวมใส่"}" aria-label="เปิดอุปกรณ์ ${name}">${artIcon(s.equipment[slot] || placeholder)}</button>`).join("")}</div><canvas id="status-portrait" width="96" height="124" aria-label="ตัวละครพร้อมอาวุธและเครื่องประดับศีรษะ"></canvas><div class="job-label">${esc(jobName(s.job))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div>`;
+      html = `<p class="panel-note">${esc(jobName(s.job))} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${equipmentSlots.map(([slot, name, placeholder]) => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" data-slot="${slot}" title="${name}: ${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ยังไม่ได้สวมใส่"}" aria-label="เปิดอุปกรณ์ ${name}">${artIcon(s.equipment[slot] || placeholder)}</button>`).join("")}</div><canvas id="status-portrait" width="96" height="124" aria-label="ตัวละครพร้อมอาวุธและเครื่องประดับศีรษะ"></canvas><div class="job-label">${esc(schoolName(s))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div>`;
       for (const [id, name] of Object.entries(D.statNames))
         html += `<div class="stat-row"><span>${name}</span><b>${s.stats[id]}</b>${button("stat", "＋", id, s.statPoints > 0 && s.stats[id] < 99 ? "" : "disabled")}</div>`;
       html += `</div></div><div class="stat-summary">${[
@@ -309,9 +318,9 @@
       html += `</div><div class="inventory-footer"><span>Wt. ${st.weight} / ${st.capacity}</span><span>◈ ${s.silver.toLocaleString()} ${esc(world.currency)}</span></div>`;
       if (selectedInventoryItem) {
         const id = selectedInventoryItem, i = D.items[id];
-        let actions = i.type === "use" ? button("use", "ใช้", id) : equipmentTypes.includes(i.type) ? button("equip", "สวมใส่", id) : "";
+        let actions = i.type === "use" ? button("use", "ใช้", id) : equipmentTypes.includes(i.type) ? button("equip", "สวมใส่", id, C.equipReason(s, id) ? `disabled title="${esc(C.equipReason(s, id))}"` : "") : "";
         actions += button("sell", "ขาย " + Math.max(1, Math.floor(i.price / 2)) + " ◈", id);
-        html += `<div class="inventory-detail">${itemRow(id, s.inventory[id], "")}<div class="item-actions">${actions}</div></div>`;
+        html += `<div class="inventory-detail">${itemRow(id, s.inventory[id], "")}<div class="item-actions">${actions}</div>${equipmentTypes.includes(i.type) && C.equipReason(s,id) ? `<small class="shop-reason">${esc(C.equipReason(s,id))}</small>` : ""}</div>`;
       } else html += '<p class="empty">ไม่มีไอเทมในหมวดนี้</p>';
       html += `<p class="panel-note" style="margin-top:7px">เลือกไอเทมเพื่อใช้หรือสวมใส่ · ขายได้ใกล้${esc(npc("merchant").name)}<br>น้ำหนัก 50% หยุดฟื้น HP/SP · 90% ห้ามโจมตี</p>`;
       html +=
@@ -319,7 +328,7 @@
     }
     if (panel === "equipment") {
       html =
-        `<p class="panel-note">เปลี่ยนอาวุธหรือเครื่องประดับศีรษะ ภาพตัวละครจะเปลี่ยนตามทันที</p><div class="equipment-layout"><div class="equipment-preview"><canvas id="equipment-portrait" width="104" height="140" aria-label="ตัวละครพร้อมอุปกรณ์ที่สวมใส่"></canvas><div class="job-label">${esc(jobName(s.job))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div class="equipment-list">`;
+        `<p class="panel-note">ชุดและอาวุธฝึกเป็นแบบประจำสาย อาวุธที่สวมเพิ่มค่าสถานะ เครื่องศีรษะเปลี่ยนภาพได้ทันที</p><div class="equipment-layout"><div class="equipment-preview"><canvas id="equipment-portrait" width="104" height="140" aria-label="ตัวละครพร้อมอุปกรณ์ที่สวมใส่"></canvas><div class="job-label">${esc(schoolName(s))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div class="equipment-list">`;
       for (const [slot, name] of equipmentSlots) {
         html += `<div class="shop-title">${name}</div>`;
         html += s.equipment[slot]
@@ -328,7 +337,7 @@
               null,
               `<button data-act="unequip" data-slot="${slot}">ถอด</button>`,
             )
-          : '<p class="subtle">ยังไม่ได้สวมใส่</p>';
+          : `<p class="subtle">${slot === "weapon" ? "ใช้อาวุธฝึกประจำสาย · ไม่มีโบนัสจากไอเทม" : "ยังไม่ได้สวมใส่"}</p>`;
       }
       html += '</div></div><button data-open="inventory" class="outline-button">เลือกอุปกรณ์จากกระเป๋า →</button><p class="panel-note equipment-note">อุปกรณ์มีผลกับ ATK / DEF และนับรวมในน้ำหนักกระเป๋า</p>';
     }
@@ -413,9 +422,10 @@
         ? s.log.map((t) => `<div class="log-line">${esc(t)}</div>`).join("")
         : '<p class="empty">ทุกการผจญภัยมีเรื่องราว • ออกไปเริ่มเรื่องของคุณ</p>';
     if (panel === "help")
-      html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ ภาพตัวละครในฉากและหน้าต่างอุปกรณ์จะเปลี่ยนตาม ถอดได้ในเมนูอุปกรณ์</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ เมื่อ Job Lv.10 กลับมาฝากตัวเป็น${esc(jobName("Swordman"))}และเรียนวิชาดาบ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
+      html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ อาวุธต้องตรงกับสายที่เลือก เปลี่ยนสายได้ในหน้าสเตตัสหรืออุปกรณ์เมื่ออยู่ในเมือง ภาพชุดและท่าถืออาวุธเป็นแบบประจำสาย ส่วนอาวุธที่สวมเพิ่มค่าสถานะ ถอดได้ในเมนูอุปกรณ์</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ เมื่อ Job Lv.10 กลับมาฝากตัวเป็น${esc(jobName("Swordman"))}และเรียนวิชาดาบ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
     $("side-panel").innerHTML = html;
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
+    if (["status", "equipment", "npc"].includes(panel)) $("side-panel").insertAdjacentHTML("beforeend", schoolSelector(s));
     if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
   }
   function bindingInfo(value) {
@@ -467,8 +477,8 @@
     const s = state,
       st = C.stats(s),
       map = D.maps[s.zone];
-    $("hero-name").textContent = jobName(s.job);
-    $("job-level").textContent = `Job Lv.${s.jobLevel}`;
+    $("hero-name").textContent = schoolName(s);
+    $("job-level").textContent = `${jobName(s.job)} · Job Lv.${s.jobLevel}`;
     $("silver").textContent = s.silver.toLocaleString();
     $("level").textContent = `Base Lv.${s.baseLevel}`;
     for (const [key, value, max] of [
