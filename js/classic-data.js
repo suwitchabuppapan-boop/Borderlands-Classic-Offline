@@ -2,50 +2,41 @@
 (function (root) {
   "use strict";
   const weaponTypes = {
+    training: { name: "ไม้ฝึก", hands: 1, range: 48, approachRange: 38, attack: "swing" },
     sword: { name: "ดาบ", hands: 1, range: 58, approachRange: 48, attack: "swing" },
     dual_sword: { name: "ดาบคู่", hands: 2, range: 58, approachRange: 48, attack: "dual_swing" },
-    greatsword: { name: "ดาบใหญ่", hands: 2, range: 72, approachRange: 62, attack: "heavy_swing" },
+    sword_shield: { name: "ดาบและโล่", hands: 2, range: 58, approachRange: 48, attack: "guard_swing" },
+    orb: { name: "แก้วมณี", hands: 2, range: 155, approachRange: 145, attack: "cast" },
+    claw: { name: "กรงเล็บ", hands: 2, range: 48, approachRange: 38, attack: "rend" },
+    magic_bow: { name: "ธนูมนตรา", hands: 2, range: 190, approachRange: 180, attack: "draw" },
     staff: { name: "คทา", hands: 2, range: 135, approachRange: 125, attack: "cast" },
     book: { name: "หนังสือ", hands: 2, range: 125, approachRange: 115, attack: "read" },
     knuckle: { name: "สนับมือ", hands: 2, range: 48, approachRange: 38, attack: "punch" },
     dagger: { name: "มีดสั้น", hands: 1, range: 50, approachRange: 40, attack: "thrust" },
     bow: { name: "ธนู", hands: 2, range: 200, approachRange: 190, attack: "draw" },
   };
-  const weaponSchools = {
-    sword: {
-      name: "นักดาบอรุณ", weaponType: "sword", atlas: "school-sword", trainingWeapon: "arun_sword",
-      description: "ผู้ฝึกดาบแห่งท่าน้ำอรุณ ใช้ดาบคมเดียวกับชุดนักเดินทางสยาม",
-    },
-    dual_sword: {
-      name: "ทวิคมราชวัง", weaponType: "dual_sword", atlas: "school-dual-sword", trainingWeapon: "palace_dual_blades",
-      description: "นักดาบคู่ผู้สืบกระบวนท่าราชวัง เคลื่อนไหวคล่องตัวด้วยคมดาบสองมือ",
-    },
-    greatsword: {
-      name: "นักรบดาบยักษ์", weaponType: "greatsword", atlas: "school-greatsword", trainingWeapon: "yak_greatsword",
-      description: "ผู้พิทักษ์เกราะยักษ์แก้ว ฝึกยกมหาดาบด้วยสองมืออย่างมั่นคง",
-    },
-    staff: {
-      name: "จอมเวทบัวแก้ว", weaponType: "staff", atlas: "school-staff", trainingWeapon: "lotus_staff",
-      description: "ผู้รวบรวมมนตราแห่งสายน้ำ ใช้คทาบัวแก้วเป็นอาวุธประจำสาย",
-    },
-    book: {
-      name: "อาลักษณ์มนตรา", weaponType: "book", atlas: "school-book", trainingWeapon: "golden_scripture",
-      description: "อาลักษณ์ผู้จารอาคมสยาม อ่านคัมภีร์ทองเพื่อส่งพลังมนตรา",
-    },
-    knuckle: {
-      name: "นักสู้ครุฑ", weaponType: "knuckle", atlas: "school-knuckle", trainingWeapon: "garuda_knuckles",
-      description: "นักสู้หมัดประชิดผู้ฝึกท่าครุฑ สวมสนับมือคู่กับชุดนักสู้",
-    },
-    dagger: {
-      name: "เงาจันทร์", weaponType: "dagger", atlas: "school-dagger", trainingWeapon: "moon_kris",
-      description: "ผู้ลาดตระเวนยามจันทร์ ใช้มีดสั้นกริชนาคาและท่าจู่โจมว่องไว",
-    },
-    bow: {
-      name: "พรานนาคา", weaponType: "bow", atlas: "school-bow", trainingWeapon: "naga_bow",
-      description: "พรานแห่งป่าหิมพานต์ ฝึกธนูนาคาเพื่อโจมตีจากระยะไกล",
-    },
+  const classes = {
+    villager: {"name": "ชาวบ้าน", "tier": 0, "parent": null, "weaponType": "training", "atlas": "class-villager", "trainingWeapon": "training_stick", "description": "ชาวบ้าน ฝึกวิถีชาวบ้านแห่งสยาม", "skill": "first_aid"},
+    swordsman: {"name": "นักดาบอรุณ", "tier": 1, "parent": "villager", "weaponType": "sword", "atlas": "class-swordsman", "trainingWeapon": "arun_sword", "description": "นักดาบอรุณ ฝึกวิถีดาบแห่งสยาม", "skill": "arun_slash"},
+    mage: {"name": "ผู้ฝึกมนตรา", "tier": 1, "parent": "villager", "weaponType": "staff", "atlas": "class-mage", "trainingWeapon": "lotus_staff", "description": "ผู้ฝึกมนตรา ฝึกวิถีมนตราคทาแห่งสยาม", "skill": "lotus_bolt"},
+    acolyte: {"name": "ผู้ฝึกอาคม", "tier": 1, "parent": "villager", "weaponType": "book", "atlas": "class-acolyte", "trainingWeapon": "golden_scripture", "description": "ผู้ฝึกอาคม ฝึกวิถีอักขระแห่งสยาม", "skill": "ward_script"},
+    scout: {"name": "นักลาดตระเวน", "tier": 1, "parent": "villager", "weaponType": "dagger", "atlas": "class-scout", "trainingWeapon": "moon_kris", "description": "นักลาดตระเวน ฝึกวิถีมีดสั้นแห่งสยาม", "skill": "quick_stab"},
+    archer: {"name": "พรานป่า", "tier": 1, "parent": "villager", "weaponType": "bow", "atlas": "class-archer", "trainingWeapon": "naga_bow", "description": "พรานป่า ฝึกวิถีธนูแห่งสยาม", "skill": "aimed_shot"},
+    royal_duelist: {"name": "ทวิคมราชวัง", "tier": 2, "parent": "swordsman", "weaponType": "dual_sword", "atlas": "school-dual-sword", "trainingWeapon": "palace_dual_blades", "description": "ทวิคมราชวัง ฝึกวิถีดาบคู่แห่งสยาม", "skill": "royal_flurry", "trial": {"kind": "willow", "count": 8}},
+    city_guardian: {"name": "พิทักษ์นคร", "tier": 2, "parent": "swordsman", "weaponType": "sword_shield", "atlas": "class-shield", "trainingWeapon": "arun_sword_shield", "description": "พิทักษ์นคร ฝึกวิถีดาบและโล่แห่งสยาม", "skill": "shield_counter", "trial": {"kind": "hornet", "count": 8}},
+    lotus_mage: {"name": "จอมเวทบัวแก้ว", "tier": 2, "parent": "mage", "weaponType": "staff", "atlas": "school-staff", "trainingWeapon": "lotus_staff", "description": "จอมเวทบัวแก้ว ฝึกวิถีมนตราคทาแห่งสยาม", "skill": "lotus_storm", "trial": {"kind": "poporing", "count": 8}},
+    orb_weaver: {"name": "ผู้ควบคุมแก้วมณี", "tier": 2, "parent": "mage", "weaponType": "orb", "atlas": "class-orb", "trainingWeapon": "jade_orb", "description": "ผู้ควบคุมแก้วมณี ฝึกวิถีแก้วมณีแห่งสยาม", "skill": "orb_burst", "trial": {"kind": "willow", "count": 8}},
+    divine_scribe: {"name": "อาลักษณ์เทวมนต์", "tier": 2, "parent": "acolyte", "weaponType": "book", "atlas": "school-book", "trainingWeapon": "golden_scripture", "description": "อาลักษณ์เทวมนต์ ฝึกวิถีอักขระแห่งสยาม", "skill": "sanctuary", "trial": {"kind": "willow", "count": 8}},
+    garuda_monk: {"name": "นักสู้ครุฑา", "tier": 2, "parent": "acolyte", "weaponType": "knuckle", "atlas": "school-knuckle", "trainingWeapon": "garuda_knuckles", "description": "นักสู้ครุฑา ฝึกวิถีหมัดครุฑาแห่งสยาม", "skill": "garuda_combo", "trial": {"kind": "lunatic", "count": 12}},
+    moon_shadow: {"name": "เงาจันทร์", "tier": 2, "parent": "scout", "weaponType": "dagger", "atlas": "school-dagger", "trainingWeapon": "moon_kris", "description": "เงาจันทร์ ฝึกวิถีมีดสั้นแห่งสยาม", "skill": "moon_venom", "trial": {"kind": "hornet", "count": 8}},
+    night_tiger: {"name": "พยัคฆ์ราตรี", "tier": 2, "parent": "scout", "weaponType": "claw", "atlas": "class-claw", "trainingWeapon": "tiger_claws", "description": "พยัคฆ์ราตรี ฝึกวิถีกรงเล็บแห่งสยาม", "skill": "tiger_rend", "trial": {"kind": "poporing", "count": 8}},
+    naga_ranger: {"name": "พรานนาคา", "tier": 2, "parent": "archer", "weaponType": "bow", "atlas": "school-bow", "trainingWeapon": "naga_bow", "description": "พรานนาคา ฝึกวิถีธนูแห่งสยาม", "skill": "naga_trap", "trial": {"kind": "hornet", "count": 8}},
+    arcane_archer: {"name": "ศรมนตรา", "tier": 2, "parent": "archer", "weaponType": "magic_bow", "atlas": "class-magic-bow", "trainingWeapon": "arcane_bow", "description": "ศรมนตรา ฝึกวิถีศรมนตราแห่งสยาม", "skill": "arcane_volley", "trial": {"kind": "poporing", "count": 8}},
   };
+  // Compatibility catalog for existing equipment render helpers; identity is classId.
+  const weaponSchools = Object.fromEntries(Object.values(classes).map(c => [c.weaponType, c]));
   const items = {
+    training_stick: { name: "ไม้ฝึกชาวบ้าน", type: "weapon", weaponType: "training", price: 0, weight: 80, atk: 4, shop: false, sellable: false, color: "#ac8054", icon: "╱", iconArt: {atlas: "class-weapons", cell: 0}, appearance: {layer: "weapon", atlas: "class-weapons", cell: 0, profile: "training", length: 21, width: 4} },
     potion: {
       name: "ยาดอกคำฝอย",
       type: "use",
@@ -170,17 +161,17 @@
       },
     },
     yak_greatsword: {
-      name: "มหาดาบยักษ์แก้ว",
+      name: "ดาบโล่ยักษ์แก้ว",
       type: "weapon",
-      weaponType: "greatsword",
+      weaponType: "sword_shield",
       price: 10,
       weight: 150,
       atk: 18,
       color: "#8dc9b7",
       icon: "⚔",
-      iconArt: { atlas: "siam-weapons", cell: 2 },
+      iconArt: { atlas: "class-weapons", cell: 1 },
       appearance: {
-        layer: "weapon", atlas: "siam-weapons", cell: 2, profile: "greatsword",
+        layer: "weapon", atlas: "class-weapons", cell: 1, profile: "sword_shield",
         length: 34, width: 9,
       },
     },
@@ -259,6 +250,10 @@
         length: 32, width: 13,
       },
     },
+    arun_sword_shield: {"name": "ชุดดาบโล่อรุณ", "type": "weapon", "weaponType": "sword_shield", "price": 10, "weight": 130, "atk": 14, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 1}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 1, "profile": "sword_shield", "length": 30, "width": 13}},
+    jade_orb: {"name": "แก้วมณีหยก", "type": "weapon", "weaponType": "orb", "price": 10, "weight": 65, "atk": 14, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 2}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 2, "profile": "orb", "length": 30, "width": 13}},
+    tiger_claws: {"name": "กรงเล็บพยัคฆ์", "type": "weapon", "weaponType": "claw", "price": 10, "weight": 55, "atk": 12, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 3}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 3, "profile": "claw", "length": 30, "width": 13}},
+    arcane_bow: {"name": "ธนูศรมนตรา", "type": "weapon", "weaponType": "magic_bow", "price": 10, "weight": 85, "atk": 14, "color": "#b7d8c8", "icon": "✦", "iconArt": {"atlas": "class-weapons", "cell": 4}, "appearance": {"layer": "weapon", "atlas": "class-weapons", "cell": 4, "profile": "magic_bow", "length": 30, "width": 13}},
     cloth_armor: {
       name: "เสื้อผ้าทอคราม",
       type: "armor",
@@ -542,6 +537,22 @@
     },
   ];
   const skills = {
+    arun_slash: {"name": "ฟันแสงอรุณ", "thai": "ฟันแสงอรุณ", "owner": "swordsman", "max": 5, "sp": 6, "cooldown": 2, "kind": "target", "range": 58, "power": 1.5, "powerPerLevel": 0.15, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "ฟันประชิด พลัง 150% + 15% ต่อระดับ (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)"},
+    lotus_bolt: {"name": "ศรบัวแก้ว", "thai": "ศรบัวแก้ว", "owner": "mage", "max": 5, "sp": 7, "cooldown": 2.4, "kind": "target", "range": 175, "power": 1.25, "powerPerLevel": 0.15, "magic": true, "icon": "✦", "color": "#d9c48c", "description": "เวท INT ระยะ 175 พลัง 125% + 15% ต่อระดับ (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)"},
+    ward_script: {"name": "อักขระคุ้มกาย", "thai": "อักขระคุ้มกาย", "owner": "acolyte", "max": 5, "sp": 9, "cooldown": 8, "kind": "self", "range": 0, "power": 0, "powerPerLevel": 0, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "ฟื้น HP 18 + 6 ต่อระดับ เพิ่ม DEF 3 + 1 ต่อระดับ และรับความเสียหาย 85% นาน 6 วินาที (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "heal": 18, "healPerLevel": 6, "duration": 6, "defBonus": 3, "defPerLevel": 1, "damageTaken": 0.85},
+    quick_stab: {"name": "แทงฉับไว", "thai": "แทงฉับไว", "owner": "scout", "max": 5, "sp": 5, "cooldown": 1.4, "kind": "target", "range": 50, "power": 1.15, "powerPerLevel": 0.12, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "แทงประชิด พลัง 115% + 12% ต่อระดับ (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)"},
+    aimed_shot: {"name": "ศรเล็งจุด", "thai": "ศรเล็งจุด", "owner": "archer", "max": 5, "sp": 7, "cooldown": 3, "kind": "target", "range": 220, "power": 1.7, "powerPerLevel": 0.18, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "ศรกายภาพระยะ 220 พลัง 170% + 18% ต่อระดับ (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)"},
+    royal_flurry: {"name": "ราชวังทวิคม", "thai": "ราชวังทวิคม", "owner": "royal_duelist", "max": 5, "sp": 12, "cooldown": 5, "kind": "combo", "range": 58, "power": 0.55, "powerPerLevel": 0.1, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "ฟัน 3 ครั้ง ครั้งละ 55% + 10% ต่อระดับ (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "hits": 3},
+    shield_counter: {"name": "โล่สวนศึก", "thai": "โล่สวนศึก", "owner": "city_guardian", "max": 5, "sp": 12, "cooldown": 7, "kind": "guard", "range": 58, "power": 1.2, "powerPerLevel": 0.15, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "ฟัน 120% + 15% ต่อระดับ เพิ่ม DEF 6 + 2 ต่อระดับ รับความเสียหาย 70% นาน 5 วินาที (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "duration": 5, "defBonus": 6, "defPerLevel": 2, "damageTaken": 0.7},
+    lotus_storm: {"name": "พายุบัวแก้ว", "thai": "พายุบัวแก้ว", "owner": "lotus_mage", "max": 5, "sp": 16, "cooldown": 6, "kind": "aoe", "range": 190, "power": 1.4, "powerPerLevel": 0.18, "magic": true, "icon": "✦", "color": "#d9c48c", "description": "เวทระยะ 190 รัศมี 90 พลัง 140% + 18% ต่อระดับ (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "radius": 90},
+    orb_burst: {"name": "ระเบิดแก้วมณี", "thai": "ระเบิดแก้วมณี", "owner": "orb_weaver", "max": 5, "sp": 12, "cooldown": 4, "kind": "orb", "range": 180, "power": 1.2, "powerPerLevel": 0.15, "magic": true, "icon": "✦", "color": "#d9c48c", "description": "เวทระยะ 180 พลัง 120% + 15% ต่อระดับ ใช้ประจุจากการโจมตีปกติ 0–3 เม็ด เพิ่มเม็ดละ 30% ประจุอยู่ 12 วินาที (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "chargePower": 0.3, "chargeCap": 3, "chargeDuration": 12},
+    sanctuary: {"name": "เขตอักขระศักดิ์สิทธิ์", "thai": "เขตอักขระศักดิ์สิทธิ์", "owner": "divine_scribe", "max": 5, "sp": 18, "cooldown": 8, "kind": "sanctuary", "range": 0, "power": 1, "powerPerLevel": 0.15, "magic": true, "icon": "✦", "color": "#d9c48c", "description": "เวทรอบตัวรัศมี 105 พลัง 100% + 15% ต่อระดับ ฟื้น HP 25 + 8 ต่อระดับ (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "radius": 105, "heal": 25, "healPerLevel": 8},
+    garuda_combo: {"name": "กระบวนครุฑา", "thai": "กระบวนครุฑา", "owner": "garuda_monk", "max": 5, "sp": 12, "cooldown": 6, "kind": "combo_buff", "range": 48, "power": 0.7, "powerPerLevel": 0.1, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "ต่อย 2 ครั้ง ครั้งละ 70% + 10% ต่อระดับ เพิ่ม ATK 15% + 3% ต่อระดับ นาน 5 วินาที (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "hits": 2, "duration": 5, "atkMultiplier": 1.15, "atkPerLevel": 0.03},
+    moon_venom: {"name": "พิษเงาจันทร์", "thai": "พิษเงาจันทร์", "owner": "moon_shadow", "max": 5, "sp": 10, "cooldown": 5, "kind": "dot", "range": 50, "power": 1, "powerPerLevel": 0.12, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "แทง 100% + 12% ต่อระดับ พิษทุก 1 วินาที 18% + 4% ต่อระดับ นาน 5 วินาที (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "dotPower": 0.18, "dotPerLevel": 0.04, "duration": 5, "interval": 1},
+    tiger_rend: {"name": "พยัคฆ์ฉีกเกราะ", "thai": "พยัคฆ์ฉีกเกราะ", "owner": "night_tiger", "max": 5, "sp": 12, "cooldown": 5, "kind": "dot", "range": 48, "power": 1.3, "powerPerLevel": 0.15, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "ฉีก 130% + 15% ต่อระดับ คิด DEF 50% เลือดไหลทุก 1 วินาที 22% + 4% ต่อระดับ นาน 4 วินาที (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "defenseScale": 0.5, "dotPower": 0.22, "dotPerLevel": 0.04, "duration": 4, "interval": 1},
+    naga_trap: {"name": "บ่วงนาคา", "thai": "บ่วงนาคา", "owner": "naga_ranger", "max": 5, "sp": 11, "cooldown": 7, "kind": "trap", "range": 210, "power": 1.1, "powerPerLevel": 0.15, "magic": false, "icon": "✦", "color": "#d9c48c", "description": "วางบ่วงระยะ 210 รัศมี 34 นาน 12 วินาที โจมตี 110% + 15% ต่อระดับและตรึง 3 วินาที (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "radius": 34, "duration": 12, "snareDuration": 3},
+    arcane_volley: {"name": "ห่าศรมนตรา", "thai": "ห่าศรมนตรา", "owner": "arcane_archer", "max": 5, "sp": 15, "cooldown": 5, "kind": "aoe", "range": 220, "power": 1.25, "powerPerLevel": 0.17, "magic": true, "icon": "✦", "color": "#d9c48c", "description": "เวทระยะ 220 รัศมี 85 พลัง 125% + 17% ต่อระดับ (ค่าต่อระดับเริ่มเพิ่มจากระดับ 2)", "radius": 85},
+
     first_aid: {
       name: "ปฐมพยาบาล",
       thai: "ปฐมพยาบาล",
@@ -614,7 +625,7 @@
       id: "guide",
       name: "ครูอิน",
       thai: "ศาลานักเดินทาง",
-      dialogue: "ยินดีต้อนรับสู่ท่าน้ำอรุณ สายน้ำพาสิ่งผิดปกติมาจากป่า มาช่วยชาวบ้านฝึกฝีมือกันเถอะ เมื่อชำนาญถึงระดับอาชีพ 10 ข้าจะสอนวิถีนักดาบพิทักษ์ให้",
+      dialogue: "ยินดีต้อนรับสู่ท่าน้ำอรุณ สายน้ำพาสิ่งผิดปกติมาจากป่า มาช่วยชาวบ้านฝึกฝีมือกันเถอะ เมื่อชำนาญถึงระดับอาชีพ 10 เลือกหนึ่งในห้าวิถี แล้วฝึกถึงระดับอาชีพ 40 เพื่อรับบททดสอบสู่วิถีขั้นสอง",
       x: 165,
       y: 180,
       color: "#9cb59a",
@@ -643,14 +654,15 @@
       title: "สยามอรุณ",
       subtitle: "ตำนานผู้กล้าแห่งลุ่มน้ำ",
       currency: "อัฐ",
-      release: "1.7",
-      intro: "ท่าน้ำอรุณเคยมีสายน้ำใสไหลจากป่าหิมพานต์ แต่ยามนี้ประกายแก้วประหลาดปลุกเหล่าภูตให้ปั่นป่วน เริ่มต้นเป็นผู้เดินทาง ฝึกวิชากับครูอิน และออกตามหาแก่นแก้วนาคาเพื่อคืนความสงบให้เมืองริมน้ำแห่งสยามแฟนตาซี",
+      release: "1.8",
+      intro: "ท่าน้ำอรุณเคยมีสายน้ำใสไหลจากป่าหิมพานต์ แต่ยามนี้ประกายแก้วประหลาดปลุกเหล่าภูตให้ปั่นป่วน เริ่มต้นเป็นชาวบ้าน ฝึกวิชากับครูอิน และออกตามหาแก่นแก้วนาคาเพื่อคืนความสงบให้เมืองริมน้ำแห่งสยามแฟนตาซี",
     },
     jobs: {
       Novice: { name: "ผู้เดินทาง" },
       Swordman: { name: "ผู้พิทักษ์สยาม" },
     },
     items,
+    classes,
     weaponTypes,
     weaponSchools,
     monsters,

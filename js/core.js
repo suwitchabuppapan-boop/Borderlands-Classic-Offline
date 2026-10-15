@@ -2,6 +2,7 @@
   "use strict";
   const D =
     typeof module === "object" ? require("./classic-data.js") : root.BCData;
+  const Combat = typeof module === "object" ? require("./class-combat.js") : root.BCClassCombat;
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -15,15 +16,17 @@
       exp: 0,
       jexp: 0,
       job: "Novice",
-      weaponSchool: "sword",
+      classId: "villager",
+      classTrial: null,
+      weaponSchool: "training",
       silver: 45,
       statPoints: 0,
       skillPoints: 0,
       stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5 },
-      skills: { first_aid: 1, bash: 0, magnum: 0, provoke: 0 },
+      skills: Object.fromEntries(Object.keys(D.skills).map(id => [id, id === "first_aid" ? 1 : 0])),
       inventory: { potion: 5, ether: 3, novice_cap: 1 },
       equipment: {
-        weapon: "rusty_sword",
+        weapon: "training_stick",
         armor: "cloth_armor",
         accessory: null,
         head: null,
@@ -35,9 +38,9 @@
       questActive: false,
       hotbar: [
         "skill:first_aid",
-        "skill:bash",
-        "skill:magnum",
-        "skill:provoke",
+        null,
+        null,
+        null,
         "item:potion",
         "item:ether",
         "action:attack",
@@ -69,41 +72,83 @@
     let weight = equipment.reduce((n, i) => n + i.weight, 0);
     for (const [id, n] of Object.entries(s.inventory))
       weight += D.items[id].weight * n;
-    const a = s.stats;
+    const a = s.stats, mods = Combat.modifiers(s);
+    const gearAtk = equipment.reduce((n, i) => n + (i.atk || 0), 0);
     return {
       maxHp:
         90 + a.vit * 10 + s.baseLevel * 10 + (s.job === "Swordman" ? 60 : 0),
       maxSp: 25 + a.int * 5 + s.baseLevel * 2,
-      atk:
-        8 +
-        a.str * 2 +
-        s.baseLevel +
-        equipment.reduce((n, i) => n + (i.atk || 0), 0),
+      atk: (8 + a.str * 2 + s.baseLevel + gearAtk) * (mods.atkMultiplier || 1),
+      matk: 8 + a.int * 2 + s.baseLevel + gearAtk,
       def:
-        Math.floor(a.vit / 3) + equipment.reduce((n, i) => n + (i.def || 0), 0),
+        Math.floor(a.vit / 3) + equipment.reduce((n, i) => n + (i.def || 0), 0) + (mods.defBonus || 0),
       hit: 80 + a.dex + s.baseLevel,
-      flee: a.agi + s.baseLevel,
+      flee: a.agi + s.baseLevel + (mods.fleeBonus || 0),
       crit: Math.min(35, 3 + a.luk * 0.5),
       interval: Math.max(0.3, 1.05 - a.agi * 0.012 - a.dex * 0.003),
       weight,
       capacity: 2000 + a.str * 30 + (s.job === "Swordman" ? 800 : 0),
     };
   }
+  function classInfo(s) {
+    return typeof s.classId === "string" && own(D.classes, s.classId) ? D.classes[s.classId] : D.classes.villager;
+  }
+  function availableClasses(s) {
+    return Object.keys(D.classes).filter(id => D.classes[id].parent === s.classId);
+  }
+  function trialProgress(s) {
+    const t = s.classTrial;
+    if (!t || !own(D.classes, t.classId) || !D.classes[t.classId].trial) return null;
+    const { kind, count } = D.classes[t.classId].trial;
+    const current = Math.min(count, Math.max(0, (s.kills[kind] || 0) - t.baseline));
+    return { classId: t.classId, kind, count, current, complete: current >= count };
+  }
+  function classChangeReason(s, id) {
+    if (typeof id !== "string" || !own(D.classes, id) || !availableClasses(s).includes(id)) return "เลือกอาชีพขั้นถัดไปในเส้นทางปัจจุบัน";
+    const required = classInfo(s).tier === 0 ? 10 : 40;
+    if (s.jobLevel < required) return `ต้องมีระดับอาชีพ ${required}`;
+    if (!nearby(s, "guide")) return `คุย${npcName("guide")}ที่เมืองเพื่อเปลี่ยนอาชีพ`;
+    if (D.classes[id].tier === 2) {
+      const t = trialProgress(s);
+      if (!t || t.classId !== id || !t.complete) return "รับและทำบททดสอบอาชีพนี้ให้ครบก่อน";
+    }
+    return "";
+  }
+  function skillAvailable(s, id) {
+    if (typeof id !== "string" || !own(D.skills, id)) return false;
+    if (id === "first_aid") return true;
+    const owner = D.skills[id].owner;
+    if (!owner) return s.skills[id] > 0;
+    let classId = s.classId;
+    while (typeof classId === "string" && own(D.classes, classId)) {
+      if (classId === owner) return true;
+      classId = D.classes[classId].parent;
+    }
+    return false;
+  }
+  function skillsFor(s) {
+    return Object.keys(D.skills).filter(id => skillAvailable(s, id));
+  }
+  function learnReason(s, id) {
+    if (!skillAvailable(s, id) || id === "first_aid") return "อาชีพนี้เรียนสกิลนี้ไม่ได้";
+    if (s.skillPoints < 1) return "ไม่มีแต้มสกิล";
+    if (s.skills[id] >= D.skills[id].max) return "สกิลเต็มระดับแล้ว";
+    if (id === "magnum" && s.skills.bash < 5) return `ต้องเรียน${D.skills.bash.name}ระดับ 5 ก่อน`;
+    return "";
+  }
   function weaponProfile(s) {
-    const item = D.items[s.equipment.weapon];
-    return D.weaponTypes[item?.weaponType || s.weaponSchool] || D.weaponTypes.sword;
+    return D.weaponTypes[classInfo(s).weaponType];
   }
   function attackRange(s) {
     return weaponProfile(s).range;
   }
   function equipReason(s, id) {
-    if (
-      typeof id !== "string" || !own(D.items, id) ||
-      !["weapon", "armor", "accessory", "head"].includes(D.items[id].type)
-    ) return "ใส่อุปกรณ์นี้ไม่ได้";
+    if (typeof id !== "string" || !own(D.items, id) || !["weapon", "armor", "accessory", "head"].includes(D.items[id].type)) return "ใส่อุปกรณ์นี้ไม่ได้";
     const item = D.items[id];
-    if (item.type === "weapon" && item.weaponType !== (s.weaponSchool || "sword"))
-      return `อาวุธนี้ใช้ได้เฉพาะสาย${D.weaponSchools[item.weaponType].name} • เปลี่ยนสายที่เมืองก่อน`;
+    if (item.type === "weapon" && item.weaponType !== classInfo(s).weaponType) {
+      const names = Object.values(D.classes).filter(c => c.weaponType === item.weaponType).map(c => c.name).join(" / ");
+      return `อาวุธนี้ใช้ได้เฉพาะอาชีพ ${names}`;
+    }
     if (!(s.inventory[id] > 0)) return "ไม่มีอุปกรณ์นี้ในกระเป๋า";
     return "";
   }
@@ -112,6 +157,7 @@
     return s.seed / 4294967296;
   }
   function spawn(s) {
+    delete s.classCombat;
     s.monsters = D.maps[s.zone].mobs.map((kind, i) => ({
       uid: `${s.zone}-${i}`,
       kind,
@@ -145,15 +191,15 @@
       leveled = true;
     }
     while (
-      s.jobLevel < (s.job === "Novice" ? 10 : 50) &&
+      s.jobLevel < (classInfo(s).tier === 0 ? 10 : 50) &&
       s.jexp >= jobNeed(s)
     ) {
       s.jexp -= jobNeed(s);
       s.jobLevel++;
-      if (s.job === "Swordman") s.skillPoints++;
+      if (classInfo(s).tier > 0) s.skillPoints++;
     }
     if (s.baseLevel === 30) s.exp = 0;
-    if (s.jobLevel === (s.job === "Novice" ? 10 : 50)) s.jexp = 0;
+    if (s.jobLevel === (classInfo(s).tier === 0 ? 10 : 50)) s.jexp = 0;
     if (leveled) {
       const st = stats(s);
       s.player.hp = st.maxHp;
@@ -189,7 +235,8 @@
       s.destination = null;
     }
   }
-  function damage(s, m, mult = 1, always = false) {
+  function damage(s, m, mult = 1, always = false, options = {}) {
+    if (!m || m.dead || m.hp <= 0) return false;
     const d = D.monsters[m.kind],
       st = stats(s),
       critical = random(s) * 100 < st.crit;
@@ -199,13 +246,13 @@
       random(s) * 100 > clamp(st.hit - d.level * 2, 75, 98)
     ) {
       effect(s, m.x, m.y - 20, "MISS", "#bec8cd");
-      return;
+      return false;
     }
     const amount = Math.max(
       1,
       Math.round(
-        st.atk * mult * (critical ? 1.65 : 1) -
-          d.def * (m.provoke > 0 ? 0.5 : 1),
+        (options.magic ? st.matk : st.atk) * mult * (critical ? 1.65 : 1) -
+          d.def * (m.provoke > 0 ? 0.5 : 1) * (options.defenseScale ?? 1),
       ),
     );
     m.hp -= amount;
@@ -217,7 +264,9 @@
       critical ? "#ffdc82" : "#fff3cf",
     );
     if (m.hp <= 0) kill(s, m);
+    return true;
   }
+  const combatHelpers = { damage, effect, stats, dist, kill };
   function doAction(s, action, p = {}) {
     const st = stats(s),
       fail = (message) => ({ ok: false, message }),
@@ -247,8 +296,9 @@
       if (st.weight >= st.capacity * 0.9)
         return fail("น้ำหนักเกิน 90% • ขายของที่ตลาดท่าน้ำก่อน");
       const id = action === "attack" ? "attack" : p.id;
-      if (id !== "attack" && (!own(D.skills, id) || !s.skills[id]))
+      if (id !== "attack" && (!skillAvailable(s, id) || !s.skills[id]))
         return fail("ยังไม่ได้เรียนสกิลนี้");
+      if (D.skills[id]?.owner) return Combat.cast(s, id, p, combatHelpers);
       if ((s.cooldowns[id] || 0) > 0)
         return fail("กำลังรอสกิลหรือการโจมตีพร้อมใช้งาน");
       const skill = D.skills[id];
@@ -289,14 +339,15 @@
         if (dx || dy)
           s.player.facing =
             Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : dy > 0 ? 0 : 2;
-        damage(s, m, id === "bash" ? 1.5 + s.skills.bash * 0.15 : 1);
+        const landed = damage(s, m, id === "bash" ? 1.5 + s.skills.bash * 0.15 : 1);
+        if (id === "attack" && landed) Combat.afterAttack(s, m, combatHelpers);
         s.cooldowns.swing = 0.22;
       }
       return ok();
     }
     if (action === "use") {
       if (
-        !own(D.items, p.id) ||
+        typeof p.id !== "string" || !own(D.items, p.id) ||
         D.items[p.id].type !== "use" ||
         !(s.inventory[p.id] > 0)
       )
@@ -321,16 +372,17 @@
       const qty = p.qty === undefined ? 1 : p.qty;
       if (!Number.isInteger(qty) || qty < 1 || qty > 999)
         return fail("จำนวนไม่ถูกต้อง");
-      if (!own(D.items, p.id)) return fail("ไม่พบไอเทม");
+      if (typeof p.id !== "string" || !own(D.items, p.id)) return fail("ไม่พบไอเทม");
       const i = D.items[p.id];
       if (action === "buy") {
-        if (i.type === "loot") return fail("ร้านไม่ขายไอเทมนี้");
+        if (i.type === "loot" || i.shop === false) return fail("ร้านไม่ขายไอเทมนี้");
         if (s.silver < i.price * qty) return fail(`${D.world.currency}ไม่เพียงพอ`);
         if (st.weight + i.weight * qty > st.capacity)
           return fail("น้ำหนักเกินความจุ");
         s.silver -= i.price * qty;
         s.inventory[p.id] = (s.inventory[p.id] || 0) + qty;
       } else {
+        if (i.sellable === false) return fail("ขายไอเทมฝึกถาวรไม่ได้");
         if ((s.inventory[p.id] || 0) < qty) return fail("จำนวนไอเทมไม่เพียงพอ");
         s.inventory[p.id] -= qty;
         if (!s.inventory[p.id]) delete s.inventory[p.id];
@@ -338,32 +390,36 @@
       }
       return ok(`${action === "buy" ? "ซื้อ" : "ขาย"} ${i.name} ×${qty}`);
     }
-    if (action === "school") {
-      if (s.zone !== 0) return fail("เปลี่ยนสายอาวุธได้เฉพาะในเมืองท่าน้ำอรุณ");
-      if (typeof p.id !== "string" || !own(D.weaponSchools, p.id))
-        return fail("ไม่พบสายอาวุธนี้");
-      const school = D.weaponSchools[p.id];
-      const owned = (id) => typeof id === "string" && own(D.items, id) &&
-        D.items[id].type === "weapon" && D.items[id].weaponType === school.weaponType &&
-        (s.inventory[id] > 0 || s.equipment.weapon === id);
-      const id = p.weapon === undefined
-        ? Object.keys(D.items).filter(owned).sort((a, b) => D.items[b].atk - D.items[a].atk)[0]
-        : p.weapon;
-      if (!owned(id))
-        return fail(`ต้องมีอาวุธประเภท${D.weaponTypes[school.weaponType].name}ของตนเองเพื่อเปลี่ยนสาย`);
-      if (s.weaponSchool === p.id && s.equipment.weapon === id) return ok();
-      const old = s.equipment.weapon;
-      if (old !== id) {
-        s.inventory[id]--;
-        if (!s.inventory[id]) delete s.inventory[id];
+    if (action === "class-trial") {
+      if (typeof p.id !== "string" || !own(D.classes, p.id) || classInfo(s).tier !== 1 || !availableClasses(s).includes(p.id)) return fail("เลือกบททดสอบในเส้นทางอาชีพปัจจุบัน");
+      if (s.jobLevel < 40 || !nearby(s, "guide")) return fail(`ระดับอาชีพ 40 และคุย${npcName("guide")}เพื่อรับบททดสอบ`);
+      if (s.classTrial?.classId === p.id) return ok();
+      const trial = D.classes[p.id].trial;
+      s.classTrial = { classId: p.id, baseline: s.kills[trial.kind] || 0 };
+      return ok(`รับบททดสอบ ${D.classes[p.id].name}`);
+    }
+    if (action === "class" || action === "job") {
+      const id = p.id;
+      const reason = classChangeReason(s, id);
+      if (reason) return fail(reason);
+      const next = D.classes[id], old = s.equipment.weapon;
+      if (!old || D.items[old].weaponType !== next.weaponType) {
         if (old) s.inventory[old] = (s.inventory[old] || 0) + 1;
-        s.equipment.weapon = id;
+        const weapon = Object.keys(s.inventory).filter(k => s.inventory[k] > 0 && D.items[k].type === "weapon" && D.items[k].weaponType === next.weaponType).sort((a,b) => D.items[b].atk - D.items[a].atk)[0];
+        s.equipment.weapon = weapon || null;
+        if (weapon && --s.inventory[weapon] === 0) delete s.inventory[weapon];
       }
-      s.weaponSchool = p.id;
-      s.destination = null;
-      s.target = null;
-      s.auto = false;
-      return ok(`เปลี่ยนเป็นสาย${school.name}แล้ว • สวม ${D.items[id].name}`);
+      s.classId = id;
+      s.weaponSchool = next.weaponType;
+      s.job = "Swordman";
+      s.jobLevel = 1;
+      s.jexp = 0;
+      s.skillPoints++;
+      s.classTrial = null;
+      delete s.classCombat;
+      s.auto = false; s.target = null; s.destination = null;
+      s.player.hp = stats(s).maxHp; s.player.sp = stats(s).maxSp;
+      return ok(`ยินดีด้วย! คุณเป็น${next.name}แล้ว`);
     }
     if (action === "equip") {
       const reason = equipReason(s, p.id);
@@ -392,31 +448,11 @@
       return ok("เพิ่มสเตตัสแล้ว");
     }
     if (action === "learn") {
-      if (
-        !own(D.skills, p.id) ||
-        p.id === "first_aid" ||
-        s.job !== "Swordman" ||
-        s.skillPoints < 1 ||
-        s.skills[p.id] >= D.skills[p.id].max
-      )
-        return fail(`ต้องเป็น${jobName("Swordman")}และมีแต้มสกิล`);
-      if (p.id === "magnum" && s.skills.bash < 5)
-        return fail(`ต้องเรียน${D.skills.bash.name}ระดับ 5 ก่อน`);
+      const reason = learnReason(s, p.id);
+      if (reason) return fail(reason);
       s.skills[p.id]++;
       s.skillPoints--;
       return ok(`เรียน ${D.skills[p.id].name}`);
-    }
-    if (action === "job") {
-      if (s.job !== "Novice" || s.jobLevel < 10 || !nearby(s, "guide"))
-        return fail(
-          `${jobName("Novice")}ระดับอาชีพ 10 • คุย${npcName("guide")}เพื่อเปลี่ยนอาชีพ`,
-        );
-      s.job = "Swordman";
-      s.jobLevel = 1;
-      s.jexp = 0;
-      s.skillPoints = 1;
-      s.player.hp = stats(s).maxHp;
-      return ok(`ยินดีด้วย! คุณเป็น${jobName("Swordman")}แล้ว`);
     }
     if (action === "quest") {
       if (!nearby(s, "guide"))
@@ -498,6 +534,7 @@
       recoverPlayer(s);
       return;
     }
+    Combat.tick(s, dt, combatHelpers);
     const st = stats(s);
     if (s.auto) {
       if (
@@ -519,14 +556,11 @@
         s.destination = { x: target.x, y: target.y };
       else {
         s.destination = null;
-        if (
-          s.auto &&
-          s.settings.autoSkill &&
-          s.skills.bash &&
-          gap <= 58 &&
-          s.player.sp >= D.skills.bash.sp &&
-          !(s.cooldowns.bash > 0)
-        )
+        const suggested = s.auto && s.settings.autoSkill ? Combat.suggestSkill(s, target) : null;
+        if (suggested && skillAvailable(s, suggested)) {
+          const result = doAction(s, "skill", { id: suggested, target: target.uid });
+          if (!result.ok) doAction(s, "attack", { target: target.uid });
+        } else if (s.auto && s.settings.autoSkill && skillAvailable(s, "bash") && s.skills.bash && gap <= 58 && s.player.sp >= D.skills.bash.sp && !(s.cooldowns.bash > 0))
           doAction(s, "skill", { id: "bash", target: target.uid });
         else doAction(s, "attack", { target: target.uid });
       }
@@ -560,14 +594,16 @@
       const gap = dist(m, s.player);
       if (gap < 175 && s.player.x > 310) {
         if (gap > 40) {
-          m.x += ((s.player.x - m.x) / gap) * d.speed * dt;
-          m.y += ((s.player.y - m.y) / gap) * d.speed * dt;
+          const movement = m.snare > 0 ? 0 : d.speed * dt;
+          m.x += ((s.player.x - m.x) / gap) * movement;
+          m.y += ((s.player.y - m.y) / gap) * movement;
         } else if (!m.cd) {
           m.cd = d.boss ? 1.5 : 1.8;
-          if (random(s) * 100 < clamp(88 + d.level - st.flee, 55, 96)) {
+          const defense = stats(s);
+          if (random(s) * 100 < clamp(88 + d.level - defense.flee, 55, 96)) {
             const hit = Math.max(
               1,
-              Math.round(d.atk * (m.provoke ? 1.2 : 1) - st.def),
+              Math.round((d.atk * (m.provoke ? 1.2 : 1) - defense.def) * (Combat.modifiers(s).damageTaken || 1)),
             );
             s.player.hp = Math.max(0, s.player.hp - hit);
             effect(s, s.player.x, s.player.y - 35, `−${hit}`, "#ffa7a1");
@@ -604,7 +640,7 @@
       : type === "item"
         ? own(D.items, id) && D.items[id].type === "use"
         : type === "skill"
-          ? own(D.skills, id) && (!learned || s.skills[id] > 0)
+          ? own(D.skills, id) && (!(learned || D.skills[id].owner) || (s.skills[id] > 0 && skillAvailable(s, id)))
           : false;
   }
   function serialize(s) {
@@ -614,6 +650,8 @@
       "exp",
       "jexp",
       "job",
+      "classId",
+      "classTrial",
       "weaponSchool",
       "silver",
       "statPoints",
@@ -663,9 +701,17 @@
       n <= max &&
       (!int || Number.isInteger(n));
     if (!["Novice", "Swordman"].includes(v.job)) bad();
+    const legacyClass = !own(v, "classId");
+    const legacyClasses = { training: "villager", sword: "swordsman", dual_sword: "royal_duelist", greatsword: "city_guardian", sword_shield: "city_guardian", staff: "lotus_mage", book: "divine_scribe", knuckle: "garuda_monk", dagger: "moon_shadow", bow: "naga_ranger" };
+    if (!obj(v.equipment) || !obj(v.skills) || !obj(v.kills)) bad();
+    const wornWeaponType = typeof v.equipment.weapon === "string" && own(D.items, v.equipment.weapon) ? D.items[v.equipment.weapon].weaponType : undefined;
+    let weaponSchool = own(v, "weaponSchool") ? v.weaponSchool : wornWeaponType || "sword";
+    if (legacyClass && weaponSchool === "greatsword") weaponSchool = "sword_shield";
+    const classId = legacyClass ? (typeof weaponSchool === "string" && own(legacyClasses, weaponSchool) ? legacyClasses[weaponSchool] : undefined) : v.classId;
+    if (typeof classId !== "string" || !own(D.classes, classId) || typeof weaponSchool !== "string" || !own(D.weaponTypes, weaponSchool) || D.classes[classId].weaponType !== weaponSchool || (wornWeaponType && wornWeaponType !== weaponSchool)) bad();
     for (const [k, min, max] of [
       ["baseLevel", 1, 30],
-      ["jobLevel", 1, v.job === "Novice" ? 10 : 50],
+      ["jobLevel", 1, D.classes[classId].tier === 0 ? 10 : 50],
       ["exp", 0, 100000],
       ["jexp", 0, 100000],
       ["silver", 0, 100000000],
@@ -688,15 +734,16 @@
     for (const k of Object.keys(D.statNames))
       if (!num(v.stats[k], 1, 99)) bad();
     if (Object.keys(v.stats).length !== 6) bad();
-    for (const k of Object.keys(D.skills))
-      if (!num(v.skills[k], k === "first_aid" ? 1 : 0, D.skills[k].max)) bad();
-    if (Object.keys(v.skills).length !== 4) bad();
-    if (
-      (v.job === "Novice" &&
-        (v.skills.bash || v.skills.magnum || v.skills.provoke)) ||
-      (v.skills.magnum > 0 && v.skills.bash < 5)
-    )
-      bad();
+    const skills = { ...v.skills };
+    if (Object.keys(skills).some(k => !own(D.skills, k))) bad();
+    for (const k of Object.keys(D.skills)) {
+      if (legacyClass && D.skills[k].owner && !own(skills, k)) skills[k] = 0;
+      if (!num(skills[k], k === "first_aid" ? 1 : 0, D.skills[k].max)) bad();
+    }
+    if (Object.keys(skills).length !== Object.keys(D.skills).length) bad();
+    const access = { classId, skills };
+    if (Object.keys(skills).some(k => skills[k] > 0 && D.skills[k].owner && !skillAvailable(access, k))) bad();
+    if ((v.job === "Novice" && (skills.bash || skills.magnum || skills.provoke)) || (skills.magnum > 0 && skills.bash < 5)) bad();
     for (const [k, n] of Object.entries(v.inventory))
       if (!own(D.items, k) || !num(n, 0, 100000)) bad();
     const equipmentSlots = ["weapon", "armor", "accessory", "head"];
@@ -710,18 +757,18 @@
       if (
         !own(v.equipment, slot) ||
         (v.equipment[slot] !== null &&
-          (!own(D.items, v.equipment[slot]) ||
+          (typeof v.equipment[slot] !== "string" || !own(D.items, v.equipment[slot]) ||
             D.items[v.equipment[slot]].type !== slot))
       )
         bad();
-    const wornWeaponType = D.items[v.equipment.weapon]?.weaponType;
-    const weaponSchool = own(v, "weaponSchool") ? v.weaponSchool : wornWeaponType || "sword";
-    if (
-      typeof weaponSchool !== "string" || !own(D.weaponSchools, weaponSchool) ||
-      (wornWeaponType && wornWeaponType !== weaponSchool)
-    ) bad();
     for (const [k, n] of Object.entries(v.kills))
       if (!own(D.monsters, k) || !num(n, 0, 1000000)) bad();
+    const classTrial = legacyClass ? null : v.classTrial;
+    if (classTrial !== null) {
+      if (!obj(classTrial) || Object.keys(classTrial).length !== 2 || !own(classTrial, "classId") || !own(classTrial, "baseline") || typeof classTrial.classId !== "string" || !own(D.classes, classTrial.classId)) bad();
+      const c = D.classes[classTrial.classId];
+      if (D.classes[classId].tier !== 1 || c.parent !== classId || !c.trial || !num(classTrial.baseline, 0, v.kills[c.trial.kind] || 0)) bad();
+    }
     if (
       !num(v.player.x, 30, 930, false) ||
       !num(v.player.y, 60, 510, false) ||
@@ -733,7 +780,7 @@
     if (
       !Array.isArray(v.hotbar) ||
       v.hotbar.length !== 9 ||
-      !v.hotbar.every((b) => validBinding(b, v))
+      !v.hotbar.every((b) => validBinding(b, { ...v, classId, skills }))
     )
       bad();
     if (
@@ -745,6 +792,9 @@
       bad();
     const s = createState();
     for (const k of Object.keys(JSON.parse(serialize(s)).state)) s[k] = v[k];
+    s.classId = classId;
+    s.classTrial = classTrial;
+    s.skills = skills;
     s.weaponSchool = weaponSchool;
     if (legacyEquipment) s.equipment = { ...v.equipment, head: null };
     const st = stats(s);
@@ -758,6 +808,13 @@
     stats,
     attackRange,
     equipReason,
+    classInfo,
+    availableClasses,
+    classChangeReason,
+    skillAvailable,
+    learnReason,
+    skillsFor,
+    trialProgress,
     act,
     tick,
     serialize,

@@ -5,8 +5,7 @@
     R = window.BCRender,
     $ = (id) => document.getElementById(id);
   const world = D.world,
-    npc = (id) => D.npcs.find((person) => person.id === id),
-    jobName = (id) => D.jobs[id].name;
+    npc = (id) => D.npcs.find((person) => person.id === id);
   const esc = (v) =>
     String(v).replace(
       /[&<>"']/g,
@@ -31,6 +30,7 @@
     inventoryCategory = "all",
     shopWeaponType = "",
     shopVisit = false,
+    guideVisit = false,
     lastFocus = null,
     protectStorage = false,
     storageError = "";
@@ -106,6 +106,7 @@
   function loadSave(text) {
     const next = C.deserialize(text);
     shopVisit = false;
+    guideVisit = false;
     state = next;
     keys.clear();
     protectStorage = false;
@@ -116,7 +117,10 @@
     toast("นำเข้าเซฟสำเร็จ");
   }
   function run(action, p = {}) {
-    if (["move", "target", "auto", "travel"].includes(action)) shopVisit = false;
+    if (["move", "target", "auto", "travel"].includes(action)) {
+      shopVisit = false;
+      guideVisit = false;
+    }
     const result = C.act(state, action, p);
     if (result.message) toast(result.message);
     updateHUD();
@@ -147,16 +151,23 @@
   ];
   const equipmentTypes = equipmentSlots.map(([slot]) => slot);
   const weaponTypeName = (item) => D.weaponTypes?.[item?.weaponType]?.name || "";
-  const schoolName = (s) => D.weaponSchools[s.weaponSchool].name;
+  const classInfo = (s) => D.classes[s.classId];
+  const className = (s) => classInfo(s).name;
+  const classLabel = (s) => `Class ${classInfo(s).tier} · Job Lv.${s.jobLevel}`;
+  const compatibleClasses = (type) => Object.values(D.classes)
+    .filter((d) => d.weaponType === type)
+    .map((d) => `${d.name} (Class ${d.tier})`)
+    .join(" / ");
   const equipmentCaption = (s) => ["head", "weapon"]
     .map((slot) => {
       const item = D.items[s.equipment[slot]], type = weaponTypeName(item);
-      return `<span>${esc(item?.name || (slot === "head" ? "ไม่สวมหมวก" : "อาวุธฝึกประจำสาย"))}${type ? ` · ${esc(type)}` : ""}</span>`;
+      return `<span>${esc(item?.name || (slot === "head" ? "ไม่สวมหมวก" : "รูปลักษณ์อาวุธฝึกประจำอาชีพ"))}${type ? ` · ${esc(type)}` : ""}</span>`;
     })
     .join("");
   function openPanel(name) {
     if (!titleNames[name]) return;
     shopVisit = false;
+    guideVisit = false;
     lastFocus = document.activeElement;
     panel = name;
     keys.clear();
@@ -168,8 +179,9 @@
     $("panel-window").querySelector('[data-action="close"]').focus();
   }
   function closePanel() {
-    if (shopVisit) state.destination = null;
+    if (shopVisit || guideVisit) state.destination = null;
     shopVisit = false;
+    guideVisit = false;
     panel = null;
     $("panel-window").hidden = true;
     $("panel-backdrop").hidden = true;
@@ -187,15 +199,26 @@
     shopVisit = result.ok;
     if (shopVisit) toast(`กำลังเดินไปหา${merchant.name} · ถึงแล้วจะเปิดร้านให้`);
   }
+  const nearGuide = () => state.zone === 0 && C.dist(state.player, npc("guide")) < 85;
+  function walkToGuide() {
+    if (state.zone !== 0) return;
+    closePanel();
+    resume();
+    const guide = npc("guide");
+    const result = run("move", { x: guide.x + 48, y: guide.y });
+    guideVisit = result.ok;
+    if (guideVisit) toast(`กำลังเดินไปหา${guide.name} · ถึงแล้วจะเปิดเส้นทางอาชีพ`);
+  }
   // Equipment uses the same atlas art as the character; other icons stay compact SVGs.
   function artIcon(id) {
     const item = D.items[id], art = item?.iconArt;
     if (art) {
       const atlas = window.BCSiamArt?.atlases?.[art.atlas] || { width: 128, height: 64, columns: 4, rows: 2 },
-        cellWidth = atlas.width / atlas.columns,
-        cellHeight = atlas.height / atlas.rows,
-        sourceX = (art.cell % atlas.columns) * cellWidth,
-        sourceY = Math.floor(art.cell / atlas.columns) * cellHeight,
+        bounds = window.BCSiamArt?.iconBounds?.[art.atlas]?.[art.cell],
+        cellWidth = bounds?.w ?? atlas.width / atlas.columns,
+        cellHeight = bounds?.h ?? atlas.height / atlas.rows,
+        sourceX = bounds?.x ?? (art.cell % atlas.columns) * cellWidth,
+        sourceY = bounds?.y ?? Math.floor(art.cell / atlas.columns) * cellHeight,
         url = `assets/art/${art.atlas}.webp?v=${encodeURIComponent(world.release)}`;
       const boxes = item.weaponType === "dual_sword"
         ? [[0, 1, 23, 30, -16], [9, 1, 23, 30, 16]]
@@ -247,7 +270,7 @@
     [
       i.type === "head" ? "ศีรษะ" : "",
       weaponTypeName(i),
-      i.type === "weapon" ? (i.weaponType === state.weaponSchool ? "ใช้ได้กับสายปัจจุบัน" : `เปลี่ยนสาย${D.weaponSchools[i.weaponType].name}เพื่อสวม`) : "",
+      i.type === "weapon" ? `${i.weaponType === classInfo(state).weaponType ? "สวมได้" : "ต้องเป็นอาชีพ"} · ${compatibleClasses(i.weaponType)}` : "",
       i.atk ? `ATK +${i.atk}` : "",
       i.def ? `DEF +${i.def}` : "",
       i.hp ? `ฟื้น HP ${i.hp}` : "",
@@ -266,13 +289,15 @@
       ["action:auto", "Auto Battle"],
     ];
     for (const [id, d] of Object.entries(D.skills))
-      if (state.skills[id]) opts.push(["skill:" + id, d.name]);
+      if (state.skills[id] && C.skillAvailable(state, id)) opts.push(["skill:" + id, d.name]);
     for (const [id, d] of Object.entries(D.items))
       if (d.type === "use") opts.push(["item:" + id, d.name]);
     if (selected && !opts.some((o) => o[0] === selected))
       opts.push([
         selected,
-        "ยังไม่เรียน: " + (D.skills[selected.split(":")[1]]?.name || selected),
+        selected.startsWith("skill:") && !C.skillAvailable(state, selected.split(":")[1])
+          ? "ช่องว่าง · สกิลที่ยังใช้ไม่ได้"
+          : "ยังไม่เรียน: " + (D.skills[selected.split(":")[1]]?.name || selected),
       ]);
     return opts
       .map(
@@ -281,31 +306,48 @@
       )
       .join("");
   }
-  function schoolSelector(s) {
-    return `<section class="school-selector"><h3>สายอาวุธ · ${esc(schoolName(s))}</h3><p class="panel-note">เปลี่ยนสายฟรีในท่าน้ำอรุณ ต้องมีอาวุธประเภทนั้นในกระเป๋า อาวุธที่สวมเพิ่มค่าสถานะ ส่วนท่าจับและชุดเป็นแบบประจำสาย</p><div class="school-grid">${Object.entries(D.weaponSchools).map(([id, school]) => {
-      const owned = Object.keys(D.items).some(item => D.items[item].weaponType === id && (s.inventory[item] > 0 || s.equipment.weapon === item));
-      const reason = s.zone !== 0 ? "กลับเมืองก่อน" : !owned ? "ซื้ออาวุธประเภทนี้ก่อน" : "";
-      return `<article class="school-card${id === s.weaponSchool ? " current" : ""}"><span class="item-icon">${artIcon(school.trainingWeapon)}</span><b>${esc(school.name)}</b><small>${esc(D.weaponTypes[id].name)}</small><p>${esc(school.description)}</p>${button("school", id === s.weaponSchool ? "สายปัจจุบัน" : "เลือกสาย", id, reason ? `disabled title="${esc(reason)}"` : "")}<small>${esc(reason || (id === s.weaponSchool ? "กำลังฝึกสายนี้" : "พร้อมเปลี่ยนสาย"))}</small></article>`;
-    }).join("")}</div></section>`;
+  function classSelector(s) {
+    const current = classInfo(s), route = [];
+    for (let id = s.classId; id; id = D.classes[id].parent) route.unshift(D.classes[id].name);
+    const near = nearGuide(), progress = C.trialProgress(s);
+    const location = near
+      ? `อยู่ใกล้${npc("guide").name}แล้ว · พร้อมรับการทดสอบหรือเปลี่ยนอาชีพเมื่อครบเงื่อนไข`
+      : s.zone === 0
+        ? `ต้องอยู่ใกล้${npc("guide").name}ที่${npc("guide").thai}เพื่อรับการทดสอบและเปลี่ยนอาชีพ`
+        : `กลับ${D.maps[0].name} แล้วไปหา${npc("guide").name}เพื่อรับการทดสอบและเปลี่ยนอาชีพ`;
+    const children = C.availableClasses(s);
+    return `<section class="class-selector" aria-label="เส้นทางอาชีพ"><h3>เส้นทางอาชีพ · ${esc(className(s))}</h3><p class="class-route">${route.map(esc).join(" → ")} <span class="subtle">· ${classLabel(s)}</span></p><p class="panel-note">${esc(current.tier === 2 ? "ถึงอาชีพขั้นสุดท้ายของเส้นทางนี้แล้ว" : "เลือกได้เฉพาะอาชีพถัดไปในเส้นทาง เมื่อเปลี่ยนแล้ว Job Lv.เริ่มที่ 1 และคงสกิลที่สืบทอดไว้")}<br>${esc(location)}</p>${!near && s.zone === 0 ? button("walk-guide", `เดินไปหา${esc(npc("guide").name)}`, "", 'class="outline-button guide-route"') : ""}${children.length ? `<div class="class-grid">${children.map((id) => {
+      const d = D.classes[id], reason = C.classChangeReason(s, id);
+      const trial = d.trial, active = progress?.classId === id ? progress : null;
+      const trialReason = s.jobLevel < 40 ? "ต้องมี Job Lv.40" : !near ? `ต้องอยู่ใกล้${npc("guide").name}` : "";
+      const trialText = trial ? `กำจัด${D.monsters[trial.kind].name} ${active ? active.current : 0} / ${trial.count} ตัว${active ? " · นับหลังรับทดสอบ" : " · ต้องรับทดสอบก่อน"}` : "";
+      return `<article class="class-card" data-class="${id}"><span class="item-icon">${artIcon(d.trainingWeapon)}</span><b>${esc(d.name)}</b><small>Class ${d.tier} · ${esc(D.weaponTypes[d.weaponType].name)}</small><p>${esc(d.description)}</p><small class="class-requirement">ต้องมี Job Lv.${d.tier === 1 ? 10 : 40}${trial ? " + ผ่านการทดสอบ" : ""}</small>${trial ? `<small class="trial-progress${active?.complete ? " complete" : ""}" data-trial="${id}">${esc(trialText)}</small>${button("class-trial", active ? (active.complete ? "ทดสอบสำเร็จ" : "กำลังทดสอบ") : "รับการทดสอบ", id, trialReason || active ? `disabled title="${esc(trialReason || "รับการทดสอบนี้แล้ว")}"` : "")}` : ""}${button("class", "เปลี่ยนอาชีพ", id, reason ? `disabled title="${esc(reason)}"` : 'class="primary"')}<small class="class-reason">${esc(reason || "พร้อมเปลี่ยนอาชีพ")}</small></article>`;
+    }).join("")}</div>` : ""}<p class="panel-note class-equipment-rule">สวมอาวุธได้เฉพาะประเภทประจำอาชีพ · ซื้ออาวุธของอาชีพถัดไปเก็บไว้ได้ · เปลี่ยนอาชีพไม่แจกอาวุธหรืออัฐ · ดาบและโล่ใช้ช่องอาวุธเดียวกัน</p></section>`;
+  }
+  function skillCard(s, id) {
+    const d = D.skills[id], owner = Object.values(D.classes).find((c) => c.skill === id);
+    const reason = C.learnReason(s, id);
+    return `<div class="skill-card" data-skill="${id}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small>${owner ? `${esc(owner.name)} · Class ${owner.tier}` : id === "first_aid" ? "ใช้ได้ทุกอาชีพ" : "สกิลเดิมที่เรียนไว้"} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, reason ? `disabled title="${esc(reason)}"` : "")}</div>`;
   }
   function renderPanel() {
-    $("panel-title").textContent = titleNames[panel] + (["status", "equipment"].includes(panel) ? ` · ${schoolName(state)}` : "");
+    $("panel-title").textContent = titleNames[panel] + (["status", "equipment"].includes(panel) ? ` · ${className(state)}` : "");
     const s = state,
       st = C.stats(s);
     let html = "";
     if (panel === "status") {
-      html = `<p class="panel-note">${esc(jobName(s.job))} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${equipmentSlots.map(([slot, name, placeholder]) => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" data-slot="${slot}" title="${name}: ${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ยังไม่ได้สวมใส่"}" aria-label="เปิดอุปกรณ์ ${name}">${artIcon(s.equipment[slot] || placeholder)}</button>`).join("")}</div><canvas id="status-portrait" width="96" height="124" aria-label="ตัวละครพร้อมอาวุธและเครื่องประดับศีรษะ"></canvas><div class="job-label">${esc(schoolName(s))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div>`;
+      html = `<p class="panel-note">${esc(className(s))} · Class ${classInfo(s).tier} · Base Lv.${s.baseLevel} · Job Lv.${s.jobLevel} · แต้มสเตตัส <b>${s.statPoints}</b></p><div class="status-layout"><div class="paper-doll"><div class="equipment-slots">${equipmentSlots.map(([slot, name, placeholder]) => `<button class="${s.equipment[slot] ? "" : "empty-equipment"}" data-open="equipment" data-slot="${slot}" title="${name}: ${s.equipment[slot] ? D.items[s.equipment[slot]].name : "ยังไม่ได้สวมใส่"}" aria-label="เปิดอุปกรณ์ ${name}">${artIcon(s.equipment[slot] || placeholder)}</button>`).join("")}</div><canvas id="status-portrait" width="96" height="124" aria-label="ตัวละครพร้อมอาวุธและเครื่องประดับศีรษะ"></canvas><div class="job-label">${esc(className(s))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div>`;
       for (const [id, name] of Object.entries(D.statNames))
         html += `<div class="stat-row"><span>${name}</span><b>${s.stats[id]}</b>${button("stat", "＋", id, s.statPoints > 0 && s.stats[id] < 99 ? "" : "disabled")}</div>`;
       html += `</div></div><div class="stat-summary">${[
         ["ATK", st.atk],
+        ["MATK", st.matk, "พลังโจมตีเวท • เพิ่มจาก INT"],
         ["DEF", st.def],
         ["CRIT", st.crit + "%"],
         ["HIT", st.hit],
         ["FLEE", st.flee],
         ["ตีทุก", st.interval.toFixed(2) + "s"],
       ]
-        .map(([k, v]) => `<div>${k}<b>${v}</b></div>`)
+        .map(([k, v, title]) => `<div${title ? ` title="${esc(title)}"` : ""}>${k}<b>${v}</b></div>`)
         .join("")}</div>`;
     }
     if (panel === "inventory") {
@@ -319,7 +361,8 @@
       if (selectedInventoryItem) {
         const id = selectedInventoryItem, i = D.items[id];
         let actions = i.type === "use" ? button("use", "ใช้", id) : equipmentTypes.includes(i.type) ? button("equip", "สวมใส่", id, C.equipReason(s, id) ? `disabled title="${esc(C.equipReason(s, id))}"` : "") : "";
-        actions += button("sell", "ขาย " + Math.max(1, Math.floor(i.price / 2)) + " ◈", id);
+        const sellReason = i.sellable === false ? "อาวุธฝึกขายไม่ได้" : "";
+        actions += button("sell", sellReason || "ขาย " + Math.max(1, Math.floor(i.price / 2)) + " ◈", id, sellReason ? `disabled title="${esc(sellReason)}"` : "");
         html += `<div class="inventory-detail">${itemRow(id, s.inventory[id], "")}<div class="item-actions">${actions}</div>${equipmentTypes.includes(i.type) && C.equipReason(s,id) ? `<small class="shop-reason">${esc(C.equipReason(s,id))}</small>` : ""}</div>`;
       } else html += '<p class="empty">ไม่มีไอเทมในหมวดนี้</p>';
       html += `<p class="panel-note" style="margin-top:7px">เลือกไอเทมเพื่อใช้หรือสวมใส่ · ขายได้ใกล้${esc(npc("merchant").name)}<br>น้ำหนัก 50% หยุดฟื้น HP/SP · 90% ห้ามโจมตี</p>`;
@@ -328,7 +371,7 @@
     }
     if (panel === "equipment") {
       html =
-        `<p class="panel-note">ชุดและอาวุธฝึกเป็นแบบประจำสาย อาวุธที่สวมเพิ่มค่าสถานะ เครื่องศีรษะเปลี่ยนภาพได้ทันที</p><div class="equipment-layout"><div class="equipment-preview"><canvas id="equipment-portrait" width="104" height="140" aria-label="ตัวละครพร้อมอุปกรณ์ที่สวมใส่"></canvas><div class="job-label">${esc(schoolName(s))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div class="equipment-list">`;
+        `<p class="panel-note">ชุดและรูปลักษณ์อาวุธฝึกเป็นแบบประจำอาชีพถาวร อาวุธที่สวมเพิ่มค่าสถานะ เครื่องศีรษะเปลี่ยนภาพได้ทันที</p><div class="equipment-layout"><div class="equipment-preview"><canvas id="equipment-portrait" width="104" height="140" aria-label="ตัวละครพร้อมอุปกรณ์ที่สวมใส่"></canvas><div class="job-label">${esc(className(s))}</div><div class="equipment-caption">${equipmentCaption(s)}</div></div><div class="equipment-list">`;
       for (const [slot, name] of equipmentSlots) {
         html += `<div class="shop-title">${name}</div>`;
         html += s.equipment[slot]
@@ -337,20 +380,24 @@
               null,
               `<button data-act="unequip" data-slot="${slot}">ถอด</button>`,
             )
-          : `<p class="subtle">${slot === "weapon" ? "ใช้อาวุธฝึกประจำสาย · ไม่มีโบนัสจากไอเทม" : "ยังไม่ได้สวมใส่"}</p>`;
+          : `<p class="subtle">${slot === "weapon" ? "แสดงอาวุธฝึกประจำอาชีพถาวร · ไม่มีโบนัสจากไอเทม" : "ยังไม่ได้สวมใส่"}</p>`;
       }
       html += '</div></div><button data-open="inventory" class="outline-button">เลือกอุปกรณ์จากกระเป๋า →</button><p class="panel-note equipment-note">อุปกรณ์มีผลกับ ATK / DEF และนับรวมในน้ำหนักกระเป๋า</p>';
     }
     if (panel === "skills") {
-      html = `<p class="panel-note">${esc(jobName(s.job))} · Job Lv.${s.jobLevel} · แต้มสกิล <b>${s.skillPoints}</b><br>${esc(jobName("Novice"))} Job Lv.10 → คุย${esc(npc("guide").name)}เพื่อเป็น${esc(jobName("Swordman"))}</p>`;
-      for (const [id, d] of Object.entries(D.skills))
-        html += `<div class="skill-card"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${d.name} <span class="subtle">Lv.${s.skills[id]} / ${d.max}</span></b><small>${d.thai} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${d.description}</small></div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, s.job === "Swordman" && s.skillPoints > 0 && s.skills[id] < d.max ? "" : "disabled")}</div>`;
-      html +=
-        '<button data-open="hotbar" class="outline-button">จัดสกิลลง Hotbar →</button>';
+      const ids = C.skillsFor(s), legacy = new Set(["bash", "magnum", "provoke"]);
+      html = `<p class="panel-note">${esc(className(s))} · ${classLabel(s)} · แต้มสกิล <b>${s.skillPoints}</b><br>สกิลของอาชีพปัจจุบันและอาชีพที่สืบทอด · แต่ละสกิลใช้แต้มเรียนตามระดับ</p>`;
+      for (const id of ids.filter((id) => !legacy.has(id))) html += skillCard(s, id);
+      const learnedLegacy = ids.filter((id) => legacy.has(id) && s.skills[id] > 0);
+      if (learnedLegacy.length) {
+        html += '<h3 class="shop-title">สกิลเดิมที่เรียนไว้</h3>';
+        for (const id of learnedLegacy) html += skillCard(s, id);
+      }
+      html += '<button data-open="hotbar" class="outline-button">จัดสกิลลง Hotbar →</button>';
     }
     if (panel === "quest" || panel === "npc") {
       if (panel === "npc")
-        html = `<p class="panel-note">${esc(npc("guide").dialogue)}</p><div class="settings-actions">${button("job", s.job === "Swordman" ? `คุณเป็น${esc(jobName("Swordman"))}แล้ว` : `เปลี่ยนอาชีพ → ${esc(jobName("Swordman"))}`, "", s.job === "Novice" && s.jobLevel >= 10 ? 'class="primary"' : "disabled")}</div>`;
+        html = `<p class="panel-note">${esc(npc("guide").dialogue)}</p>`;
       D.quests.forEach((q, i) => {
         html += `<article class="quest-detail ${i < s.quest ? "done" : ""}"><div class="eyebrow">${i < s.quest ? "สำเร็จแล้ว" : i === s.quest ? "ภารกิจปัจจุบัน" : "บทต่อไป"} · 0${i + 1}</div><h3>${q.title}</h3><p>${q.text} (${Math.min(s.kills[q.kind] || 0, q.count)} / ${q.count})</p><p>รางวัล ${q.silver} ${esc(world.currency)} · ${q.exp} EXP</p>${i === s.quest ? button("quest", s.questActive ? `รับรางวัลจาก${esc(npc("guide").name)}` : `รับภารกิจจาก${esc(npc("guide").name)}`) : i < s.quest ? "✓ สำเร็จแล้ว" : ""}</article>`;
       });
@@ -371,9 +418,9 @@
       const groups = [["weapon", "อาวุธ"], ["use", "ยาและเสบียง"], ["head", "เครื่องศีรษะ"], ["armor", "เกราะ"], ["accessory", "เครื่องประดับ"]];
       for (const [type, title] of groups) {
         html += `<section class="shop-section" data-slot="${type}" aria-labelledby="shop-title-${type}"><div class="shop-title" id="shop-title-${type}">${title}</div>`;
-        if (type === "weapon") html += `<div class="shop-filter"><label for="shop-weapon-type">ประเภทอาวุธ</label><select id="shop-weapon-type"><option value="">ทั้งหมด</option>${Object.entries(D.weaponTypes || {}).map(([id, weapon]) => `<option value="${id}"${shopWeaponType === id ? " selected" : ""}>${esc(weapon.name)}</option>`).join("")}</select></div>`;
+        if (type === "weapon") html += `<div class="shop-filter"><label for="shop-weapon-type">ประเภทอาวุธ</label><select id="shop-weapon-type"><option value="">ทั้งหมด</option>${Object.entries(D.weaponTypes || {}).filter(([id]) => id !== "training").map(([id, weapon]) => `<option value="${id}"${shopWeaponType === id ? " selected" : ""}>${esc(weapon.name)}</option>`).join("")}</select></div>`;
         for (const [id, d] of Object.entries(D.items)) {
-          if (d.type !== type || (type === "weapon" && shopWeaponType && d.weaponType !== shopWeaponType)) continue;
+          if (d.shop === false || d.type !== type || (type === "weapon" && shopWeaponType && d.weaponType !== shopWeaponType)) continue;
           const reason = !near ? location : s.silver < d.price
             ? `${world.currency}ไม่เพียงพอ`
             : st.weight + d.weight > st.capacity ? "น้ำหนักเกินความจุ" : "";
@@ -395,7 +442,7 @@
       );
     }
     if (panel === "auto") {
-      html = `<p class="panel-note">Auto จะหาเป้าหมาย เดินเข้าระยะ และใช้กฎต่อสู้เดียวกับการเล่นเอง ทำงานเฉพาะขณะหน้าเกมเปิดและไม่มีหน้าต่างเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้${esc(D.skills.bash.name)}เมื่อเรียนแล้ว</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
+      html = `<p class="panel-note">Auto จะหาเป้าหมาย เดินเข้าระยะ และใช้กฎต่อสู้เดียวกับการเล่นเอง ทำงานเฉพาะขณะหน้าเกมเปิดและไม่มีหน้าต่างเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้สกิลอาชีพที่เรียนแล้วเมื่อเหมาะกับเป้าหมาย</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
     }
     if (panel === "settings") {
       html = `<p class="panel-note">ความคืบหน้าเก็บในเบราว์เซอร์และที่อยู่ที่เล่นนี้ ใช้ Export เพื่อย้ายเครื่องหรือสำรองเซฟ</p><div class="settings-row"><label for="hair-select">สีผมของนักผจญภัย</label><select id="hair-select">${["น้ำตาล", "ทองเข้ม", "ดำ", "แดงอิฐ", "ทองอ่อน", "เทาอมฟ้า"].map((n, i) => `<option value="${i}" ${s.settings.hair === i ? "selected" : ""}>${n}</option>`).join("")}</select></div><div class="settings-actions">${button("save", "บันทึกเกม")}${button("export", "Export Save")}${button("import", "Import Save")}</div><p class="panel-note">ใช้เซฟเดิมต่อในโลก${esc(world.title)}ได้ • อาวุธ หมวก อาชีพ และภารกิจเดิมยังอยู่ครบ</p><hr class="section-rule"><p class="panel-note">เริ่มต้นการผจญภัยใหม่จะล้างความคืบหน้าปัจจุบัน ควร Export ไว้ก่อน</p>${button("reset", "เริ่มเกมใหม่", "", 'class="danger"')}`;
@@ -422,10 +469,10 @@
         ? s.log.map((t) => `<div class="log-line">${esc(t)}</div>`).join("")
         : '<p class="empty">ทุกการผจญภัยมีเรื่องราว • ออกไปเริ่มเรื่องของคุณ</p>';
     if (panel === "help")
-      html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ อาวุธต้องตรงกับสายที่เลือก เปลี่ยนสายได้ในหน้าสเตตัสหรืออุปกรณ์เมื่ออยู่ในเมือง ภาพชุดและท่าถืออาวุธเป็นแบบประจำสาย ส่วนอาวุธที่สวมเพิ่มค่าสถานะ ถอดได้ในเมนูอุปกรณ์</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ เมื่อ Job Lv.10 กลับมาฝากตัวเป็น${esc(jobName("Swordman"))}และเรียนวิชาดาบ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
+      html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ อาวุธต้องตรงกับประเภทของอาชีพ ซื้ออาวุธสำหรับอาชีพถัดไปเก็บได้ ภาพชุดและท่าถือเป็นแบบประจำอาชีพถาวร อาวุธที่สวมเพิ่มค่าสถานะ ถอดแล้วใช้รูปลักษณ์อาวุธฝึกโดยไม่มีโบนัส ดาบและโล่อยู่ในช่องอาวุธเดียวกัน</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ ชาวบ้าน Job Lv.10 เลือก Class 1 ได้ 5 อาชีพ จากนั้น Job Lv.40 รับการทดสอบเพื่อเลือก Class 2 หนึ่งในสองเส้นทาง ต้องอยู่ใกล้ครูอิน การทดสอบนับเฉพาะตัวที่กำจัดหลังรับ เมื่อเปลี่ยนอาชีพ Job Lv.เริ่มที่ 1 และสืบทอดสกิลเดิม โดยไม่แจกอาวุธหรืออัฐ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
     $("side-panel").innerHTML = html;
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
-    if (["status", "equipment", "npc"].includes(panel)) $("side-panel").insertAdjacentHTML("beforeend", schoolSelector(s));
+    if (["status", "equipment", "npc"].includes(panel)) $("side-panel").insertAdjacentHTML("beforeend", classSelector(s));
     if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
   }
   function bindingInfo(value) {
@@ -433,11 +480,13 @@
     const [kind, id] = value.split(":");
     if (kind === "skill") {
       const d = D.skills[id];
+      if (!C.skillAvailable(state, id))
+        return { label: "ว่าง · สกิลที่ยังใช้ไม่ได้", icon: "", color: "#879c7f", locked: true };
       return {
-        label: d.name,
+        label: `${d.name} · SP ${d.sp} · รอ ${d.cooldown} วินาที`,
         icon: artIcon(id),
         color: d.color,
-        locked: !state.skills[id],
+        locked: !state.skills[id] || !C.skillAvailable(state, id),
         cooldown: (state.cooldowns[id] || 0) / d.cooldown,
       };
     }
@@ -457,7 +506,7 @@
     };
   }
   function updateHotbar() {
-    const sig = JSON.stringify([state.hotbar, state.inventory, state.skills]);
+    const sig = JSON.stringify([state.classId, state.hotbar, state.inventory, state.skills]);
     if (sig !== hotSignature) {
       hotSignature = sig;
       $("hotbar-slots").innerHTML = state.hotbar
@@ -477,8 +526,8 @@
     const s = state,
       st = C.stats(s),
       map = D.maps[s.zone];
-    $("hero-name").textContent = schoolName(s);
-    $("job-level").textContent = `${jobName(s.job)} · Job Lv.${s.jobLevel}`;
+    $("hero-name").textContent = className(s);
+    $("job-level").textContent = classLabel(s);
     $("silver").textContent = s.silver.toLocaleString();
     $("level").textContent = `Base Lv.${s.baseLevel}`;
     for (const [key, value, max] of [
@@ -568,8 +617,13 @@
       return;
     }
     const [kind, id] = v.split(":");
-    if (kind === "skill") run("skill", { id });
-    else if (kind === "item") run("use", { id });
+    if (kind === "skill") {
+      if (!C.skillAvailable(state, id)) {
+        toast("ช่องนี้ยังใช้สกิลไม่ได้ · เลือกจัด Hotbar เพื่อใส่สกิลอาชีพที่เรียนแล้ว");
+        return;
+      }
+      run("skill", { id });
+    } else if (kind === "item") run("use", { id });
     else if (id === "attack") attackNearest();
     else if (id === "interact") interact();
     else if (id === "auto") run("auto");
@@ -696,6 +750,10 @@
       $("import-file").click();
       return;
     }
+    if (a === "walk-guide") {
+      walkToGuide();
+      return;
+    }
     if (a === "walk-shop") {
       walkToShop();
       return;
@@ -708,6 +766,7 @@
       ) {
         state = C.createState();
         shopVisit = false;
+        guideVisit = false;
         protectStorage = false;
         hotSignature = "";
         keys.clear();
@@ -797,6 +856,7 @@
     if (movement[key]) {
       event.preventDefault();
       shopVisit = false;
+      guideVisit = false;
       keys.add(key);
       return;
     }
@@ -821,6 +881,7 @@
   });
   function suspend() {
     shopVisit = false;
+    guideVisit = false;
     keys.clear();
     state.destination = null;
     state.target = null;
@@ -875,6 +936,10 @@
       if (shopVisit && (state.zone !== 0 || !state.destination)) {
         shopVisit = false;
         if (nearMerchant()) openPanel("shop");
+      }
+      if (guideVisit && (state.zone !== 0 || !state.destination)) {
+        guideVisit = false;
+        if (nearGuide()) openPanel("npc");
       }
     }
     R.draw($("game"), state);

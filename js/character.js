@@ -9,8 +9,8 @@
   const facingOf = (facing) => Math.max(0, Math.min(3, Math.round(finite(facing))));
   const SWING_DURATION = 0.22;
   const STEP_DISTANCE = 8;
-  // Compatibility offsets for older callers. Rendering uses painted-frame
-  // hand sockets and weapon hilt pivots from weapon-rig.js.
+  // Compatibility pose fields for older callers. The renderer selects complete
+  // authored class frames; these offsets never draw separate hands or weapons.
   const ATTACK_HANDS = [
     [[-8, -23], [-8, -22], [8, -21], [7, -23]],
     [[12, -17], [13, -18], [12, -18], [-13, -17]],

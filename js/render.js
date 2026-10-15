@@ -2,15 +2,11 @@
 (function (root) {
   "use strict";
   const D = root.BCData;
-  const schoolAtlases = Object.freeze({
-    sword: "school-sword", dual_sword: "school-dual-sword", greatsword: "school-greatsword",
-    staff: "school-staff", book: "school-book", knuckle: "school-knuckle",
-    dagger: "school-dagger", bow: "school-bow",
-  });
-  const atlasGrids = { townsfolk: [2, 2], "siam-weapons": [4, 2], "siam-equipment": [4, 2],
-    "siam-headgear": [4, 3], ...Object.fromEntries(Object.values(schoolAtlases).map(name => [name, [6, 4]])) };
-  const assetNames = ["meadow", "woodland", "cavern", "sprites", "townsfolk",
-    "siam-weapons", "siam-equipment", "siam-headgear", ...Object.values(schoolAtlases)];
+  const classAtlases = Object.freeze(Object.fromEntries(Object.entries(D.classes).map(([id,job])=>[id,job.atlas])));
+  const atlasGrids = { townsfolk:[2,2], "siam-weapons":[4,2], "siam-equipment":[4,2], "class-weapons":[4,2],
+    "siam-headgear":[4,3], ...Object.fromEntries(Object.values(classAtlases).map(name=>[name,[6,4]])) };
+  const assetNames = ["meadow","woodland","cavern","sprites","townsfolk",
+    "siam-weapons","siam-equipment","siam-headgear","class-weapons",...new Set(Object.values(classAtlases))];
   const assets = { ready: false, failed: [], loaded: 0, total: assetNames.length };
   const images = {}, cells = {};
   const hairAtlases = new Map(), trackers = new WeakMap();
@@ -33,7 +29,7 @@
   // Character bounds are measured offline from the authored art. Measuring the
   // full alpha box alone would shrink a character whenever its weapon is raised.
   function measureCells(img, name) {
-    const school = Object.keys(schoolAtlases).find(key => schoolAtlases[key] === name);
+    const school = Object.keys(classAtlases).find(key => classAtlases[key] === name);
     if (school) {
       cells[name] = (root.BCSchoolArt?.frames?.[school] || []).map(frame => frame?.bounds || null);
       return;
@@ -61,12 +57,9 @@
         ? { x: left, y: top, w: right - left + 1, h: bottom - top + 1 } : null;
     }
   }
-  function schoolOf(opts) {
-    // An explicit school owns the silhouette even when its weapon slot is empty.
-    // Invalid explicit values never silently render another school's outfit.
-    if (own(opts, "school")) return own(schoolAtlases, opts.school) ? opts.school : null;
-    const type = D.items[opts.weapon]?.weaponType;
-    return own(schoolAtlases, type) ? type : "sword";
+  function classOf(opts) {
+    if (own(opts,"classId")) return own(classAtlases,opts.classId) ? opts.classId : null;
+    return "villager";
   }
   function frameCell(pose = {}) {
     const facing = Number.isFinite(pose.facing) ? Math.max(0, Math.min(3, Math.round(pose.facing))) : 0;
@@ -81,8 +74,8 @@
     return { facing, column, cell: facing * 6 + column };
   }
   function authoredFrame(school, pose = {}, height = 34) {
-    if (!own(schoolAtlases, school)) return null;
-    const atlas = schoolAtlases[school], frame = frameCell(pose);
+    if (!own(classAtlases, school)) return null;
+    const atlas = classAtlases[school], frame = frameCell(pose);
     const art = root.BCSchoolArt?.frames?.[school]?.[frame.cell], img = images[atlas];
     const b = art?.bounds;
     if (!img?.complete || !img.naturalWidth || !b || ![b.x, b.y, b.w, b.h, art?.bodyHeight,
@@ -90,7 +83,7 @@
       || b.w <= 0 || b.h <= 0 || art.bodyHeight <= 0 || art.foot?.length !== 2 || art.head?.length !== 2
       || b.x < 0 || b.y < 0 || b.x + b.w > img.naturalWidth || b.y + b.h > img.naturalHeight) return null;
     const scale = height / art.bodyHeight;
-    return { authored: true, school, atlas, ...frame, scale, source: b,
+    return { authored: true, classId: school, school, atlas, ...frame, scale, source: b,
       bounds: { x: (b.x - art.foot[0]) * scale, y: (b.y - art.foot[1]) * scale, w: b.w * scale, h: b.h * scale },
       head: { x: (art.head[0] - art.foot[0]) * scale, y: (art.head[1] - art.foot[1]) * scale },
       silhouette: art.silhouette, sourceFoot: art.foot, foot: { x: 0, y: 0 }, bodyHeight: height };
@@ -177,11 +170,11 @@
       sprite(c, cell, x, y, opts.npc === "healer" ? 35 : 34, 0, 0, "townsfolk");
       return { npc: opts.npc, atlas: "townsfolk", cell };
     }
-    const school = schoolOf(opts), pose = opts.pose || root.BCAppearance.idle(opts.facing || 0);
+    const school = classOf(opts), pose = opts.pose || root.BCAppearance.idle(opts.facing || 0);
     const plan = authoredFrame(school, pose);
     if (!plan) {
       ellipse(c, x, y - 17, 6, 16, "#d8cab2");
-      return { authored: false, school, loading: true };
+      return { authored: false, classId: school, school, loading: true };
     }
     paintPerson(c, x, y, plan, opts.hair || 0, opts.head);
     return plan;
@@ -251,8 +244,8 @@
     entities.push({ y: s.player.y, draw: () => {
       ellipse(c, s.player.x, s.player.y + 4, 15, 6, "#d6eced15");
       person(c, s.player.x, s.player.y, { job: s.job, hair: s.settings.hair, facing: s.player.facing,
-        school: s.weaponSchool, weapon: s.equipment.weapon, head: s.equipment.head, pose });
-      label(c, D.weaponSchools?.[s.weaponSchool]?.name || D.jobs[s.job].name, s.player.x, s.player.y - (s.equipment.head ? 46 : 39), "#fff", 11);
+        classId: s.classId, weapon: s.equipment.weapon, head: s.equipment.head, pose });
+      label(c, D.classes[s.classId].name, s.player.x, s.player.y - (s.equipment.head ? 46 : 39), "#fff", 11);
     } });
     entities.sort((a, b) => a.y - b.y).forEach(e => e.draw());
     for (const e of s.effects) {
@@ -279,7 +272,7 @@
   }
   function portraitFrame(s, width, height, options = {}) {
     const pose = options.pose || root.BCAppearance.idle(0);
-    const school = schoolOf(own(s, "weaponSchool") ? { school: s.weaponSchool } : { weapon: s.equipment.weapon });
+    const school = classOf(own(s,"classId") ? {classId:s.classId} : {});
     const plan = authoredFrame(school, pose);
     if (!plan) return null;
     const bodyBounds = plan.bounds, headBounds = headgearModel(s.equipment.head, plan);
@@ -299,7 +292,7 @@
     const frame = portraitFrame(s, canvas.width, canvas.height);
     if (!frame) {
       c.save(); c.translate(canvas.width / 2, canvas.height - 5);
-      person(c, 0, 0, { school: s.weaponSchool, head: s.equipment.head }); c.restore();
+      person(c, 0, 0, { classId: s.classId, head: s.equipment.head }); c.restore();
       return null;
     }
     c.save(); c.translate(frame.x, frame.y); c.scale(frame.scale, frame.scale);
