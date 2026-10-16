@@ -5,6 +5,7 @@
   const Rules = typeof module === "object" ? require("./stat-rules.js") : root.BCStatRules;
   const Items = typeof module === "object" ? require("./item-rules.js") : root.BCItemRules;
   const Combat = typeof module === "object" ? require("./class-combat.js") : root.BCClassCombat;
+  const AutoQuest = typeof module === "object" ? require("./auto-quest.js") : root.BCAutoQuest;
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -499,11 +500,26 @@
     return fail("คำสั่งไม่ถูกต้อง");
   }
   function act(s, action, p = {}) {
+    if (action === "auto-quest" || action === "auto-quest-stop" || (action === "auto" && s.autoQuest?.active)) {
+      const result = action === "auto-quest" && !s.autoQuest?.active ? AutoQuest.start(s) : AutoQuest.stop(s);
+      if (result.message) note(s, result.message);
+      return result;
+    }
     const r = doAction(s, action, p);
+    if (r.ok && s.autoQuest?.active && ["move", "target", "attack", "skill", "auto", "travel", "quest", "class", "job", "class-trial", "reset-stats"].includes(action)) {
+      // Cancel only after the real command succeeds. Keep the player's new
+      // destination/target instead of clearing it together with automatic intent.
+      const destination = action === "move" ? s.destination : null;
+      const target = ["target", "attack", "skill"].includes(action) ? (p.target || s.target) : null;
+      AutoQuest.stop(s, "ควบคุมตัวละครด้วยตนเองแล้ว");
+      s.destination = destination;
+      s.target = s.monsters.some(m => m.uid === target && !m.dead) ? target : null;
+    }
     if (r.message) note(s, r.message);
     return r;
   }
   function recoverPlayer(s) {
+    const questing = !!s.autoQuest?.active;
     s.zone = 0;
     s.player.x = 250;
     s.player.y = 310;
@@ -515,6 +531,7 @@
     s.player.hp = st.maxHp;
     s.player.sp = st.maxSp;
     note(s, `พักฟื้นที่${D.maps[0].name} • อุปกรณ์และความคืบหน้ายังอยู่`);
+    if (questing) AutoQuest.block(s, "พักฟื้นหลังหมดสติแล้ว • เตรียมอุปกรณ์ สเตตัส และยาก่อนเริ่มเควสต์อัตโนมัติใหม่");
   }
   function tick(s, seconds) {
     const dt = clamp(Number.isFinite(seconds) ? seconds : 0, 0, 0.1);
@@ -528,6 +545,7 @@
       return;
     }
     Combat.tick(s, dt, combatHelpers);
+    AutoQuest.tick(s, dt, { act: doAction, stats, dist });
     const st = stats(s);
     if (s.auto) {
       if (
@@ -549,11 +567,18 @@
         s.destination = { x: target.x, y: target.y };
       else {
         s.destination = null;
-        const suggested = s.auto && s.settings.autoSkill ? Combat.suggestSkill(s, target, combatHelpers) : null;
+        const automatic = s.auto || (s.autoQuest?.active && s.autoQuest.phase === "fighting");
+        let suggested = automatic && s.settings.autoSkill ? Combat.suggestSkill(s, target, combatHelpers) : null;
+        // Automatic main quests never aim an area skill into unrelated foes.
+        if (suggested && s.autoQuest?.active) {
+          const sk = D.skills[suggested];
+          const center = sk.kind === "sanctuary" ? s.player : target;
+          if (sk.radius && s.monsters.some(m => !m.dead && m.kind !== target.kind && dist(m, center) <= sk.radius)) suggested = null;
+        }
         if (suggested && skillAvailable(s, suggested)) {
           const result = doAction(s, "skill", { id: suggested, target: target.uid });
           if (!result.ok) doAction(s, "attack", { target: target.uid });
-        } else if (s.auto && s.settings.autoSkill && skillAvailable(s, "bash") && s.skills.bash && gap <= 58 && s.player.sp >= D.skills.bash.sp && !(s.cooldowns.bash > 0))
+        } else if (automatic && s.settings.autoSkill && skillAvailable(s, "bash") && s.skills.bash && gap <= 58 && s.player.sp >= D.skills.bash.sp && !(s.cooldowns.bash > 0))
           doAction(s, "skill", { id: "bash", target: target.uid });
         else doAction(s, "attack", { target: target.uid });
       }
@@ -820,6 +845,7 @@
     learnReason,
     skillsFor,
     trialProgress,
+    autoQuestStatus: AutoQuest.status,
     act,
     tick,
     serialize,

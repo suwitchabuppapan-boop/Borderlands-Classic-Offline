@@ -126,6 +126,15 @@ h1 { font-size: 12px; margin: 0; }
 .quest-progress i { display: block; height: 100%; background: #8da57d; }
 .quest-card .subtle { color: #6f7e68; font-size: 8px; }
 .quest-card .outline-button { margin-top: 5px; padding: 3px; font-size: 8px; color: #5c7166; background: #f5efe2; border-color: #cfc5a9; }
+.quest-auto-status { margin-top: 4px; color: #586e61; font-size: 8px; line-height: 1.5; overflow-wrap: anywhere; max-height: 36px; overflow: auto; }
+.quest-auto-status[data-phase="blocked"] { color: #955434; }
+.quest-auto-toggle { display: block; width: 100%; margin-top: 5px; padding: 4px 2px; font-size: 8px; color: #4b6458; background: #e4edda; border-color: #b5c0a3; overflow-wrap: anywhere; }
+.quest-auto-toggle[aria-pressed="true"] { color: #fff8e9; background: #647e69; }
+.quest-auto-card { margin-bottom: 10px; padding: 8px; border: 1px solid #b8ad8066; border-radius: 4px; background: #294c4760; }
+.quest-auto-card h3 { margin: 0 0 4px; font-size: 12px; }
+.quest-auto-card .panel-note { margin: 5px 0 7px; }
+.quest-auto-panel-status { color: #e1c78f; font-size: 10px; overflow-wrap: anywhere; }
+.quest-auto-card button { max-width: 100%; overflow-wrap: anywhere; }
 #toast { position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%); max-width: min(450px, 90vw); padding: 6px 12px; border: 1px solid #b6ad8f; border-radius: 5px; background: #3b4d4cf2; color: white; box-shadow: 0 3px 12px #243d3030; font-size: 11px; text-align: center; pointer-events: none; z-index: 30; opacity: 0; transition: opacity .2s; }
 #toast.visible { opacity: 1; }
 /* Compact slate-teal dialogs retain the classic bordered window layout. */
@@ -269,7 +278,9 @@ kbd { color: #e9e0c8; font: 9px Tahoma, sans-serif; border: 1px solid #b3ac84; b
 @media (max-width: 850px) {
   .header-actions button > span { display: none; }
   .header-actions button { padding: 3px 6px; min-width: 26px; }
-  .quest-card { display: none; }
+  .quest-card { display: block; margin-top: 5px; }
+  .quest-card h3, .quest-card .quest-progress, .quest-card .subtle, .quest-card .outline-button { display: none; }
+  .quest-auto-status { max-height: 36px; margin-top: 0; }
 }
 @media (max-width: 700px) {
   .topbar { bottom: 80px; }
@@ -301,7 +312,8 @@ kbd { color: #e9e0c8; font: 9px Tahoma, sans-serif; border: 1px solid #b3ac84; b
 }
 @media (max-height: 500px) {
   .menu-card { position: fixed; left: 8px; bottom: 45px; width: 200px; }
-  .quest-card { display: none; }
+  .quest-card { display: block; max-height: min(120px, calc(100vh - 180px)); overflow: auto; }
+  .quest-card h3, .quest-card .quest-progress, .quest-card .subtle, .quest-card .outline-button { display: none; }
   .character .level-row.small, .character .level-row.small + .thin { display: none; }
 }
 

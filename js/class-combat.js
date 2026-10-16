@@ -89,7 +89,11 @@
       effect(s, h, center.x, center.y, skill.name, skill.color);
     } else if (skill.kind === "trap") {
       // Replacing the previous trap bounds both storage and future damage.
-      state(s).traps = [{ x: target.x, y: target.y, remaining: skill.duration, id, level }];
+      const trap = { x: target.x, y: target.y, remaining: skill.duration, id, level };
+      // A quest trap may outlive placement and an unrelated enemy can walk
+      // into it later. Retain the validated target kind until it triggers.
+      if (s.autoQuest?.active) trap.requiredKind = target.kind;
+      state(s).traps = [trap];
       effect(s, h, target.x, target.y, skill.name, skill.color);
     } else if (skill.kind === "orb") {
       const cs = state(s), charges = clamp(cs.orbCharges || 0, 0, skill.chargeCap);
@@ -167,7 +171,9 @@
       trap.remaining = Math.max(0, trap.remaining - dt);
       if (!trap.remaining || !own(D.skills, trap.id)) return false;
       const skill = D.skills[trap.id];
-      const m = (s.monsters || []).find((enemy) => live(enemy) && (h?.dist || distance)(trap, enemy) <= skill.radius);
+      const m = (s.monsters || []).find((enemy) => live(enemy) &&
+        (!trap.requiredKind || enemy.kind === trap.requiredKind) &&
+        (h?.dist || distance)(trap, enemy) <= skill.radius);
       if (!m) return true;
       hit(s, m, scaled(skill, "power", "powerPerLevel", trap.level), skill, h);
       if (live(m)) m.snare = Math.max(m.snare || 0, skill.snareDuration);

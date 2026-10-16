@@ -35,6 +35,7 @@
     catalogSearch = "",
     shopVisit = false,
     guideVisit = false,
+    questBlockNotice = "",
     lastFocus = null,
     protectStorage = false,
     storageError = "";
@@ -115,6 +116,7 @@
     catalogSearch = "";
     shopVisit = false;
     guideVisit = false;
+    questBlockNotice = "";
     state = next;
     keys.clear();
     protectStorage = false;
@@ -134,6 +136,53 @@
     updateHUD();
     if (panel) renderPanel();
     return result;
+  }
+  const questPhaseNames = {
+    idle: "พร้อมเริ่ม", starting: "เริ่มเดินทาง", accepting: "รับภารกิจ",
+    traveling: "เดินทาง", fighting: "ต่อสู้", waiting: "รอมอนสเตอร์",
+    returning: "กลับส่งภารกิจ", healing: "ฟื้นพลัง", blocked: "หยุดเพื่อเตรียมตัว",
+    complete: "เควสต์หลักสำเร็จ",
+  };
+  function questAutoCard(s) {
+    const status = C.autoQuestStatus(s), complete = s.quest >= D.quests.length;
+    return `<section class="quest-auto-card" aria-label="ทำเควสต์หลักอัตโนมัติ"><h3>ทำเควสต์หลักอัตโนมัติ</h3><div class="quest-auto-panel-status" role="status" aria-live="polite">${esc(questPhaseNames[status.phase] || "พร้อมเริ่ม")}${status.message ? ` · ${esc(status.message)}` : ""}</div><p class="panel-note">รับภารกิจ เดินทาง ต่อสู้ และกลับส่งให้ครูอิน ต่อเนื่องทั้ง 3 ภารกิจ โดยใช้สเตตัส อุปกรณ์ และเสบียงที่มี<br>ใช้ค่า Auto Skill / Auto Potion ที่ตั้งไว้ เมนูและแท็บที่พักไว้จะหยุดเวลาเกม · สั่งเดินหรือโจมตีเองเพื่อหยุด Auto Quest</p>${button(status.active ? "auto-quest-stop" : "auto-quest", status.active ? "หยุดทำเควสต์อัตโนมัติ" : "ทำเควสต์หลักอัตโนมัติ", "", `${complete && !status.active ? "disabled" : ""} aria-pressed="${status.active}" class="${status.active ? "danger" : "primary"}"`)}</section>`;
+  }
+  function updateQuestAutoUI() {
+    const status = C.autoQuestStatus(state), phase = questPhaseNames[status.phase] || "พร้อมเริ่ม";
+    const hud = $("quest-auto-status"), toggle = $("quest-auto-toggle");
+    const message = `${phase}${status.message ? ` · ${status.message}` : ""}`;
+    if (hud.textContent !== message) hud.textContent = message;
+    hud.title = hud.textContent;
+    hud.dataset.phase = status.phase;
+    toggle.dataset.act = status.active ? "auto-quest-stop" : "auto-quest";
+    toggle.textContent = status.active ? "หยุด Auto Quest" : "ทำเควสต์หลักอัตโนมัติ";
+    toggle.setAttribute("aria-pressed", String(status.active));
+    toggle.disabled = !status.active && state.quest >= D.quests.length;
+    const panelStatus = $("side-panel").querySelector(".quest-auto-panel-status");
+    if (panelStatus && panelStatus.textContent !== message) panelStatus.textContent = message;
+    if (status.active || status.phase === "idle") questBlockNotice = "";
+  }
+  function notifyQuestBlock() {
+    const status = C.autoQuestStatus(state);
+    if (status.phase !== "blocked" || panel) return;
+    const notice = `${status.questIndex}:${status.message}`;
+    if (notice === questBlockNotice) return;
+    questBlockNotice = notice;
+    openPanel("quest");
+    toast(status.message);
+  }
+  function toggleQuestAuto(action) {
+    const starting = action === "auto-quest" && !C.autoQuestStatus(state).active;
+    shopVisit = false;
+    guideVisit = false;
+    keys.clear();
+    if (starting) {
+      closePanel();
+      resume();
+    }
+    const result = run(action);
+    if (starting && result.ok) save();
+    if (!panel) $("game").focus({ preventScroll: true });
   }
   const titleNames = {
     status: "สถานะตัวละคร",
@@ -470,6 +519,7 @@
     if (panel === "quest" || panel === "npc") {
       if (panel === "npc")
         html = `<p class="panel-note">${esc(npc("guide").dialogue)}</p>`;
+      html += questAutoCard(s);
       D.quests.forEach((q, i) => {
         const rewards = Object.entries(q.items || {});
         html += `<article class="quest-detail ${i < s.quest ? "done" : ""}"><div class="eyebrow">${i < s.quest ? "สำเร็จแล้ว" : i === s.quest ? "ภารกิจปัจจุบัน" : "บทต่อไป"} · 0${i + 1}</div><h3>${q.title}</h3><p>${q.text} (${Math.min(s.kills[q.kind] || 0, q.count)} / ${q.count})</p><p>รางวัล ${q.silver} ${esc(world.currency)} · ${q.exp} EXP</p>${rewards.length ? `<div class="quest-item-rewards">${rewards.map(([id, count]) => `<span data-item="${id}">${icon(id)}${esc(D.items[id].name)} ×${count}</span>`).join("")}</div>` : ""}${i === s.quest ? button("quest", s.questActive ? `รับรางวัลจาก${esc(npc("guide").name)}` : `รับภารกิจจาก${esc(npc("guide").name)}`) : i < s.quest ? "✓ สำเร็จแล้ว" : ""}</article>`;
@@ -517,7 +567,7 @@
       );
     }
     if (panel === "auto") {
-      html = `<p class="panel-note">Auto จะหาเป้าหมาย เดินเข้าระยะ และใช้กฎต่อสู้เดียวกับการเล่นเอง ทำงานเฉพาะขณะหน้าเกมเปิดและไม่มีหน้าต่างเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้สกิลอาชีพที่เรียนแล้วเมื่อเหมาะกับเป้าหมาย</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
+      html = `${questAutoCard(s)}<p class="panel-note">Auto Battle จะหาเป้าหมายและต่อสู้ในแมปปัจจุบัน · Auto Quest จะเลือกเฉพาะมอนสเตอร์ที่ต้องใช้ในภารกิจ ทำงานเฉพาะขณะหน้าเกมเปิดและไม่มีหน้าต่างเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้สกิลอาชีพที่เรียนแล้วเมื่อเหมาะกับเป้าหมาย</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
     }
     if (panel === "settings") {
       html = `<p class="panel-note">ความคืบหน้าเก็บในเบราว์เซอร์และที่อยู่ที่เล่นนี้ ใช้ Export เพื่อย้ายเครื่องหรือสำรองเซฟ</p><div class="settings-row"><label for="hair-select">สีผมของนักผจญภัย</label><select id="hair-select">${["น้ำตาล", "ทองเข้ม", "ดำ", "แดงอิฐ", "ทองอ่อน", "เทาอมฟ้า"].map((n, i) => `<option value="${i}" ${s.settings.hair === i ? "selected" : ""}>${n}</option>`).join("")}</select></div><div class="settings-actions">${button("save", "บันทึกเกม")}${button("export", "Export Save")}${button("import", "Import Save")}</div><p class="panel-note">ใช้เซฟเดิมต่อในโลก${esc(world.title)}ได้ • อาวุธ หมวก อาชีพ และภารกิจเดิมยังอยู่ครบ</p><hr class="section-rule"><p class="panel-note">เริ่มต้นการผจญภัยใหม่จะล้างความคืบหน้าปัจจุบัน ควร Export ไว้ก่อน</p>${button("reset", "เริ่มเกมใหม่", "", 'class="danger"')}`;
@@ -657,6 +707,7 @@
     $("quest-progress-bar").style.width = q
       ? Math.min(100, ((s.kills[q.kind] || 0) / q.count) * 100) + "%"
       : "100%";
+    updateQuestAutoUI();
     const target = s.monsters.find((m) => m.uid === s.target && !m.dead);
     $("target-box").hidden = !target;
     if (target) {
@@ -827,6 +878,10 @@
     }
     const a = b.dataset.act;
     if (!a) return;
+    if (a === "auto-quest" || a === "auto-quest-stop") {
+      toggleQuestAuto(a);
+      return;
+    }
     if (a === "save") {
       save(true);
       return;
@@ -856,6 +911,7 @@
         state = C.createState();
         shopVisit = false;
         guideVisit = false;
+        questBlockNotice = "";
         protectStorage = false;
         hotSignature = "";
         keys.clear();
@@ -960,6 +1016,7 @@
       event.preventDefault();
       shopVisit = false;
       guideVisit = false;
+      if (C.autoQuestStatus(state).active) run("auto-quest-stop");
       keys.add(key);
       return;
     }
@@ -1030,7 +1087,7 @@
         C.dist(state.player, state.destination) < 2
       )
         state.destination = null;
-      if (Math.abs(state.player.y - 280) < 48) {
+      if (!C.autoQuestStatus(state).active && Math.abs(state.player.y - 280) < 48) {
         if (state.player.x > 904 && state.zone < 2)
           run("travel", { direction: 1 });
         else if (state.player.x < 56 && state.zone > 0)
@@ -1044,6 +1101,7 @@
         guideVisit = false;
         if (nearGuide()) openPanel("npc");
       }
+      notifyQuestBlock();
     }
     R.draw($("game"), state);
     hudTime += dt;
