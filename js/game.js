@@ -30,8 +30,12 @@
     inventoryCategory = "all",
     shopWeaponType = "",
     codexTab = "world",
-    catalogCollection = "prototype",
+    catalogCollection = "regular",
     catalogType = "all",
+    catalogStatus = "all",
+    catalogWeaponType = "all",
+    catalogGrade = "all",
+    catalogPathsOpen = false,
     catalogSearch = "",
     shopVisit = false,
     guideVisit = false,
@@ -111,8 +115,12 @@
   function loadSave(text) {
     const next = C.deserialize(text);
     codexTab = "world";
-    catalogCollection = "prototype";
+    catalogCollection = "regular";
     catalogType = "all";
+    catalogStatus = "all";
+    catalogWeaponType = "all";
+    catalogGrade = "all";
+    catalogPathsOpen = false;
     catalogSearch = "";
     shopVisit = false;
     guideVisit = false;
@@ -277,7 +285,7 @@
         sourceX = bounds?.x ?? (art.cell % atlas.columns) * cellWidth,
         sourceY = bounds?.y ?? Math.floor(art.cell / atlas.columns) * cellHeight,
         url = `assets/art/${art.atlas}.webp?v=${encodeURIComponent(world.release)}`;
-      const boxes = item.weaponType === "dual_sword"
+      const boxes = art.complete ? [[0, 0, 32, 32, 0]] : item.weaponType === "dual_sword"
         ? [[0, 1, 23, 30, -16], [9, 1, 23, 30, 16]]
         : item.weaponType === "knuckle"
           ? [[0, 7, 21, 21, -12], [11, 4, 21, 21, 12]]
@@ -326,6 +334,15 @@
   const rarityNames = { common: "ธรรมดา", uncommon: "ไม่ธรรมดา", rare: "หายาก", boss: "เฉพาะบอส" };
   const itemTypeNames = { weapon: "อาวุธ", armor: "เกราะ", head: "ศีรษะ", accessory: "เครื่องประดับ", use: "ของใช้", loot: "ของดรอป" };
   const tierLabel = (tier) => tier ? `แนะนำ Lv.${(tier - 1) * 5 + 1}–${tier * 5}` : "";
+  const gradeNames = { 1: "เริ่มต้น", 2: "รุ่นกลาง", 3: "รุ่นปลายทาง" };
+  const availabilityNames = { available: "หาได้แล้ว", planned: "ยังไม่เปิด", legacy: "ของเก่ารองรับเซฟ" };
+  const itemLevel = (i) => i.recommendedLevel
+    ? `แนะนำ Base Lv.${i.recommendedLevel.min}–${i.recommendedLevel.max}` : tierLabel(i.tier);
+  function weaponRole(i) {
+    const profile = D.weaponTypes[i.weaponType];
+    if (!profile) return "";
+    return `โจมตีปกติ ${profile.basicMagic ? "MATK" : "ATK"}/${profile.primaryStat.toUpperCase()}${i.weaponType === "magic_bow" ? " · สกิลเวท MATK/INT" : ""} · ระยะ ${profile.range} · รอบตี ${profile.interval.toFixed(2)} วินาที`;
+  }
   const itemPrices = (id) => {
     const buy = window.BCItemRules.buyPrice(id), sell = window.BCItemRules.sellPrice(id);
     return `${buy === null ? "ไม่มีขายในร้าน" : `ซื้อ ${buy} ${world.currency}`} · ${sell ? `ขาย ${sell} ${world.currency}` : "ขายไม่ได้"}`;
@@ -333,10 +350,12 @@
   const itemMeta = (i) =>
     [
       rarityNames[i.rarity] || "",
-      tierLabel(i.tier),
+      i.grade ? `ขั้นอาวุธ ${i.grade} · ${gradeNames[i.grade]}` : "",
+      itemLevel(i),
       itemTypeNames[i.type] || "",
       weaponTypeName(i),
       i.type === "weapon" ? `${i.weaponType === classInfo(state).weaponType ? "สวมได้" : "ต้องเป็นอาชีพ"} · ${compatibleClasses(i.weaponType)}` : "",
+      i.type === "weapon" ? weaponRole(i) : "",
       i.atk ? `ATK +${i.atk}` : "",
       i.matk ? `MATK +${i.matk}` : "",
       i.def ? `DEF +${i.def}` : "",
@@ -349,7 +368,8 @@
       .join(" · ");
   function sourceRows(id) {
     const sources = window.BCItemRules.sourcesFor(id);
-    if (!sources.length) return '<p class="source-empty">ไอเทมเดิมที่เก็บไว้ · ยังไม่มีแหล่งรับเพิ่ม</p>';
+    if (window.BCItemRules.availability(id) === "legacy") return '<p class="source-legacy">ของเก่ารองรับเซฟ · เก็บและใช้ตามประเภทอาชีพเดิมได้ · ไม่มีแหล่งรับเพิ่ม</p>';
+    if (!sources.length) return '<p class="source-empty">ยังไม่มีแหล่งรับเพิ่ม</p>';
     return `<ul class="item-sources">${sources.map((source) => {
       const quantity = source.min ? ` ×${source.min === source.max ? source.min : `${source.min}–${source.max}`}` : "";
       const chance = typeof source.chance === "number" ? ` · ${Number((source.chance * 100).toFixed(2))}%${quantity}` : "";
@@ -359,19 +379,36 @@
   }
   const itemSources = (id) => `<details class="item-source-help"><summary>แหล่งที่ได้และโอกาสดรอป</summary>${sourceRows(id)}</details>`;
   const itemRow = (id, count, actions) =>
-    `<div class="item-row" data-item="${id}"${D.items[id].weaponType ? ` data-weapon-type="${D.items[id].weaponType}"` : ""}>${icon(id)}<div class="item-info"><b>${esc(D.items[id].name)}${count === null ? "" : ` <span class="subtle">×${count}</span>`}</b><small>${esc(itemMeta(D.items[id]))}</small><small class="item-prices">${esc(itemPrices(id))}</small>${itemSources(id)}</div><div class="item-actions">${actions}</div></div>`;
+    `<div class="item-row" data-item="${id}"${D.items[id].weaponType ? ` data-weapon-type="${D.items[id].weaponType}"` : ""}>${icon(id)}<div class="item-info"><b>${esc(D.items[id].name)}${count === null ? "" : ` <span class="subtle">×${count}</span>`}</b><small class="item-availability availability-${window.BCItemRules.availability(id)}">${availabilityNames[window.BCItemRules.availability(id)] || ""}</small><small>${esc(itemMeta(D.items[id]))}</small><small class="item-prices">${esc(itemPrices(id))}</small>${itemSources(id)}</div><div class="item-actions">${actions}</div></div>`;
   function itemCatalog() {
     const ids = catalogCollection === "all" ? Object.keys(D.items) : D.itemCatalog[catalogCollection];
     const query = catalogSearch.trim().toLocaleLowerCase("th");
     const matches = ids.filter((id) => {
       const item = D.items[id];
-      return (catalogType === "all" || item.type === catalogType) && (!query ||
+      return (catalogType === "all" || item.type === catalogType) &&
+        (catalogStatus === "all" || window.BCItemRules.availability(id) === catalogStatus) &&
+        (catalogWeaponType === "all" || item.weaponType === catalogWeaponType) &&
+        (catalogGrade === "all" || item.grade === Number(catalogGrade)) && (!query ||
         [item.name, weaponTypeName(item), itemTypeNames[item.type], rarityNames[item.rarity],
+          item.weaponType ? compatibleClasses(item.weaponType) : "", availabilityNames[window.BCItemRules.availability(id)],
           ...window.BCItemRules.sourcesFor(id).map((s) => s.name)].join(" ").toLocaleLowerCase("th").includes(query));
     });
-    return `<p class="panel-note">รายการพื้นฐาน 32 ชิ้น และอาวุธอัปเกรด · ช่วงเลเวลเป็นคำแนะนำ อาวุธใช้ตามประเภทประจำอาชีพ<br>แหล่งที่ระบุ “ยังไม่เปิด” เป็นพื้นที่ในอนาคต</p><div class="catalog-filters"><label for="catalog-collection">รายการ<select id="catalog-collection">${[["prototype", "ชุดพื้นฐาน 32 ชิ้น"], ["upgrades", "อาวุธอัปเกรด 6 ชิ้น"], ["all", "ทั้งหมดและของเดิม"]].map(([id, name]) => `<option value="${id}"${catalogCollection === id ? " selected" : ""}>${name}</option>`).join("")}</select></label><label for="catalog-type">ประเภท<select id="catalog-type"><option value="all">ทั้งหมด</option>${Object.entries(itemTypeNames).map(([id, name]) => `<option value="${id}"${catalogType === id ? " selected" : ""}>${name}</option>`).join("")}</select></label><label class="catalog-search" for="catalog-search">ค้นหาไอเทมหรือแหล่งที่ได้<input id="catalog-search" type="search" value="${esc(catalogSearch)}" placeholder="ชื่อไอเทม ประเภท หรือมอนสเตอร์" autocomplete="off"></label></div><p class="catalog-count" role="status">พบ ${matches.length} ชิ้น</p><div class="catalog-list">${matches.map((id) => {
+    const select = (id, label, value, entries) => `<label for="${id}">${label}<select id="${id}">${entries.map(([key, name]) => `<option value="${key}"${value === key ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label>`;
+    const paths = Object.entries(D.itemCatalog.progressions);
+    const progressions = `<details class="weapon-progressions"${catalogPathsOpen ? " open" : ""}><summary>เส้นทางอาวุธ ${paths.length} ประเภท · 3 ขั้น</summary><p class="panel-note">ขั้นอาวุธแยกจาก Class · เลเวลเป็นคำแนะนำ · สวมได้เฉพาะประเภทประจำอาชีพ</p>${paths.map(([type, path]) => `<article class="weapon-path" data-weapon-type="${type}"><h3>${esc(D.weaponTypes[type].name)}</h3><small>${esc(compatibleClasses(type))}</small><ol>${path.map((id) => {
+      const i = D.items[id], availability = window.BCItemRules.availability(id);
+      return `<li data-path-item="${id}" data-availability="${availability}">${icon(id)}<span><b>ขั้น ${i.grade} · ${esc(i.name)}</b><small>${esc([i.atk ? `ATK +${i.atk}` : "", i.matk ? `MATK +${i.matk}` : "", i.def ? `DEF +${i.def}` : "", itemLevel(i)].filter(Boolean).join(" · "))}</small><em class="availability-${availability}">${availabilityNames[availability]}</em></span></li>`;
+    }).join("")}</ol></article>`).join("")}</details>`;
+    return `<p class="panel-note">อาวุธครบทุกประเภท · ช่วงเลเวลเป็นคำแนะนำ<br>“ยังไม่เปิด” คือแหล่งในอนาคต · ของเก่าที่มีอยู่ยังรองรับเซฟ</p><div class="catalog-filters">${
+      select("catalog-collection", "รายการ", catalogCollection, [["regular", `รายการปกติ ${D.itemCatalog.regular.length} ชิ้น`], ["upgrades", `อาวุธอัปเกรด ${D.itemCatalog.upgrades.length} ชิ้น`], ["all", `ทั้งหมด ${Object.keys(D.items).length} ชิ้น`]]) +
+      select("catalog-status", "สถานะแหล่งหา", catalogStatus, [["all", "ทุกสถานะ"], ...Object.entries(availabilityNames)]) +
+      select("catalog-type", "ประเภท", catalogType, [["all", "ทุกประเภท"], ...Object.entries(itemTypeNames)]) +
+      select("catalog-weapon-type", "ประเภทอาวุธ", catalogWeaponType, [["all", "อาวุธทุกประเภท"], ...paths.map(([type]) => [type, D.weaponTypes[type].name])]) +
+      select("catalog-grade", "ขั้นอาวุธ", catalogGrade, [["all", "ทุกขั้น"], ...Object.entries(gradeNames).map(([grade, name]) => [grade, `${grade} · ${name}`])])
+    }<label class="catalog-search" for="catalog-search">ค้นหาไอเทม อาชีพ หรือแหล่งที่ได้<input id="catalog-search" type="search" value="${esc(catalogSearch)}" placeholder="ชื่อไอเทม อาชีพ หรือมอนสเตอร์" autocomplete="off"></label></div>${progressions}<p class="catalog-count" role="status">พบ ${matches.length} ชิ้น</p><div class="catalog-list">${matches.map((id) => {
       const item = D.items[id];
-      return `<article class="catalog-card rarity-${item.rarity || "common"}" data-item="${id}">${icon(id)}<div class="item-info"><h3>${esc(item.name)}</h3><small>${esc(itemMeta(item))}</small><small class="item-prices">${esc(itemPrices(id))}</small>${sourceRows(id)}</div></article>`;
+      const availability = window.BCItemRules.availability(id);
+      return `<article class="catalog-card rarity-${item.rarity || "common"}" data-item="${id}" data-availability="${availability}">${icon(id)}<div class="item-info"><h3>${esc(item.name)}</h3><span class="item-availability availability-${availability}">${availabilityNames[availability] || ""}</span><small>${esc(itemMeta(item))}</small><small class="item-prices">${esc(itemPrices(id))}</small>${sourceRows(id)}</div></article>`;
     }).join("") || '<p class="catalog-empty">ไม่พบไอเทม ลองเปลี่ยนคำค้นหรือประเภท</p>'}</div>`;
   }
   function optionsBinding(selected) {
@@ -926,9 +963,16 @@
   });
   document.addEventListener("change", (event) => {
     const el = event.target;
-    if (el.id === "catalog-type" || el.id === "catalog-collection") {
+    if (["catalog-type", "catalog-collection", "catalog-status", "catalog-weapon-type", "catalog-grade"].includes(el.id)) {
       if (el.id === "catalog-type") catalogType = Object.hasOwn(itemTypeNames, el.value) ? el.value : "all";
-      else catalogCollection = ["prototype", "upgrades", "all"].includes(el.value) ? el.value : "prototype";
+      else if (el.id === "catalog-collection") {
+        catalogCollection = ["regular", "upgrades", "all"].includes(el.value) ? el.value : "regular";
+        if (catalogStatus === "legacy" && catalogCollection !== "all") catalogStatus = "all";
+      } else if (el.id === "catalog-status") {
+        catalogStatus = Object.hasOwn(availabilityNames, el.value) ? el.value : "all";
+        if (catalogStatus === "legacy") catalogCollection = "all";
+      } else if (el.id === "catalog-weapon-type") catalogWeaponType = Object.hasOwn(D.itemCatalog.progressions, el.value) ? el.value : "all";
+      else catalogGrade = ["1", "2", "3"].includes(el.value) ? el.value : "all";
       renderPanel();
       $(el.id).focus({ preventScroll: true });
     } else if (el.id === "shop-weapon-type") {
@@ -953,6 +997,9 @@
       state.settings.autoPotion = Number(el.value);
     else if (el.id === "auto-skill") state.settings.autoSkill = el.checked;
   });
+  document.addEventListener("toggle", (event) => {
+    if (event.target.matches(".weapon-progressions")) catalogPathsOpen = event.target.open;
+  }, true);
   document.addEventListener("input", (event) => {
     const el = event.target;
     if (el.id !== "catalog-search") return;
@@ -994,9 +1041,9 @@
       if (event.key === "Tab") {
         const focusable = [
           ...$("panel-window").querySelectorAll(
-            "button:not(:disabled),select,input",
+            "button:not(:disabled),select:not(:disabled),input:not(:disabled),summary",
           ),
-        ];
+        ].filter((el) => el.getClientRects().length > 0);
         const first = focusable[0],
           end = focusable[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) {

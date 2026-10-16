@@ -60,7 +60,8 @@
       type: "use",
       price: 18,
       weight: 8,
-      hp: 25,
+      hp: 35,
+      sp: 10,
       color: "#9dd597",
       icon: "✚",
     },
@@ -400,20 +401,63 @@
     banyan_charm: { name: "เครื่องรางรากไทร", type: "accessory", price: 120, weight: 10, matk: 3, mdef: 2, color: "#a99168", icon: "◇", iconArt: { atlas: "item-catalog", cell: 8 } },
     bronze_guard_token: { name: "ตราขุนยักษ์สำริด", type: "accessory", price: 240, weight: 10, atk: 5, def: 3, color: "#bb9658", icon: "◇", iconArt: { atlas: "item-catalog", cell: 9 } },
     moon_crown: { name: "รัดเกล้าจันทรา", type: "head", price: 300, weight: 20, def: 3, mdef: 6, color: "#b3c7e9", icon: "♕", iconArt: { atlas: "item-catalog", cell: 15 }, appearance: { layer: "head", style: "moon_crown", atlas: "item-catalog", row: 1 } },
-    sun_king_token: { name: "ตราราชันสุริยัน", type: "accessory", price: 500, weight: 10, atk: 6, matk: 6, def: 3, mdef: 3, color: "#e4b95c", icon: "◇", iconArt: { atlas: "item-catalog", cell: 10 } },
+    sun_king_token: { name: "ตราราชันสุริยัน", type: "accessory", price: 500, weight: 10, atk: 8, matk: 8, def: 4, mdef: 4, color: "#e4b95c", icon: "◇", iconArt: { atlas: "item-catalog", cell: 10 } },
     strong_potion: { name: "ยาดอกคำฝอยเข้มข้น", type: "use", price: 35, weight: 10, hp: 150, color: "#dd785a", icon: "♥", iconArt: { atlas: "item-catalog", cell: 12 } },
     bronze_scrap: { name: "เศษสำริดโบราณ", type: "loot", price: 24, sellPrice: 12, weight: 6, color: "#ba925e", icon: "◆", iconArt: { atlas: "item-catalog", cell: 13 } },
     banyan_staff: { name: "คทารากไทร", type: "weapon", weaponType: "staff", price: 160, weight: 90, atk: 12, matk: 22, color: "#9baf83", icon: "✦", iconArt: { atlas: "siam-weapons", cell: 3 }, appearance: { layer: "weapon", atlas: "siam-weapons", cell: 3, profile: "staff", length: 37, width: 9 } },
     sun_staff: { name: "คทาสุริยัน", type: "weapon", weaponType: "staff", price: 420, weight: 90, atk: 12, matk: 36, color: "#e7bc69", icon: "✦", iconArt: { atlas: "siam-weapons", cell: 3 }, appearance: { layer: "weapon", atlas: "siam-weapons", cell: 3, profile: "staff", length: 37, width: 9 } },
     silverwing_bow: { name: "ธนูปีกเงิน", type: "weapon", weaponType: "bow", price: 160, weight: 85, atk: 22, color: "#c3d2df", icon: "➹", iconArt: { atlas: "siam-weapons", cell: 7 }, appearance: { layer: "weapon", atlas: "siam-weapons", cell: 7, profile: "bow", length: 32, width: 13 } },
     sun_bow: { name: "ธนูราชันสุริยัน", type: "weapon", weaponType: "bow", price: 400, weight: 85, atk: 34, color: "#d9b263", icon: "➹", iconArt: { atlas: "siam-weapons", cell: 7 }, appearance: { layer: "weapon", atlas: "siam-weapons", cell: 7, profile: "bow", length: 32, width: 13 } },
+    banyan_dual_blades: { name: "ดาบคู่เถาไทร", type: "weapon", weaponType: "dual_sword", atk: 18, weight: 110, price: 120, sellPrice: 60, color: "#91b58a", icon: "⚔", iconArt: { atlas: "weapon-upgrades-v2", cell: 0, complete: true } },
+    sun_royal_dual_blades: { name: "ดาบคู่สุริยราช", type: "weapon", weaponType: "dual_sword", atk: 30, weight: 110, price: 400, sellPrice: 200, color: "#e4b95c", icon: "⚔", iconArt: { atlas: "weapon-upgrades-v2", cell: 1, complete: true } },
+    banyan_sword_shield: { name: "ชุดดาบโล่ไทรพิทักษ์", type: "weapon", weaponType: "sword_shield", atk: 20, def: 3, weight: 130, price: 140, sellPrice: 70, color: "#91b58a", icon: "⚔", iconArt: { atlas: "weapon-upgrades-v2", cell: 2, complete: true } },
+    bronze_general_sword_shield: { name: "ชุดดาบโล่ขุนยักษ์", type: "weapon", weaponType: "sword_shield", atk: 28, def: 6, weight: 130, price: 400, sellPrice: 200, color: "#c19a68", icon: "⚔", iconArt: { atlas: "weapon-upgrades-v2", cell: 3, complete: true } },
+    rain_jade_orb: { name: "แก้วมณีพิรุณ", type: "weapon", weaponType: "orb", atk: 14, matk: 24, weight: 65, price: 160, sellPrice: 80, color: "#86cad1", icon: "◆", iconArt: { atlas: "weapon-upgrades-v2", cell: 4, complete: true } },
+    sun_jade_orb: { name: "แก้วมณีสุริยัน", type: "weapon", weaponType: "orb", atk: 14, matk: 36, weight: 65, price: 420, sellPrice: 210, color: "#e4b95c", icon: "◆", iconArt: { atlas: "weapon-upgrades-v2", cell: 5, complete: true } },
+    banyan_scripture: { name: "คัมภีร์อักขระไทร", type: "weapon", weaponType: "book", atk: 11, matk: 22, weight: 60, price: 160, sellPrice: 80, color: "#91b58a", icon: "▤", iconArt: { atlas: "weapon-upgrades-v2", cell: 6, complete: true } },
+    sun_scripture: { name: "คัมภีร์สุริยเวท", type: "weapon", weaponType: "book", atk: 11, matk: 34, weight: 60, price: 420, sellPrice: 210, color: "#e4b95c", icon: "▤", iconArt: { atlas: "weapon-upgrades-v2", cell: 7, complete: true } },
+    stone_garuda_knuckles: { name: "สนับหมัดศิลาครุฑ", type: "weapon", weaponType: "knuckle", atk: 15, weight: 50, price: 120, sellPrice: 60, color: "#b2b6ad", icon: "✊", iconArt: { atlas: "weapon-upgrades-v2", cell: 8, complete: true } },
+    royal_garuda_knuckles: { name: "สนับหมัดครุฑราชัน", type: "weapon", weaponType: "knuckle", atk: 25, weight: 50, price: 380, sellPrice: 190, color: "#e4b95c", icon: "✊", iconArt: { atlas: "weapon-upgrades-v2", cell: 9, complete: true } },
+    crystal_fang_kris: { name: "กริชเขี้ยวแก้ว", type: "weapon", weaponType: "dagger", atk: 14, weight: 40, price: 120, sellPrice: 60, color: "#9fd9d4", icon: "†", iconArt: { atlas: "weapon-upgrades-v2", cell: 10, complete: true } },
+    moon_shadow_kris: { name: "กริชเงาจันทรา", type: "weapon", weaponType: "dagger", atk: 24, weight: 40, price: 360, sellPrice: 180, color: "#c3b2e4", icon: "†", iconArt: { atlas: "weapon-upgrades-v2", cell: 11, complete: true } },
+    forest_shadow_claws: { name: "กรงเล็บเงาไพร", type: "weapon", weaponType: "claw", atk: 18, weight: 55, price: 130, sellPrice: 65, color: "#91b58a", icon: "爪", iconArt: { atlas: "weapon-upgrades-v2", cell: 12, complete: true } },
+    moon_tiger_claws: { name: "กรงเล็บพยัคฆ์จันทรา", type: "weapon", weaponType: "claw", atk: 28, weight: 55, price: 400, sellPrice: 200, color: "#c3b2e4", icon: "爪", iconArt: { atlas: "weapon-upgrades-v2", cell: 13, complete: true } },
+    naga_rune_bow: { name: "ธนูอักขระนาคา", type: "weapon", weaponType: "magic_bow", atk: 22, matk: 20, weight: 85, price: 170, sellPrice: 85, color: "#86cad1", icon: "➹", iconArt: { atlas: "weapon-upgrades-v2", cell: 14, complete: true } },
+    moon_arcane_bow: { name: "ธนูจันทรามนตรา", type: "weapon", weaponType: "magic_bow", atk: 32, matk: 30, weight: 85, price: 440, sellPrice: 220, color: "#c3b2e4", icon: "➹", iconArt: { atlas: "weapon-upgrades-v2", cell: 15, complete: true } },
   };
   const itemCatalog = {
     prototype: ["training_stick", "arun_sword", "palace_dual_blades", "arun_sword_shield", "lotus_staff", "jade_orb", "golden_scripture", "garuda_knuckles", "moon_kris", "tiger_claws", "naga_bow", "arcane_bow", "cloth_armor", "leather_armor", "banyan_robe", "moon_armor", "lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token", "apple", "potion", "ether", "strong_potion", "jellopy", "fluff", "tree_root", "bee_sting", "bronze_scrap", "guardian_core"],
-    upgrades: ["iron_sword", "moon_blade", "banyan_staff", "sun_staff", "silverwing_bow", "sun_bow"],
+    progressions: {
+      sword: ["arun_sword", "iron_sword", "moon_blade"],
+      dual_sword: ["palace_dual_blades", "banyan_dual_blades", "sun_royal_dual_blades"],
+      sword_shield: ["arun_sword_shield", "banyan_sword_shield", "bronze_general_sword_shield"],
+      staff: ["lotus_staff", "banyan_staff", "sun_staff"],
+      orb: ["jade_orb", "rain_jade_orb", "sun_jade_orb"],
+      book: ["golden_scripture", "banyan_scripture", "sun_scripture"],
+      knuckle: ["garuda_knuckles", "stone_garuda_knuckles", "royal_garuda_knuckles"],
+      dagger: ["moon_kris", "crystal_fang_kris", "moon_shadow_kris"],
+      claw: ["tiger_claws", "forest_shadow_claws", "moon_tiger_claws"],
+      bow: ["naga_bow", "silverwing_bow", "sun_bow"],
+      magic_bow: ["arcane_bow", "naga_rune_bow", "moon_arcane_bow"],
+    },
+    legacy: ["rusty_sword", "yak_greatsword"],
     start: ["training_stick", "cloth_armor", "potion", "ether", "novice_cap"],
     tiers: [{ min: 1, max: 5 }, { min: 6, max: 10 }, { min: 11, max: 15 }, { min: 16, max: 20 }, { min: 21, max: 25 }, { min: 26, max: 30 }],
   };
+  itemCatalog.weapons = Object.values(itemCatalog.progressions).flat();
+  itemCatalog.upgrades = Object.values(itemCatalog.progressions).flatMap(ids => ids.slice(1));
+  itemCatalog.regular = Object.keys(items).filter(id => !itemCatalog.legacy.includes(id));
+  for (const id of itemCatalog.legacy) items[id].legacy = true;
+  for (const [type, ids] of Object.entries(itemCatalog.progressions)) {
+    const firstClass = Object.values(classes).some(c => c.tier === 1 && c.weaponType === type);
+    ids.forEach((id, index) => {
+      items[id].grade = index + 1;
+      items[id].recommendedLevel = index === 0 ? { min: firstClass ? 1 : 11, max: firstClass ? 10 : 20 } : { min: index === 1 ? 11 : 21, max: index === 1 ? 20 : 30 };
+      // Character bodies already contain their matching arms and weapons. Keep
+      // the existing appearance profile for compatible fallback consumers.
+      if (!items[id].appearance) items[id].appearance = { ...items[ids[0]].appearance };
+    });
+  }
   // Prices are the real merchant/reference values; owned item IDs never change.
   for (const [id, price] of Object.entries({ arun_sword: 30, palace_dual_blades: 65, arun_sword_shield: 70, lotus_staff: 35, jade_orb: 75, golden_scripture: 30, garuda_knuckles: 55, moon_kris: 25, tiger_claws: 60, naga_bow: 35, arcane_bow: 80, iron_sword: 120, moon_blade: 350 })) items[id].price = price;
   for (const id of ["training_stick", "rusty_sword", "yak_greatsword", "banyan_robe", "moon_armor", "moon_charm", "lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token", ...itemCatalog.upgrades]) items[id].shop = false;
@@ -421,7 +465,11 @@
   for (const item of Object.values(items)) { item.rarity = "common"; item.tier = 1; }
   for (const id of ["palace_dual_blades", "arun_sword_shield", "jade_orb", "garuda_knuckles", "tiger_claws", "arcane_bow", "leather_armor", "banyan_robe", "bronze_ring", "cat_ears", "iron_sword", "banyan_staff", "silverwing_bow", "guardian_core"]) items[id].rarity = "uncommon";
   for (const id of ["yak_greatsword", "moon_blade", "moon_armor", "moon_charm", "sun_staff", "sun_bow"]) items[id].rarity = "rare";
-  for (const id of ["lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token"]) items[id].rarity = "boss";
+  for (const id of ["lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token"]) items[id].rarity = "rare";
+  for (const id of itemCatalog.upgrades) {
+    items[id].rarity = items[id].grade === 2 ? "uncommon" : "rare";
+    if (items[id].iconArt?.atlas === "weapon-upgrades-v2") items[id].tier = items[id].grade === 2 ? 3 : id.startsWith("moon_") ? 5 : id === "bronze_general_sword_shield" || id === "royal_garuda_knuckles" ? 4 : 6;
+  }
   for (const [tier, ids] of [[2, ["leather_armor", "banyan_robe", "banyan_charm", "iron_sword", "banyan_staff", "ether", "cat_ears", "bronze_ring", "tree_root", "bee_sting"]], [3, ["palace_dual_blades", "arun_sword_shield", "jade_orb", "garuda_knuckles", "tiger_claws", "arcane_bow", "yak_greatsword", "moon_blade", "moon_armor", "moon_charm", "silver_circlet", "guardian_core", "strong_potion"]], [4, ["bronze_guard_token", "bronze_scrap"]], [5, ["moon_crown", "silverwing_bow"]], [6, ["sun_king_token", "sun_staff", "sun_bow"]]]) for (const id of ids) items[id].tier = tier;
   const monsters = {
     poring: { agi: 1, dex: 2, luk: 0, mdef: 0, attackMagic: false,
@@ -553,9 +601,9 @@
     poring: [dropRow("jellopy"), dropRow("apple", .15), dropRow("potion", .05)],
     fabre: [dropRow("fluff"), dropRow("apple", .12), dropRow("novice_cap", .03)],
     lunatic: [dropRow("fluff"), dropRow("potion", .08), dropRow("ether", .05)],
-    willow: [dropRow("tree_root"), dropRow("ether", .12), dropRow("banyan_robe", .03), dropRow("banyan_staff", .02), dropRow("iron_sword", .03)],
-    hornet: [dropRow("bee_sting"), dropRow("potion", .10), dropRow("iron_sword", .03)],
-    poporing: [dropRow("jellopy"), dropRow("strong_potion", .08), dropRow("jade_orb", .02), dropRow("moon_blade", .02)],
+    willow: [dropRow("tree_root"), dropRow("ether", .12), dropRow("banyan_robe", .03), dropRow("banyan_staff", .02), dropRow("iron_sword", .03), dropRow("banyan_dual_blades", .03), dropRow("banyan_sword_shield", .03), dropRow("banyan_scripture", .02)],
+    hornet: [dropRow("bee_sting"), dropRow("potion", .10), dropRow("iron_sword", .03), dropRow("silverwing_bow", .03), dropRow("crystal_fang_kris", .03), dropRow("forest_shadow_claws", .03)],
+    poporing: [dropRow("jellopy"), dropRow("strong_potion", .08), dropRow("jade_orb", .02), dropRow("moon_blade", .02), dropRow("rain_jade_orb", .02), dropRow("stone_garuda_knuckles", .03), dropRow("naga_rune_bow", .02)],
     guardian: [dropRow("guardian_core"), dropRow("strong_potion", .50), dropRow("silver_circlet", .10), dropRow("moon_armor", .05), dropRow("moon_blade", .05)],
     clay_soldier: [dropRow("bronze_scrap"), dropRow("palace_dual_blades", .03)],
     bronze_scorpion: [dropRow("bronze_scrap")],
@@ -566,9 +614,9 @@
     silver_bird: [dropRow("fluff"), dropRow("silverwing_bow", .03)],
     lotus_boss: [dropRow("jellopy"), dropRow("lotus_hat", .10)],
     banyan_boss: [dropRow("tree_root"), dropRow("banyan_charm", .10)],
-    bronze_general: [dropRow("bronze_scrap"), dropRow("bronze_guard_token", .10)],
-    moon_kinnaree: [dropRow("fluff"), dropRow("moon_crown", .10)],
-    sun_king: [dropRow("bronze_scrap"), dropRow("sun_king_token", .10), dropRow("sun_staff", .05), dropRow("sun_bow", .05)],
+    bronze_general: [dropRow("bronze_scrap"), dropRow("bronze_guard_token", .10), dropRow("bronze_general_sword_shield", .05), dropRow("royal_garuda_knuckles", .05)],
+    moon_kinnaree: [dropRow("fluff"), dropRow("moon_crown", .10), dropRow("moon_shadow_kris", .05), dropRow("moon_tiger_claws", .05), dropRow("moon_arcane_bow", .05)],
+    sun_king: [dropRow("bronze_scrap"), dropRow("sun_king_token", .10), dropRow("sun_staff", .05), dropRow("sun_bow", .05), dropRow("sun_royal_dual_blades", .05), dropRow("sun_jade_orb", .05), dropRow("sun_scripture", .05)],
   };
   const maps = [
     {
@@ -721,7 +769,7 @@
       title: "สยามอรุณ",
       subtitle: "ตำนานผู้กล้าแห่งลุ่มน้ำ",
       currency: "อัฐ",
-      release: "1.11",
+      release: "1.12",
       intro: "ท่าน้ำอรุณเคยมีสายน้ำใสไหลจากป่าหิมพานต์ แต่ยามนี้ประกายแก้วประหลาดปลุกเหล่าภูตให้ปั่นป่วน เริ่มต้นเป็นชาวบ้าน ฝึกวิชากับครูอิน และออกตามหาแก่นแก้วนาคาเพื่อคืนความสงบให้เมืองริมน้ำแห่งสยามแฟนตาซี",
     },
     jobs: {

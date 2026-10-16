@@ -164,6 +164,7 @@ h1 { font-size: 12px; margin: 0; }
 .catalog-filters { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 6px; }
 .catalog-filters label { display: grid; gap: 3px; min-width: 0; color: #e1dac4; font-size: 9px; }
 .catalog-filters .catalog-search { grid-column: 1 / -1; }
+.catalog-filters label:has(#catalog-grade) { grid-column: 1 / -1; }
 .catalog-filters select, .catalog-filters input { width: 100%; min-width: 0; padding: 5px; border: 1px solid #a6aa8b; border-radius: 3px; background: #284740; color: #f5f0e5; font-size: 10px; }
 .catalog-filters input::placeholder { color: #b5c5b7; }
 .catalog-count { margin: 7px 0 4px; color: #ccd8c4; font-size: 9px; }
@@ -172,6 +173,19 @@ h1 { font-size: 12px; margin: 0; }
 .catalog-card.rarity-uncommon { border-left-color: #9fc18c; }
 .catalog-card.rarity-rare { border-left-color: #a9b9df; }
 .catalog-card.rarity-boss { border-left-color: #e1c78f; }
+.item-availability, .weapon-path em { display: inline-block; margin: 0 0 3px; color: #cbd8c3; font-size: 9px; font-style: normal; }
+.availability-planned { color: #e1c78f; }
+.availability-legacy, .source-legacy { color: #c9c4d9; }
+.weapon-progressions { margin-top: 9px; padding: 6px; border: 1px solid #b6ad8f70; border-radius: 3px; }
+.weapon-progressions > summary { color: #e1dac4; cursor: pointer; font-size: 10px; }
+.weapon-path { min-width: 0; margin-top: 7px; padding: 6px; border: 1px solid #a5977450; border-radius: 3px; background: #294c4760; }
+.weapon-path h3 { margin: 0 0 3px; font-size: 11px; }
+.weapon-path small { display: block; color: #ccd8c4; font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; }
+.weapon-path ol { margin: 5px 0 0; padding: 0; list-style: none; }
+.weapon-path li { display: flex; align-items: center; gap: 6px; margin-top: 5px; padding-top: 5px; border-top: 1px solid #a5977430; }
+.weapon-path li > span:last-child { flex: 1; min-width: 0; }
+.weapon-path b { display: block; font-size: 10px; overflow-wrap: anywhere; }
+.weapon-path .item-icon { flex: 0 0 30px; width: 30px; height: 30px; }
 .item-prices { color: #e1c78f !important; }
 .item-source-help { margin-top: 4px; font-size: 9px; line-height: 1.6; }
 .item-source-help summary { cursor: pointer; color: #ddd7bb; }
@@ -180,7 +194,8 @@ h1 { font-size: 12px; margin: 0; }
 .item-sources li:first-child { margin-top: 0; }
 .item-sources em { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid #b4a57966; border-radius: 2px; color: #e1c78f; font-style: normal; white-space: nowrap; }
 .future-source { color: #b4bfb2; }
-.source-empty, .catalog-empty { margin: 5px 0; color: #ccd8c4; font-size: 10px; }
+.source-empty, .source-legacy, .catalog-empty { margin: 5px 0; font-size: 10px; }
+.source-empty, .catalog-empty { color: #ccd8c4; }
 .quest-item-rewards { margin: 5px 0 8px; }
 .quest-item-rewards > span { display: flex; align-items: center; gap: 6px; font-size: 10px; }
 .quest-item-rewards .item-icon { width: 28px; height: 28px; }

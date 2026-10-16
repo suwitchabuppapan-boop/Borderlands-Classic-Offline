@@ -324,14 +324,15 @@
       const i = D.items[p.id];
       s.inventory[p.id]--;
       if (!s.inventory[p.id]) delete s.inventory[p.id];
-      const hp = Math.round((i.hp || 0) * st.hpItemMultiplier), sp = Math.round((i.sp || 0) * st.spItemMultiplier);
-      s.player.hp = Math.min(st.maxHp, s.player.hp + hp);
-      s.player.sp = Math.min(st.maxSp, s.player.sp + sp);
+      const hp = Math.min(st.maxHp - s.player.hp, Math.round((i.hp || 0) * st.hpItemMultiplier));
+      const sp = Math.min(st.maxSp - s.player.sp, Math.round((i.sp || 0) * st.spItemMultiplier));
+      s.player.hp += hp;
+      s.player.sp += sp;
       effect(
         s,
         s.player.x,
         s.player.y - 30,
-        i.hp ? `+${hp} HP` : `+${sp} SP`,
+        [i.hp ? `+${hp} HP` : "", i.sp ? `+${sp} SP` : ""].filter(Boolean).join(" · "),
         i.color,
       );
       return ok(`ใช้ ${i.name}`);
@@ -379,7 +380,9 @@
       const next = D.classes[id], old = s.equipment.weapon;
       if (!old || D.items[old].weaponType !== next.weaponType) {
         if (old) s.inventory[old] = (s.inventory[old] || 0) + 1;
-        const weapon = Object.keys(s.inventory).filter(k => s.inventory[k] > 0 && D.items[k].type === "weapon" && D.items[k].weaponType === next.weaponType).sort((a,b) => D.items[b].atk - D.items[a].atk)[0];
+        const primary = D.weaponTypes[next.weaponType].basicMagic ? "matk" : "atk", secondary = primary === "matk" ? "atk" : "matk";
+        const weapon = Object.keys(s.inventory).filter(k => s.inventory[k] > 0 && D.items[k].type === "weapon" && D.items[k].weaponType === next.weaponType)
+          .sort((a, b) => (D.items[b][primary] || 0) - (D.items[a][primary] || 0) || (D.items[b][secondary] || 0) - (D.items[a][secondary] || 0) || (D.items[b].grade || 0) - (D.items[a].grade || 0) || a.localeCompare(b))[0];
         s.equipment.weapon = weapon || null;
         if (weapon && --s.inventory[weapon] === 0) delete s.inventory[weapon];
       }
@@ -548,11 +551,10 @@
     AutoQuest.tick(s, dt, { act: doAction, stats, dist });
     const st = stats(s);
     if (s.auto) {
-      if (
-        (s.player.hp / st.maxHp) * 100 < s.settings.autoPotion &&
-        s.inventory.potion > 0
-      )
-        doAction(s, "use", { id: "potion" });
+      if ((s.player.hp / st.maxHp) * 100 < s.settings.autoPotion) {
+        const id = s.inventory.potion > 0 ? "potion" : Object.keys(s.inventory).find(id => s.inventory[id] > 0 && D.items[id]?.type === "use" && D.items[id].hp > 0);
+        if (id) doAction(s, "use", { id });
+      }
       if (!s.monsters.some((m) => m.uid === s.target && !m.dead)) {
         const m = s.monsters
           .filter((m) => !m.dead)

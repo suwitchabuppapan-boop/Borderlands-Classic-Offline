@@ -44,7 +44,13 @@
     for (const q of D.quests) if (q.items && own(q.items, id)) sources.push(source("quest", q.title, true, 1, q.items[id], q.items[id], true));
     return sources;
   }
-  const api = { buyPrice, sellPrice, rollDrops, sourcesFor };
+  function availability(id) {
+    const i = item(id);
+    if (!i) return null;
+    if (i.legacy === true) return "legacy";
+    return sourcesFor(id).some(source => source.available) ? "available" : "planned";
+  }
+  const api = { buyPrice, sellPrice, rollDrops, sourcesFor, availability };
   if (typeof module === "object") module.exports = api;
   else root.BCItemRules = api;
 })(typeof window === "undefined" ? globalThis : window);
