@@ -4,9 +4,9 @@
   const D = root.BCData;
   const classAtlases = Object.freeze(Object.fromEntries(Object.entries(D.classes).map(([id,job])=>[id,job.atlas])));
   const atlasGrids = { townsfolk:[2,2], "siam-weapons":[4,2], "siam-equipment":[4,2], "class-weapons":[4,2],
-    "siam-headgear":[4,3], ...Object.fromEntries(Object.values(classAtlases).map(name=>[name,[6,4]])) };
+    "siam-headgear":[4,3], "item-catalog":[4,4], ...Object.fromEntries(Object.values(classAtlases).map(name=>[name,[6,4]])) };
   const assetNames = ["meadow","woodland","cavern","sprites","townsfolk",
-    "siam-weapons","siam-equipment","siam-headgear","class-weapons",...new Set(Object.values(classAtlases))];
+    "siam-weapons","siam-equipment","siam-headgear","class-weapons","item-catalog",...new Set(Object.values(classAtlases))];
   const assets = { ready: false, failed: [], loaded: 0, total: assetNames.length };
   const images = {}, cells = {};
   const hairAtlases = new Map(), trackers = new WeakMap();
@@ -29,6 +29,12 @@
   // Character bounds are measured offline from the authored art. Measuring the
   // full alpha box alone would shrink a character whenever its weapon is raised.
   function measureCells(img, name) {
+    // These authored objects cross nominal grid boundaries. Use their measured
+    // source rectangles so an icon or hat never includes an adjacent object.
+    if (name === "item-catalog") {
+      cells[name] = (root.BCSiamArt?.iconBounds?.[name] || []).map(bounds => ({ ...bounds }));
+      return;
+    }
     const school = Object.keys(classAtlases).find(key => classAtlases[key] === name);
     if (school) {
       cells[name] = (root.BCSchoolArt?.frames?.[school] || []).map(frame => frame?.bounds || null);
@@ -134,6 +140,14 @@
   function headgearModel(id, pose) {
     const appearance = D.items[id]?.appearance;
     if (appearance?.layer !== "head") return null;
+    const overlay = root.BCSiamArt?.headgear?.overlays?.[appearance.style];
+    if (overlay) {
+      const frame = overlay.frames?.[pose.facing], b = cells[overlay.atlas]?.[frame?.cell];
+      if (!b || !frame?.socket || ![frame.width, ...frame.socket].every(Number.isFinite) || frame.width <= 0) return null;
+      const scale = frame.width / b.w;
+      return { name: overlay.atlas, source: b, x: pose.head.x - (frame.socket[0] - b.x) * scale,
+        y: pose.head.y - (frame.socket[1] - b.y) * scale, w: frame.width, h: b.h * scale };
+    }
     const row = { cap: 0, cat_ears: 1, circlet: 2 }[appearance.style];
     const sourceFacing = root.BCSiamArt?.headgear?.runtimeDirectionColumns?.[pose.facing] ?? pose.facing;
     const b = cells["siam-headgear"]?.[row * 4 + sourceFacing];

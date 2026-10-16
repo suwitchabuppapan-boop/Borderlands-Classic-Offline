@@ -395,7 +395,34 @@
       color: "#92dace",
       icon: "◆",
     },
+    banyan_robe: { name: "เสื้อคลุมอักขระไทร", type: "armor", price: 160, weight: 65, def: 4, mdef: 10, color: "#7c9d83", icon: "▣", iconArt: { atlas: "item-catalog", cell: 11 } },
+    lotus_hat: { name: "หมวกใบบัวเจ้าถิ่น", type: "head", price: 60, weight: 15, def: 1, mdef: 2, color: "#8fb876", icon: "⌂", iconArt: { atlas: "item-catalog", cell: 14 }, appearance: { layer: "head", style: "lotus_hat", atlas: "item-catalog", row: 0 } },
+    banyan_charm: { name: "เครื่องรางรากไทร", type: "accessory", price: 120, weight: 10, matk: 3, mdef: 2, color: "#a99168", icon: "◇", iconArt: { atlas: "item-catalog", cell: 8 } },
+    bronze_guard_token: { name: "ตราขุนยักษ์สำริด", type: "accessory", price: 240, weight: 10, atk: 5, def: 3, color: "#bb9658", icon: "◇", iconArt: { atlas: "item-catalog", cell: 9 } },
+    moon_crown: { name: "รัดเกล้าจันทรา", type: "head", price: 300, weight: 20, def: 3, mdef: 6, color: "#b3c7e9", icon: "♕", iconArt: { atlas: "item-catalog", cell: 15 }, appearance: { layer: "head", style: "moon_crown", atlas: "item-catalog", row: 1 } },
+    sun_king_token: { name: "ตราราชันสุริยัน", type: "accessory", price: 500, weight: 10, atk: 6, matk: 6, def: 3, mdef: 3, color: "#e4b95c", icon: "◇", iconArt: { atlas: "item-catalog", cell: 10 } },
+    strong_potion: { name: "ยาดอกคำฝอยเข้มข้น", type: "use", price: 35, weight: 10, hp: 150, color: "#dd785a", icon: "♥", iconArt: { atlas: "item-catalog", cell: 12 } },
+    bronze_scrap: { name: "เศษสำริดโบราณ", type: "loot", price: 24, sellPrice: 12, weight: 6, color: "#ba925e", icon: "◆", iconArt: { atlas: "item-catalog", cell: 13 } },
+    banyan_staff: { name: "คทารากไทร", type: "weapon", weaponType: "staff", price: 160, weight: 90, atk: 12, matk: 22, color: "#9baf83", icon: "✦", iconArt: { atlas: "siam-weapons", cell: 3 }, appearance: { layer: "weapon", atlas: "siam-weapons", cell: 3, profile: "staff", length: 37, width: 9 } },
+    sun_staff: { name: "คทาสุริยัน", type: "weapon", weaponType: "staff", price: 420, weight: 90, atk: 12, matk: 36, color: "#e7bc69", icon: "✦", iconArt: { atlas: "siam-weapons", cell: 3 }, appearance: { layer: "weapon", atlas: "siam-weapons", cell: 3, profile: "staff", length: 37, width: 9 } },
+    silverwing_bow: { name: "ธนูปีกเงิน", type: "weapon", weaponType: "bow", price: 160, weight: 85, atk: 22, color: "#c3d2df", icon: "➹", iconArt: { atlas: "siam-weapons", cell: 7 }, appearance: { layer: "weapon", atlas: "siam-weapons", cell: 7, profile: "bow", length: 32, width: 13 } },
+    sun_bow: { name: "ธนูราชันสุริยัน", type: "weapon", weaponType: "bow", price: 400, weight: 85, atk: 34, color: "#d9b263", icon: "➹", iconArt: { atlas: "siam-weapons", cell: 7 }, appearance: { layer: "weapon", atlas: "siam-weapons", cell: 7, profile: "bow", length: 32, width: 13 } },
   };
+  const itemCatalog = {
+    prototype: ["training_stick", "arun_sword", "palace_dual_blades", "arun_sword_shield", "lotus_staff", "jade_orb", "golden_scripture", "garuda_knuckles", "moon_kris", "tiger_claws", "naga_bow", "arcane_bow", "cloth_armor", "leather_armor", "banyan_robe", "moon_armor", "lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token", "apple", "potion", "ether", "strong_potion", "jellopy", "fluff", "tree_root", "bee_sting", "bronze_scrap", "guardian_core"],
+    upgrades: ["iron_sword", "moon_blade", "banyan_staff", "sun_staff", "silverwing_bow", "sun_bow"],
+    start: ["training_stick", "cloth_armor", "potion", "ether", "novice_cap"],
+    tiers: [{ min: 1, max: 5 }, { min: 6, max: 10 }, { min: 11, max: 15 }, { min: 16, max: 20 }, { min: 21, max: 25 }, { min: 26, max: 30 }],
+  };
+  // Prices are the real merchant/reference values; owned item IDs never change.
+  for (const [id, price] of Object.entries({ arun_sword: 30, palace_dual_blades: 65, arun_sword_shield: 70, lotus_staff: 35, jade_orb: 75, golden_scripture: 30, garuda_knuckles: 55, moon_kris: 25, tiger_claws: 60, naga_bow: 35, arcane_bow: 80, iron_sword: 120, moon_blade: 350 })) items[id].price = price;
+  for (const id of ["training_stick", "rusty_sword", "yak_greatsword", "banyan_robe", "moon_armor", "moon_charm", "lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token", ...itemCatalog.upgrades]) items[id].shop = false;
+  for (const [id, value] of Object.entries({ jellopy: 2, fluff: 4, tree_root: 6, bee_sting: 6, bronze_scrap: 12, guardian_core: 75 })) items[id].sellPrice = value;
+  for (const item of Object.values(items)) { item.rarity = "common"; item.tier = 1; }
+  for (const id of ["palace_dual_blades", "arun_sword_shield", "jade_orb", "garuda_knuckles", "tiger_claws", "arcane_bow", "leather_armor", "banyan_robe", "bronze_ring", "cat_ears", "iron_sword", "banyan_staff", "silverwing_bow", "guardian_core"]) items[id].rarity = "uncommon";
+  for (const id of ["yak_greatsword", "moon_blade", "moon_armor", "moon_charm", "sun_staff", "sun_bow"]) items[id].rarity = "rare";
+  for (const id of ["lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token"]) items[id].rarity = "boss";
+  for (const [tier, ids] of [[2, ["leather_armor", "banyan_robe", "banyan_charm", "iron_sword", "banyan_staff", "ether", "cat_ears", "bronze_ring", "tree_root", "bee_sting"]], [3, ["palace_dual_blades", "arun_sword_shield", "jade_orb", "garuda_knuckles", "tiger_claws", "arcane_bow", "yak_greatsword", "moon_blade", "moon_armor", "moon_charm", "silver_circlet", "guardian_core", "strong_potion"]], [4, ["bronze_guard_token", "bronze_scrap"]], [5, ["moon_crown", "silverwing_bow"]], [6, ["sun_king_token", "sun_staff", "sun_bow"]]]) for (const id of ids) items[id].tier = tier;
   const monsters = {
     poring: { agi: 1, dex: 2, luk: 0, mdef: 0, attackMagic: false,
       name: "หยดบัว",
@@ -503,6 +530,45 @@
       speed: 30,
       boss: true,
     },
+  };
+  // Future sources belong to the guide only. They deliberately do not enter
+  // monsters/maps until their encounters have been implemented.
+  const dropSources = {
+    ...Object.fromEntries(Object.entries(monsters).map(([kind, m]) => [kind, { name: m.name }])),
+    clay_soldier: { name: "ทหารดินเผา" },
+    bronze_scorpion: { name: "แมงป่องสำริด" },
+    mask_guard: { name: "องครักษ์หน้ากาก" },
+    stone_lion: { name: "สิงห์ศิลา" },
+    mist_tiger: { name: "พยัคฆ์หมอก" },
+    living_rune: { name: "อักขระมีชีวิต" },
+    silver_bird: { name: "นกปีกเงิน" },
+    lotus_boss: { name: "เจ้าบัวพอง", firstClear: { lotus_hat: 1 } },
+    banyan_boss: { name: "พญาไทรพันราก", firstClear: { banyan_charm: 1 } },
+    bronze_general: { name: "ขุนยักษ์สำริด", firstClear: { bronze_guard_token: 1 } },
+    moon_kinnaree: { name: "กินรีจันทรา", firstClear: { moon_crown: 1 } },
+    sun_king: { name: "อสุราราชันสุริยัน", firstClear: { sun_king_token: 1 } },
+  };
+  const dropRow = (item, chance = 1, min = 1, max = min) => ({ item, chance, min, max });
+  const dropTables = {
+    poring: [dropRow("jellopy"), dropRow("apple", .15), dropRow("potion", .05)],
+    fabre: [dropRow("fluff"), dropRow("apple", .12), dropRow("novice_cap", .03)],
+    lunatic: [dropRow("fluff"), dropRow("potion", .08), dropRow("ether", .05)],
+    willow: [dropRow("tree_root"), dropRow("ether", .12), dropRow("banyan_robe", .03), dropRow("banyan_staff", .02), dropRow("iron_sword", .03)],
+    hornet: [dropRow("bee_sting"), dropRow("potion", .10), dropRow("iron_sword", .03)],
+    poporing: [dropRow("jellopy"), dropRow("strong_potion", .08), dropRow("jade_orb", .02), dropRow("moon_blade", .02)],
+    guardian: [dropRow("guardian_core"), dropRow("strong_potion", .50), dropRow("silver_circlet", .10), dropRow("moon_armor", .05), dropRow("moon_blade", .05)],
+    clay_soldier: [dropRow("bronze_scrap"), dropRow("palace_dual_blades", .03)],
+    bronze_scorpion: [dropRow("bronze_scrap")],
+    mask_guard: [dropRow("bronze_scrap"), dropRow("arun_sword_shield", .03)],
+    stone_lion: [dropRow("bronze_scrap"), dropRow("garuda_knuckles", .03)],
+    mist_tiger: [dropRow("fluff"), dropRow("tiger_claws", .03)],
+    living_rune: [dropRow("jellopy"), dropRow("arcane_bow", .03), dropRow("moon_charm", .03)],
+    silver_bird: [dropRow("fluff"), dropRow("silverwing_bow", .03)],
+    lotus_boss: [dropRow("jellopy"), dropRow("lotus_hat", .10)],
+    banyan_boss: [dropRow("tree_root"), dropRow("banyan_charm", .10)],
+    bronze_general: [dropRow("bronze_scrap"), dropRow("bronze_guard_token", .10)],
+    moon_kinnaree: [dropRow("fluff"), dropRow("moon_crown", .10)],
+    sun_king: [dropRow("bronze_scrap"), dropRow("sun_king_token", .10), dropRow("sun_staff", .05), dropRow("sun_bow", .05)],
   };
   const maps = [
     {
@@ -618,6 +684,7 @@
       count: 1,
       silver: 300,
       exp: 400,
+      items: { silver_circlet: 1 },
     },
   ];
   const npcs = [
@@ -654,7 +721,7 @@
       title: "สยามอรุณ",
       subtitle: "ตำนานผู้กล้าแห่งลุ่มน้ำ",
       currency: "อัฐ",
-      release: "1.9",
+      release: "1.10",
       intro: "ท่าน้ำอรุณเคยมีสายน้ำใสไหลจากป่าหิมพานต์ แต่ยามนี้ประกายแก้วประหลาดปลุกเหล่าภูตให้ปั่นป่วน เริ่มต้นเป็นชาวบ้าน ฝึกวิชากับครูอิน และออกตามหาแก่นแก้วนาคาเพื่อคืนความสงบให้เมืองริมน้ำแห่งสยามแฟนตาซี",
     },
     jobs: {
@@ -662,6 +729,9 @@
       Swordman: { name: "ผู้พิทักษ์สยาม" },
     },
     items,
+    itemCatalog,
+    dropTables,
+    dropSources,
     classes,
     weaponTypes,
     weaponSchools,

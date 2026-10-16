@@ -29,6 +29,10 @@
     selectedInventoryItem = "potion",
     inventoryCategory = "all",
     shopWeaponType = "",
+    codexTab = "world",
+    catalogCollection = "prototype",
+    catalogType = "all",
+    catalogSearch = "",
     shopVisit = false,
     guideVisit = false,
     lastFocus = null,
@@ -105,6 +109,10 @@
   }
   function loadSave(text) {
     const next = C.deserialize(text);
+    codexTab = "world";
+    catalogCollection = "prototype";
+    catalogType = "all";
+    catalogSearch = "";
     shopVisit = false;
     guideVisit = false;
     state = next;
@@ -266,9 +274,18 @@
   const icon = (id) => `<span class="item-icon" aria-hidden="true">${artIcon(id)}</span>`;
   const button = (act, label, id = "", extra = "") =>
     `<button data-act="${act}"${id ? ` data-id="${id}"` : ""} ${extra}>${label}</button>`;
+  const rarityNames = { common: "ธรรมดา", uncommon: "ไม่ธรรมดา", rare: "หายาก", boss: "เฉพาะบอส" };
+  const itemTypeNames = { weapon: "อาวุธ", armor: "เกราะ", head: "ศีรษะ", accessory: "เครื่องประดับ", use: "ของใช้", loot: "ของดรอป" };
+  const tierLabel = (tier) => tier ? `แนะนำ Lv.${(tier - 1) * 5 + 1}–${tier * 5}` : "";
+  const itemPrices = (id) => {
+    const buy = window.BCItemRules.buyPrice(id), sell = window.BCItemRules.sellPrice(id);
+    return `${buy === null ? "ไม่มีขายในร้าน" : `ซื้อ ${buy} ${world.currency}`} · ${sell ? `ขาย ${sell} ${world.currency}` : "ขายไม่ได้"}`;
+  };
   const itemMeta = (i) =>
     [
-      i.type === "head" ? "ศีรษะ" : "",
+      rarityNames[i.rarity] || "",
+      tierLabel(i.tier),
+      itemTypeNames[i.type] || "",
       weaponTypeName(i),
       i.type === "weapon" ? `${i.weaponType === classInfo(state).weaponType ? "สวมได้" : "ต้องเป็นอาชีพ"} · ${compatibleClasses(i.weaponType)}` : "",
       i.atk ? `ATK +${i.atk}` : "",
@@ -281,8 +298,33 @@
     ]
       .filter(Boolean)
       .join(" · ");
+  function sourceRows(id) {
+    const sources = window.BCItemRules.sourcesFor(id);
+    if (!sources.length) return '<p class="source-empty">ไอเทมเดิมที่เก็บไว้ · ยังไม่มีแหล่งรับเพิ่ม</p>';
+    return `<ul class="item-sources">${sources.map((source) => {
+      const quantity = source.min ? ` ×${source.min === source.max ? source.min : `${source.min}–${source.max}`}` : "";
+      const chance = typeof source.chance === "number" ? ` · ${Number((source.chance * 100).toFixed(2))}%${quantity}` : "";
+      const kind = { shop: "ร้านค้า", monster: "ดรอป", quest: "รับรางวัลภารกิจ", start: "เริ่มต้น" }[source.kind] || "แหล่งที่ได้";
+      return `<li class="${source.available ? "available" : "future-source"}"><span>${kind} · ${esc(source.name)}${chance}${source.firstClear ? " · ปราบครั้งแรก" : ""}</span>${source.available ? "" : '<em>ยังไม่เปิด</em>'}</li>`;
+    }).join("")}</ul>`;
+  }
+  const itemSources = (id) => `<details class="item-source-help"><summary>แหล่งที่ได้และโอกาสดรอป</summary>${sourceRows(id)}</details>`;
   const itemRow = (id, count, actions) =>
-    `<div class="item-row" data-item="${id}"${D.items[id].weaponType ? ` data-weapon-type="${D.items[id].weaponType}"` : ""}>${icon(id)}<div class="item-info"><b>${D.items[id].name}${count === null ? "" : ` <span class="subtle">×${count}</span>`}</b><small>${itemMeta(D.items[id])}</small></div><div class="item-actions">${actions}</div></div>`;
+    `<div class="item-row" data-item="${id}"${D.items[id].weaponType ? ` data-weapon-type="${D.items[id].weaponType}"` : ""}>${icon(id)}<div class="item-info"><b>${esc(D.items[id].name)}${count === null ? "" : ` <span class="subtle">×${count}</span>`}</b><small>${esc(itemMeta(D.items[id]))}</small><small class="item-prices">${esc(itemPrices(id))}</small>${itemSources(id)}</div><div class="item-actions">${actions}</div></div>`;
+  function itemCatalog() {
+    const ids = catalogCollection === "all" ? Object.keys(D.items) : D.itemCatalog[catalogCollection];
+    const query = catalogSearch.trim().toLocaleLowerCase("th");
+    const matches = ids.filter((id) => {
+      const item = D.items[id];
+      return (catalogType === "all" || item.type === catalogType) && (!query ||
+        [item.name, weaponTypeName(item), itemTypeNames[item.type], rarityNames[item.rarity],
+          ...window.BCItemRules.sourcesFor(id).map((s) => s.name)].join(" ").toLocaleLowerCase("th").includes(query));
+    });
+    return `<p class="panel-note">รายการพื้นฐาน 32 ชิ้น และอาวุธอัปเกรด · ช่วงเลเวลเป็นคำแนะนำ อาวุธใช้ตามประเภทประจำอาชีพ<br>แหล่งที่ระบุ “ยังไม่เปิด” เป็นพื้นที่ในอนาคต</p><div class="catalog-filters"><label for="catalog-collection">รายการ<select id="catalog-collection">${[["prototype", "ชุดพื้นฐาน 32 ชิ้น"], ["upgrades", "อาวุธอัปเกรด 6 ชิ้น"], ["all", "ทั้งหมดและของเดิม"]].map(([id, name]) => `<option value="${id}"${catalogCollection === id ? " selected" : ""}>${name}</option>`).join("")}</select></label><label for="catalog-type">ประเภท<select id="catalog-type"><option value="all">ทั้งหมด</option>${Object.entries(itemTypeNames).map(([id, name]) => `<option value="${id}"${catalogType === id ? " selected" : ""}>${name}</option>`).join("")}</select></label><label class="catalog-search" for="catalog-search">ค้นหาไอเทมหรือแหล่งที่ได้<input id="catalog-search" type="search" value="${esc(catalogSearch)}" placeholder="ชื่อไอเทม ประเภท หรือมอนสเตอร์" autocomplete="off"></label></div><p class="catalog-count" role="status">พบ ${matches.length} ชิ้น</p><div class="catalog-list">${matches.map((id) => {
+      const item = D.items[id];
+      return `<article class="catalog-card rarity-${item.rarity || "common"}" data-item="${id}">${icon(id)}<div class="item-info"><h3>${esc(item.name)}</h3><small>${esc(itemMeta(item))}</small><small class="item-prices">${esc(itemPrices(id))}</small>${sourceRows(id)}</div></article>`;
+    }).join("") || '<p class="catalog-empty">ไม่พบไอเทม ลองเปลี่ยนคำค้นหรือประเภท</p>'}</div>`;
+  }
   function optionsBinding(selected) {
     let opts = [
       ["", "ช่องว่าง"],
@@ -390,8 +432,9 @@
       if (selectedInventoryItem) {
         const id = selectedInventoryItem, i = D.items[id];
         let actions = i.type === "use" ? button("use", "ใช้", id) : equipmentTypes.includes(i.type) ? button("equip", "สวมใส่", id, C.equipReason(s, id) ? `disabled title="${esc(C.equipReason(s, id))}"` : "") : "";
-        const sellReason = i.sellable === false ? "อาวุธฝึกขายไม่ได้" : "";
-        actions += button("sell", sellReason || "ขาย " + Math.max(1, Math.floor(i.price / 2)) + " ◈", id, sellReason ? `disabled title="${esc(sellReason)}"` : "");
+        const sale = window.BCItemRules.sellPrice(id);
+        const sellReason = sale ? "" : "ไอเทมนี้ขายไม่ได้";
+        actions += button("sell", sellReason || `ขาย ${sale} ${esc(world.currency)}`, id, sellReason ? `disabled title="${esc(sellReason)}"` : "");
         html += `<div class="inventory-detail">${itemRow(id, s.inventory[id], "")}<div class="item-actions">${actions}</div>${equipmentTypes.includes(i.type) && C.equipReason(s,id) ? `<small class="shop-reason">${esc(C.equipReason(s,id))}</small>` : ""}</div>`;
       } else html += '<p class="empty">ไม่มีไอเทมในหมวดนี้</p>';
       html += `<p class="panel-note" style="margin-top:7px">เลือกไอเทมเพื่อใช้หรือสวมใส่ · ขายได้ใกล้${esc(npc("merchant").name)}<br>น้ำหนัก 50% หยุดฟื้น HP/SP · 90% ห้ามโจมตี</p>`;
@@ -428,7 +471,8 @@
       if (panel === "npc")
         html = `<p class="panel-note">${esc(npc("guide").dialogue)}</p>`;
       D.quests.forEach((q, i) => {
-        html += `<article class="quest-detail ${i < s.quest ? "done" : ""}"><div class="eyebrow">${i < s.quest ? "สำเร็จแล้ว" : i === s.quest ? "ภารกิจปัจจุบัน" : "บทต่อไป"} · 0${i + 1}</div><h3>${q.title}</h3><p>${q.text} (${Math.min(s.kills[q.kind] || 0, q.count)} / ${q.count})</p><p>รางวัล ${q.silver} ${esc(world.currency)} · ${q.exp} EXP</p>${i === s.quest ? button("quest", s.questActive ? `รับรางวัลจาก${esc(npc("guide").name)}` : `รับภารกิจจาก${esc(npc("guide").name)}`) : i < s.quest ? "✓ สำเร็จแล้ว" : ""}</article>`;
+        const rewards = Object.entries(q.items || {});
+        html += `<article class="quest-detail ${i < s.quest ? "done" : ""}"><div class="eyebrow">${i < s.quest ? "สำเร็จแล้ว" : i === s.quest ? "ภารกิจปัจจุบัน" : "บทต่อไป"} · 0${i + 1}</div><h3>${q.title}</h3><p>${q.text} (${Math.min(s.kills[q.kind] || 0, q.count)} / ${q.count})</p><p>รางวัล ${q.silver} ${esc(world.currency)} · ${q.exp} EXP</p>${rewards.length ? `<div class="quest-item-rewards">${rewards.map(([id, count]) => `<span data-item="${id}">${icon(id)}${esc(D.items[id].name)} ×${count}</span>`).join("")}</div>` : ""}${i === s.quest ? button("quest", s.questActive ? `รับรางวัลจาก${esc(npc("guide").name)}` : `รับภารกิจจาก${esc(npc("guide").name)}`) : i < s.quest ? "✓ สำเร็จแล้ว" : ""}</article>`;
       });
       if (s.quest >= D.quests.length)
         html +=
@@ -450,13 +494,14 @@
         html += `<section class="shop-section" data-slot="${type}" aria-labelledby="shop-title-${type}"><div class="shop-title" id="shop-title-${type}">${title}</div>`;
         if (type === "weapon") html += `<div class="shop-filter"><label for="shop-weapon-type">ประเภทอาวุธ</label><select id="shop-weapon-type"><option value="">ทั้งหมด</option>${Object.entries(D.weaponTypes || {}).filter(([id]) => id !== "training").map(([id, weapon]) => `<option value="${id}"${shopWeaponType === id ? " selected" : ""}>${esc(weapon.name)}</option>`).join("")}</select></div>`;
         for (const [id, d] of Object.entries(D.items)) {
-          if (d.shop === false || d.type !== type || (type === "weapon" && shopWeaponType && d.weaponType !== shopWeaponType)) continue;
-          const reason = !near ? location : s.silver < d.price
+          const price = window.BCItemRules.buyPrice(id);
+          if (price === null || d.type !== type || (type === "weapon" && shopWeaponType && d.weaponType !== shopWeaponType)) continue;
+          const reason = !near ? location : s.silver < price
             ? `${world.currency}ไม่เพียงพอ`
             : st.weight + d.weight > st.capacity ? "น้ำหนักเกินความจุ" : "";
           const unavailable = reason ? `disabled title="${esc(reason)}"` : "";
           const explanation = near && reason ? `<small class="shop-reason">${esc(reason)}</small>` : "";
-          html += itemRow(id, null, button("buy", `ซื้อ · ${d.price} ${esc(world.currency)}`, id, unavailable) + explanation);
+          html += itemRow(id, null, button("buy", `ซื้อ · ${price} ${esc(world.currency)}`, id, unavailable) + explanation);
         }
         html += "</section>";
       }
@@ -478,12 +523,18 @@
       html = `<p class="panel-note">ความคืบหน้าเก็บในเบราว์เซอร์และที่อยู่ที่เล่นนี้ ใช้ Export เพื่อย้ายเครื่องหรือสำรองเซฟ</p><div class="settings-row"><label for="hair-select">สีผมของนักผจญภัย</label><select id="hair-select">${["น้ำตาล", "ทองเข้ม", "ดำ", "แดงอิฐ", "ทองอ่อน", "เทาอมฟ้า"].map((n, i) => `<option value="${i}" ${s.settings.hair === i ? "selected" : ""}>${n}</option>`).join("")}</select></div><div class="settings-actions">${button("save", "บันทึกเกม")}${button("export", "Export Save")}${button("import", "Import Save")}</div><p class="panel-note">ใช้เซฟเดิมต่อในโลก${esc(world.title)}ได้ • อาวุธ หมวก อาชีพ และภารกิจเดิมยังอยู่ครบ</p><hr class="section-rule"><p class="panel-note">เริ่มต้นการผจญภัยใหม่จะล้างความคืบหน้าปัจจุบัน ควร Export ไว้ก่อน</p>${button("reset", "เริ่มเกมใหม่", "", 'class="danger"')}`;
     }
     if (panel === "codex") {
-      html =
-        `<p class="panel-note">${esc(world.intro)}</p><p class="panel-note">สิ่งมีชีวิตแห่งลุ่มน้ำและป่าหิมพานต์ · สมดุลสำหรับการผจญภัยคนเดียว</p>`;
-      for (const [id, m] of Object.entries(D.monsters))
-        html += `<div class="item-row" data-monster="${id}"><span class="item-icon" style="color:${m.color}">${m.boss ? "◆" : "●"}</span><div class="item-info"><b>${m.name} · Lv.${m.level}</b><small>HP ${m.hp} · ${m.attackMagic ? "MATK" : "ATK"} ${m.atk} · DEF ${m.def} / MDEF ${m.mdef}<br>โจมตี${m.attackMagic ? "เวท · ป้องกันด้วย MDEF" : "กายภาพ · ป้องกันด้วย DEF"}<br>EXP ${m.exp} / Job EXP ${m.jexp} · ของดรอป ${D.items[m.drop].name}<br>${esc(m.description)}</small></div></div>`;
-      html +=
-        '<button data-open="map" class="outline-button">ดูเส้นทางทั้งสามแผนที่ →</button>';
+      html = `<div class="codex-tabs" aria-label="หมวดคู่มือ">${[["world", "โลกและมอนสเตอร์"], ["items", "สารานุกรมไอเทม"]].map(([id, name]) => `<button data-codex-tab="${id}" aria-pressed="${codexTab === id}">${name}</button>`).join("")}</div>`;
+      if (codexTab === "items") html += itemCatalog();
+      else {
+        html += `<p class="panel-note">${esc(world.intro)}</p><p class="panel-note">สิ่งมีชีวิตแห่งลุ่มน้ำและป่าหิมพานต์ · สมดุลสำหรับการผจญภัยคนเดียว</p>`;
+        for (const [id, m] of Object.entries(D.monsters)) {
+          const drops = Object.keys(D.items).flatMap((itemId) => window.BCItemRules.sourcesFor(itemId)
+            .filter((source) => source.kind === "monster" && source.available && source.name === m.name)
+            .map((source) => `${esc(D.items[itemId].name)} ${Number((source.chance * 100).toFixed(2))}% ×${source.min === source.max ? source.min : `${source.min}–${source.max}`}`));
+          html += `<div class="item-row" data-monster="${id}"><span class="item-icon" style="color:${m.color}">${m.boss ? "◆" : "●"}</span><div class="item-info"><b>${esc(m.name)} · Lv.${m.level}</b><small>HP ${m.hp} · ${m.attackMagic ? "MATK" : "ATK"} ${m.atk} · DEF ${m.def} / MDEF ${m.mdef}<br>โจมตี${m.attackMagic ? "เวท · ป้องกันด้วย MDEF" : "กายภาพ · ป้องกันด้วย DEF"}<br>EXP ${m.exp} / Job EXP ${m.jexp}<br>${esc(m.description)}</small><details class="item-source-help"><summary>ของดรอปและโอกาสได้รับ</summary><small>${drops.join("<br>")}</small></details></div></div>`;
+        }
+        html += '<button data-open="map" class="outline-button">ดูเส้นทางทั้งสามแผนที่ →</button>';
+      }
     }
     if (panel === "map")
       html =
@@ -735,6 +786,12 @@
   document.addEventListener("click", (event) => {
     const b = event.target.closest("button");
     if (!b) return;
+    if (b.dataset.codexTab) {
+      codexTab = b.dataset.codexTab === "items" ? "items" : "world";
+      renderPanel();
+      $("side-panel").querySelector(`[data-codex-tab="${codexTab}"]`)?.focus({ preventScroll: true });
+      return;
+    }
     if (b.dataset.chooseItem) {
       selectedInventoryItem = b.dataset.chooseItem;
       renderPanel();
@@ -813,7 +870,12 @@
   });
   document.addEventListener("change", (event) => {
     const el = event.target;
-    if (el.id === "shop-weapon-type") {
+    if (el.id === "catalog-type" || el.id === "catalog-collection") {
+      if (el.id === "catalog-type") catalogType = Object.hasOwn(itemTypeNames, el.value) ? el.value : "all";
+      else catalogCollection = ["prototype", "upgrades", "all"].includes(el.value) ? el.value : "prototype";
+      renderPanel();
+      $(el.id).focus({ preventScroll: true });
+    } else if (el.id === "shop-weapon-type") {
       shopWeaponType = Object.hasOwn(D.weaponTypes || {}, el.value) ? el.value : "";
       renderPanel();
       $("shop-weapon-type").focus({ preventScroll: true });
@@ -834,6 +896,15 @@
     } else if (el.id === "auto-potion")
       state.settings.autoPotion = Number(el.value);
     else if (el.id === "auto-skill") state.settings.autoSkill = el.checked;
+  });
+  document.addEventListener("input", (event) => {
+    const el = event.target;
+    if (el.id !== "catalog-search") return;
+    catalogSearch = el.value;
+    const position = el.selectionStart;
+    renderPanel();
+    $("catalog-search").focus({ preventScroll: true });
+    if (position !== null) $("catalog-search").setSelectionRange(position, position);
   });
   $("import-file").addEventListener("change", async (event) => {
     const file = event.target.files[0];

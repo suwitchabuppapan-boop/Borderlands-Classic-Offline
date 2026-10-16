@@ -3,6 +3,7 @@
   const D =
     typeof module === "object" ? require("./classic-data.js") : root.BCData;
   const Rules = typeof module === "object" ? require("./stat-rules.js") : root.BCStatRules;
+  const Items = typeof module === "object" ? require("./item-rules.js") : root.BCItemRules;
   const Combat = typeof module === "object" ? require("./class-combat.js") : root.BCClassCombat;
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -207,7 +208,7 @@
     m.dead = d.boss ? 25 : 10;
     s.kills[m.kind] = (s.kills[m.kind] || 0) + 1;
     s.silver += d.silver;
-    s.inventory[d.drop] = (s.inventory[d.drop] || 0) + 1;
+    for (const row of Items.rollDrops(m.kind, () => random(s))) s.inventory[row.item] = (s.inventory[row.item] || 0) + row.qty;
     gain(s, d.exp, d.jexp);
     note(s, `${d.name} • +${d.exp} EXP · +${d.silver} ${D.world.currency}`);
     effect(s, m.x, m.y, `+${d.exp} EXP`, "#e5d79c");
@@ -343,18 +344,22 @@
       if (typeof p.id !== "string" || !own(D.items, p.id)) return fail("ไม่พบไอเทม");
       const i = D.items[p.id];
       if (action === "buy") {
-        if (i.type === "loot" || i.shop === false) return fail("ร้านไม่ขายไอเทมนี้");
-        if (s.silver < i.price * qty) return fail(`${D.world.currency}ไม่เพียงพอ`);
+        const price = Items.buyPrice(p.id);
+        if (price === null) return fail("ร้านไม่ขายไอเทมนี้");
+        if (s.silver < price * qty) return fail(`${D.world.currency}ไม่เพียงพอ`);
+        if ((s.inventory[p.id] || 0) + qty > 100000) return fail("ไอเทมชนิดนี้เต็มกระเป๋าแล้ว");
         if (st.weight + i.weight * qty > st.capacity)
           return fail("น้ำหนักเกินความจุ");
-        s.silver -= i.price * qty;
+        s.silver -= price * qty;
         s.inventory[p.id] = (s.inventory[p.id] || 0) + qty;
       } else {
-        if (i.sellable === false) return fail("ขายไอเทมฝึกถาวรไม่ได้");
+        const price = Items.sellPrice(p.id);
+        if (!price) return fail("ขายไอเทมนี้ไม่ได้");
         if ((s.inventory[p.id] || 0) < qty) return fail("จำนวนไอเทมไม่เพียงพอ");
+        if (s.silver + price * qty > 100000000) return fail("จำนวนอัฐเต็มแล้ว");
         s.inventory[p.id] -= qty;
         if (!s.inventory[p.id]) delete s.inventory[p.id];
-        s.silver += Math.max(1, Math.floor(i.price / 2)) * qty;
+        s.silver += price * qty;
       }
       return ok(`${action === "buy" ? "ซื้อ" : "ขาย"} ${i.name} ×${qty}`);
     }
@@ -448,7 +453,11 @@
         return ok(`รับภารกิจ: ${q.title}`);
       }
       if ((s.kills[q.kind] || 0) < q.count) return fail("ยังทำภารกิจไม่ครบ");
+      for (const [id, qty] of Object.entries(q.items || {})) {
+        if ((s.inventory[id] || 0) + qty > 100000) return fail(`${D.items[id].name}เต็มกระเป๋าแล้ว • ขายบางส่วนก่อนรับรางวัล`);
+      }
       s.silver += q.silver;
+      for (const [id, qty] of Object.entries(q.items || {})) s.inventory[id] = (s.inventory[id] || 0) + qty;
       gain(s, q.exp, q.exp);
       s.quest++;
       s.questActive = false;
