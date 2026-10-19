@@ -193,17 +193,39 @@
     else if(id==="moon_venom"){line(c,"#a9d894",2,[[30,0],[37,7],[42,2]]);disc(c,43,2,3,"#bee3a0");}
     else if(id==="tiger_rend"){for(let i=0;i<3;i++)line(c,"#eea0a0",1,[[21+i*8,-18],[15+i*8,18]]);}
   }
+  function critical(c,x,y,p) {
+    const radius=22+p*14, reach=29+p*8, half=5.8*(1-p*.4);
+    // Tapered crossed cuts have a solid silhouette over the monster sprite.
+    for(const a of [-Math.PI/4,Math.PI/4]) {
+      const cos=Math.cos(a),sin=Math.sin(a);
+      for(const [length,width,color] of [[reach,half,"#e34c43"],[reach*.88,half*.38,"#fff1b0"]]) {
+        c.fillStyle=color;c.beginPath();
+        [[-length,0],[0,-width],[length,0],[0,width]].forEach(([dx,dy],i)=>{
+          const px=x+dx*cos-dy*sin,py=y+dx*sin+dy*cos;
+          if(i)c.lineTo(px,py);else c.moveTo(px,py);
+        });
+        c.closePath();c.fill();
+      }
+    }
+    circle(c,x,y,radius,"#ffcb68",2.3);
+    circle(c,x,y,radius*.79,"#e34c43",1.2);
+    for(let i=0;i<8;i++) {
+      const a=i*TAU/8,inner=radius+3,outer=inner+5+p*3;
+      line(c,i%2?"#fff1b0":"#ef7350",1.8,[[x+Math.cos(a)*inner,y+Math.sin(a)*inner],[x+Math.cos(a)*outer,y+Math.sin(a)*outer]]);
+    }
+    disc(c,x,y,2.5*(1-p*.5),"#fff1b0");
+  }
   function impact(c,e) {
     const p=e.age/e.duration, q=weaponProfiles[e.weaponType], crit=e.result==="crit"&&!e.magic;
-    const x=e.target.x,y=e.target.y-16,r=(crit?13:8)+p*9;
+    const x=e.target.x,y=e.target.y-16,r=8+p*9;
     const color=e.phase==="dot"?(e.skillId==="moon_venom"?"#bde29e":"#ef9b9b"):q.light;
     if(e.phase==="trap") {coil(c,x,y,15+p*8,p);return;}
-    for(let i=0;i<(crit?8:5);i++) {
-      const a=i*TAU/(crit?8:5)+.2;
-      line(c,color,crit?2:1.5,[[x+Math.cos(a)*r*.48,y+Math.sin(a)*r*.48],[x+Math.cos(a)*r,y+Math.sin(a)*r]]);
+    if(crit){critical(c,x,y,p);return;}
+    for(let i=0;i<5;i++) {
+      const a=i*TAU/5+.2;
+      line(c,color,1.5,[[x+Math.cos(a)*r*.48,y+Math.sin(a)*r*.48],[x+Math.cos(a)*r,y+Math.sin(a)*r]]);
     }
-    if(crit){diamond(c,x,y,r*.8,"#fff3b8",1.4);circle(c,x,y,r*1.05,"#efd595",1);}
-    else if(e.magic)circle(c,x,y,r*.7,q.color,1);
+    if(e.magic)circle(c,x,y,r*.7,q.color,1);
   }
   function persistentFront(c,s) {
     const cs=s?.classCombat, player=s?.player;
@@ -246,7 +268,10 @@
     events(s,e=>{
       if(e.kind==="impact"&&!["hit","crit"].includes(e.result))return;
       if(e.kind==="skill"&&!own(skillProfiles,e.skillId))return;
-      saved(c,Math.sin(Math.PI*(.15+.85*(1-e.age/e.duration)))*.9,()=>{
+      const alpha=e.kind==="impact"&&e.result==="crit"&&!e.magic
+        ? .96*Math.pow(1-e.age/e.duration,.65)
+        : Math.sin(Math.PI*(.15+.85*(1-e.age/e.duration)))*.9;
+      saved(c,alpha,()=>{
         if(e.kind==="impact")impact(c,e);
         else if(e.kind==="skill")signature(c,e);
         else weapon(c,e);

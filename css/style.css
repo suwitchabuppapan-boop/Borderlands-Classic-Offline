@@ -269,11 +269,12 @@ h1 { font-size: 12px; margin: 0; }
 .skills-tabs { display: flex; gap: 5px; margin-bottom: 9px; }
 .skills-tabs button { flex: 1; font-size: 11px; }
 .skills-tabs [aria-selected="true"] { background: #788d73; border-color: #e1c78f; }
-.skill-tree-family { margin: 12px 0 16px; }
+.skill-tree-path { display: grid; gap: 12px; margin: 10px 0; }
 .skill-tree-node { min-width: 0; padding: 7px; border: 1px solid #99a98b80; border-radius: 4px; background: #294c4760; overflow-wrap: anywhere; }
 .skill-tree-node[data-state="own"] { border-color: #e1c78f; background: #5b725b70; }
 .skill-tree-node[data-state="inherited"] { border-color: #a8c49c; }
-.skill-tree-node[data-state="locked"] { border-style: dashed; }
+.skill-tree-path .skill-tree-node + .skill-tree-node { position: relative; }
+.skill-tree-path .skill-tree-node + .skill-tree-node::before { content: ""; position: absolute; height: 12px; top: -13px; left: 14px; border-left: 1px solid #a8b28b; }
 .skill-tree-class { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; column-gap: 5px; font-size: 10px; }
 .skill-tree-class b { font-weight: normal; color: #e1c78f; }
 .skill-tree-state { font-size: 9px; color: #d1dac9; }
@@ -285,9 +286,6 @@ h1 { font-size: 12px; margin: 0; }
 .skill-tree-meta { color: #d3e0d0; }
 .skill-tree-description { color: #d7ddce; }
 .skill-tree-requirement { color: #e1c78f; }
-.skill-tree-children { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 10px 0 0 9px; padding-left: 8px; border-left: 1px solid #a8b28b; }
-.skill-tree-children::before { content: ""; position: absolute; top: 0; left: 0; width: 8px; border-top: 1px solid #a8b28b; }
-.skill-tree-children .skill-tree-node { display: flex; flex-direction: column; }
 .skill-tree-learn { display: flex; align-items: center; gap: 5px; margin-top: auto; padding-top: 4px; }
 .skill-tree-learn button { flex-shrink: 0; font-size: 10px; padding: 3px 7px; }
 .skill-tree-learn small { font-size: 9px; line-height: 1.5; color: #d7ddce; }
