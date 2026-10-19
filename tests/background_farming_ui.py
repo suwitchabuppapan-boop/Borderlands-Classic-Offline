@@ -74,6 +74,24 @@ async def run_checks(page, artifacts=None):
     await page.reload()
     await page.wait_for_function("window.BCGame && BCRender.assets.ready")
     assert await page.evaluate("!BCGame.state.auto && !BCGame.state.autoQuest?.active && BCGame.state.clock<1")
+    # A long suspended interval is replayed in chunks. Purchases cannot modify
+    # the start of that historical interval, and are not silently queued.
+    gate=await page.evaluate("""()=>{
+      const fresh=BCCore.createState();Object.assign(fresh.player,{x:170,y:365});
+      BCGame.loadSave(BCCore.serialize(fresh));BCGame.openPanel('shop');
+      window.__beforeCatchupNow=Date.now;const future=Date.now()+3600000;Date.now=()=>future;
+      document.querySelector('[data-act="buy"][data-id="potion"]').click();
+      return{silver:BCGame.state.silver,potions:BCGame.state.inventory.potion,
+        clock:BCGame.state.clock,behind:!document.getElementById('pause-banner').hidden};
+    }""")
+    assert gate["behind"] and gate["silver"]==45 and gate["potions"]==5,gate
+    assert 59<=gate["clock"]<=61,gate
+    await page.wait_for_function("document.getElementById('pause-banner').hidden && BCGame.state.clock>=3599.9")
+    assert await page.evaluate("BCGame.state.silver===45 && BCGame.state.inventory.potion===5")
+    await page.locator('[data-act="buy"][data-id="potion"]').click()
+    assert await page.evaluate("BCGame.state.silver===33 && BCGame.state.inventory.potion===6")
+    await page.evaluate("Date.now=__beforeCatchupNow;BCGame.loadSave(BCCore.serialize(BCCore.createState()))")
+    await page.keyboard.press("Escape")
     # Fault injection: a denied/quota-full autosave must retain its 10s attempt
     # cadence rather than retrying serialization/storage on every RAF frame.
     await page.evaluate("""()=>{
@@ -88,4 +106,4 @@ async def run_checks(page, artifacts=None):
     assert failed_attempts == 1,("failed autosave must not retry every frame",failed_attempts)
     await page.screenshot(path=str(output/"continuous-farming.png"))
     return {"menu_kills_and_loot":loot,"frozen_wall_seconds":elapsed,"replayed_simulation_seconds":simulated,
-      "checks":["target retained","menu ticks and real kills/loot","blur ticks","actual page freeze catchup","no duplicate RAF/interval time","manual keys released","save/reload epoch","failed autosave cadence"]}
+      "checks":["target retained","menu ticks and real kills/loot","blur ticks","actual page freeze catchup","no duplicate RAF/interval time","manual keys released","save/reload epoch","hour backlog mutation gate","failed autosave cadence"]}

@@ -11,7 +11,15 @@ User scope: show only the current class and inherited skills; make physical crit
 - Chromium checks actual kills/loot while the inventory popup remains open, continued time/auto intent on blur, actual CDP page freezing and elapsed catchup, RAF/interval time equality, manual-key release and save/reload epoch. A targeted denied-storage fixture confirms autosave attempts retain their 10s cadence. Regression evidence: the old menu froze time; backward clock overlap failed before the high-water correction; failed autosaves retried 17 times per 250ms before the cadence fix, once afterward.
 - Independent review identified the backward-time and failed-autosave issues; both are fixed and verified. No unresolved Important/Critical runtime findings remain. Python compilation and `git diff --check` pass.
 
-Keep the page open for background farming. Browsers/OS may suspend hidden or minimized pages; actual elapsed work is reconciled through the engine on resume. Closing or reloading grants no offline rewards and does not restart Auto. Direct file startup and Windows START.bat remain untested on an actual Windows machine. Public verification follows publication; previous 1.13 evidence is retained below as history.
+Keep the page open for background farming. Browsers/OS may suspend hidden or minimized pages; actual elapsed work is reconciled through the engine on resume. Closing or reloading grants no offline rewards and does not restart Auto. Direct file startup and Windows START.bat remain untested on an actual Windows machine. Previous 1.13 evidence is retained below as history.
+
+### Published 1.14
+
+- Pages commit `d80cad97f97dff46dfb1db6a024018665cec30d0` completed with **built** status and a successful deployment workflow. It changes six runtime text files, including the new clock, and preserves all image bytes.
+- `python3 scripts/release_site.py verify-public --stage /workspace/combat114/release-1.14 --out /workspace/combat114/public-1.14` — **45/45 public content files match staged bytes**, with normal HTTPS certificate/hostname verification. Index SHA-256: `49939c7ef21d606e2bd9fa5e4e6fe2168c002a3214989a5ad320437af33c3e20`.
+- `python3 scripts/test_browser.py --public-cache /workspace/combat114/public-1.14 --artifacts /workspace/combat114/browser-public` — **4 suites passed, 0 failed**, with zero page errors, failed requests, HTTP errors or unknown cache requests. The runner uses exactly the TLS-fetched public bytes at their original Pages origin; it does not substitute local runtime or disable HTTPS verification.
+- Added a further real-browser hour-backlog check: a purchase during pending replay is rejected without changing money/items, the full hour is replayed in bounded chunks, and a fresh purchase succeeds after settlement. This targeted check passes locally and against the verified public bytes, with no resource/runtime errors (`backlog-gate-local` and `backlog-gate-public` artifacts).
+- Runtime/source archives contain 46/76 files, respectively, with CRC and extracted bytes verified and SHA-256 manifests. Source is pushed on `codex/siam-arun-combat-effects` and retained in draft PR #2; main remains unmerged. Cloud startup instructions were saved for 1.14/four suites/119 Node tests without install, credential or network changes.
 
 ## Historical 1.13 verification — 2026-10-19
 
