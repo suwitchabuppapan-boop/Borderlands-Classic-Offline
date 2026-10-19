@@ -20,8 +20,8 @@ Workers own disjointfiles, no commits/publish/spawn. Allmodules contracts in spe
 ## Progress
 
 - [x] Recover published1.12 and preserve clean baseline.
-- [ ] Coreevents and baselineparity.
-- [ ] DirectionalCanvas and realpixelacceptance.
-- [ ] Class-specific current/tree UI and reallearning.
-- [ ] Baselinegameplay, fulltests and independentreview.
-- [ ] Publish1.13, publicreplay, durable sourcebranch/archive.
+- [x] Core events and baseline parity: 46 tests and 15,092 exact checkpoints.
+- [x] Directional Canvas and real pixel acceptance: 13 tests, 48 directional cases, 15 signatures.
+- [x] Class-specific current/tree UI and real learning: 22 tests and all 16 class identities in Chromium.
+- [x] Baseline gameplay, 109 full Node tests and independent review; 3 local browser suites pass.
+- [x] Publish 1.13, verify all 44 public content files and replay 3 browser suites; source branch and draft PR #2 preserved with deterministic archives.
