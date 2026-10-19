@@ -4,7 +4,9 @@ A single-player Thai fantasy browser RPG. Start as a villager, choose one of fiv
 
 Play: https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/
 
-Version **1.14** shows only your current class and inherited skills in **สกิล → ผังสกิลอาชีพ**, with shared First Aid and learned legacy skills kept separately. True physical criticals now produce visible red/gold crossed slashes, rings and sparks. Auto Battle and Auto Quest continue while in-game menus are open or the window loses focus. Weapon/skill effects, combat powers, SP costs, cooldowns, loot and save compatibility retain their existing rules.
+Version **1.15** redraws all 11 weapon families and 15 class skills in an original classic Siam fantasy style: filled blade trails, ivory cores, lotus petals, jade fragments, scripture and Naga snares. Effects have distinct release/impact/dissipation shapes, with readable physical criticals and timer-driven wards, charges and DOT marks.
+
+**สกิล → ผังสกิลอาชีพ** shows only the current class and its inherited skills, with shared First Aid and learned legacy skills separate. Auto Battle and Auto Quest keep running through in-game menus and focus changes. Combat powers, SP costs, cooldowns, loot and save compatibility retain their existing rules.
 
 ## Run and test
 

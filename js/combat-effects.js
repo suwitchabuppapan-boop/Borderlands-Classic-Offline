@@ -1,284 +1,144 @@
-/* Original Siam combat geometry. Cosmetic only: reads simulation snapshots and timers. */
-(function (root) {
+/* Original classic Siam combat VFX. Reads snapshots/timers; never changes gameplay. */
+(function(root){
   "use strict";
-  const D = typeof module === "object" ? require("./classic-data.js") : root.BCData;
-  const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
-  const TAU = Math.PI * 2, MAX_EVENTS = 64;
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const finite = v => Number.isFinite(v);
-  const point = p => p && finite(p.x) && finite(p.y) && Math.abs(p.x) <= 10000 && Math.abs(p.y) <= 10000;
-  const weaponProfiles = Object.freeze(Object.fromEntries([
-    ["training", "Practice stroke", "#d9d4bd", "#f2edda"],
-    ["sword", "Dha crescent", "#dfad52", "#fff2bd"],
-    ["dual_sword", "Crossed royal cuts", "#e7c46b", "#fff0c2"],
-    ["sword_shield", "Guardian glint", "#e4bd66", "#e7f6ec"],
-    ["staff", "Lotus bolt", "#d7a0e7", "#fff1bd"],
-    ["orb", "Jade discharge", "#70cfed", "#ffe5a2"],
-    ["book", "Scripture glyph", "#90d9a4", "#f8df99"],
-    ["knuckle", "Garuda sparks", "#f1b866", "#fff2cc"],
-    ["dagger", "Moon kris", "#bc9be9", "#eee6ff"],
-    ["claw", "Tiger rakes", "#db6b7a", "#ffd2b3"],
-    ["bow", "Forest arrow", "#d8cba0", "#fff6d7"],
-    ["magic_bow", "Arcane arrow", "#b89aea", "#a9f6ed"]
-  ].map(([id,name,color,light])=>[id,Object.freeze({name,color,light})])));
-  const skillProfiles = Object.freeze(Object.fromEntries([
-    ["arun_slash","Sunrise arc"], ["lotus_bolt","Lotus bolt"], ["ward_script","Protective glyph"],
-    ["quick_stab","Narrow kris stab"], ["aimed_shot","Focused arrow"], ["royal_flurry","Triple crossed cuts"],
-    ["shield_counter","Shield counter"], ["lotus_storm","Floral storm"], ["orb_burst","Charged discharge"],
-    ["sanctuary","Healing scripture"], ["garuda_combo","Double Garuda punch"], ["moon_venom","Poison sting"],
-    ["tiger_rend","Crimson rend"], ["naga_trap","Naga coil"], ["arcane_volley","Magical volley"]
-  ].map(([id,name])=>[id,Object.freeze({name,radius:D.skills[id].radius || 0})])));
-  const angle = facing => [Math.PI / 2, 0, -Math.PI / 2, Math.PI][facing];
-  function stroke(c, color, width, paint) {
-    c.strokeStyle=color; c.lineWidth=width; c.beginPath(); paint(); c.stroke();
+  const D=typeof module==="object"?require("./classic-data.js"):root.BCData;
+  const P=typeof module==="object"?require("./vfx-painter.js"):root.BCVFXPainter;
+  const W=typeof module==="object"?require("./vfx-weapons.js"):root.BCWeaponVFX;
+  const S=typeof module==="object"?require("./vfx-skills.js"):root.BCSkillVFX;
+  const TAU=Math.PI*2,MAX_EVENTS=64,IVORY="#fff1d0";
+  const own=(o,k)=>!!o&&typeof k==="string"&&Object.prototype.hasOwnProperty.call(o,k);
+  const finite=Number.isFinite,point=p=>p&&finite(p.x)&&finite(p.y)&&Math.abs(p.x)<=10000&&Math.abs(p.y)<=10000;
+  const phase=value=>value%TAU;
+  function active(e){
+    return e&&["attack","skill","impact"].includes(e.kind)&&point(e.source)&&point(e.target)
+      &&Number.isInteger(e.facing)&&e.facing>=0&&e.facing<4&&finite(e.age)&&e.age>=0
+      &&finite(e.duration)&&e.duration>0&&e.age<e.duration&&own(W.profiles,e.weaponType);
   }
-  function line(c, color, width, points) {
-    stroke(c,color,width,()=>points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y)));
+  function events(s,paint){
+    const list=s?.combatFeedback?.events;if(!Array.isArray(list))return;
+    for(let i=Math.max(0,list.length-MAX_EVENTS);i<list.length;i++)if(active(list[i]))paint(list[i]);
   }
-  function circle(c,x,y,r,color,width=1) { stroke(c,color,width,()=>c.arc(x,y,r,0,TAU)); }
-  function disc(c,x,y,r,color) { c.fillStyle=color; c.beginPath(); c.arc(x,y,r,0,TAU); c.fill(); }
-  function diamond(c,x,y,r,color,width=1) { line(c,color,width,[[x,y-r],[x+r*.65,y],[x,y+r],[x-r*.65,y],[x,y-r]]); }
-  function spark(c,x,y,r,color) {
-    line(c,color,1.3,[[x-r,y],[x+r,y]]); line(c,color,1.3,[[x,y-r],[x,y+r]]);
-    diamond(c,x,y,r*.55,color);
+  function serpent(c,x,y,r,t){
+    const path=[];
+    for(let i=0;i<=14;i++){const a=-.5+i*TAU*.88/14;const d=r*(.72+.07*Math.sin(t+i*.6));path.push([x+Math.cos(a)*d,y+Math.sin(a)*d]);}
+    P.withSaved(c,.2,()=>P.ribbon(c,path,6,"#94bd7c","#a8d390"));
+    P.ribbon(c,path,2.7,"#8bb77a","#e4d196");
+    const last=path[path.length-1];P.petal(c,last[0],last[1]+4,9,1.4,"#8ebd83",IVORY);
+    P.glowDot(c,last[0]+1,last[1]-1,1,"#edca7d",IVORY);
   }
-  function lotus(c,x,y,r,color,light) {
-    for(let i=0;i<5;i++) {
-      const a=-Math.PI/2+(i-2)*.48;
-      stroke(c,color,1.35,()=>{ c.moveTo(x,y+r*.35); c.quadraticCurveTo(x+Math.cos(a-.4)*r*1.25,y+Math.sin(a-.4)*r*1.25,x+Math.cos(a)*r,y+Math.sin(a)*r); c.quadraticCurveTo(x+Math.cos(a+.4)*r*1.25,y+Math.sin(a+.4)*r*1.25,x,y+r*.35); });
-    }
-    disc(c,x,y,r*.18,light);
-  }
-  function glyph(c,x,y,r,color,light) {
-    diamond(c,x,y,r,color,1.4); diamond(c,x,y,r*.65,light);
-    line(c,light,1,[[x-r*.22,y-r*.4],[x+r*.22,y-r*.4],[x+r*.22,y+r*.4],[x-r*.22,y+r*.4]]);
-  }
-  function shield(c,x,y,r,color,light) {
-    const p=[[x-r*.7,y-r],[x+r*.7,y-r],[x+r*.7,y+r*.15],[x,y+r],[x-r*.7,y+r*.15],[x-r*.7,y-r]];
-    line(c,color,3,p); line(c,light,1,p); line(c,light,1.3,[[x,y-r*.65],[x,y+r*.55]]);
-    line(c,light,1.3,[[x-r*.4,y-r*.1],[x+r*.4,y-r*.1]]);
-  }
-  function crescent(c,r,offset,color,light,p=0) {
-    const start=-1.2+p*.25, end=1.1+p*.25;
-    stroke(c,color,4,()=>c.arc(5,offset,r,start,end));
-    stroke(c,light,1.2,()=>c.arc(5,offset,r-1,start+.07,end-.1));
-  }
-  function arrow(c,x,y,color,light,scale=1) {
-    line(c,color,2,[[x-25*scale,y],[x+5*scale,y]]);
-    line(c,light,1,[[x-24*scale,y-1],[x+4*scale,y-1]]);
-    line(c,light,1.8,[[x-2*scale,y-4*scale],[x+5*scale,y],[x-2*scale,y+4*scale]]);
-    line(c,color,1.4,[[x-20*scale,y-4*scale],[x-15*scale,y],[x-20*scale,y+4*scale]]);
-  }
-  function coil(c,x,y,r,p=0) {
-    circle(c,x,y,r,"#8fce9890",1.1);
-    stroke(c,"#b5e7a9",2,()=>{for(let i=0;i<=40;i++){const a=i/40*TAU*1.8; const d=r*(.25+.65*i/40); const px=x+Math.cos(a+p)*d,py=y+Math.sin(a+p)*d; if(i)c.lineTo(px,py);else c.moveTo(px,py);}});
-    diamond(c,x+r*.84,y,r*.14,"#ffe4a1",1.2);
-  }
-  function activeEvent(e) {
-    return !!e && ["attack","skill","impact"].includes(e.kind) && point(e.source) && point(e.target)
-      && Number.isInteger(e.facing) && e.facing>=0 && e.facing<4 && finite(e.age) && finite(e.duration)
-      && e.age>=0 && e.duration>0 && e.age<e.duration && own(weaponProfiles,e.weaponType);
-  }
-  function events(s,paint) {
-    const list=s?.combatFeedback?.events;
-    if(!Array.isArray(list))return;
-    for(let i=Math.max(0,list.length-MAX_EVENTS);i<list.length;i++) if(activeEvent(list[i]))paint(list[i]);
-  }
-  function saved(c,alpha,paint) {
-    c.save();
-    try { c.globalAlpha=alpha; c.lineCap="round"; c.lineJoin="round"; paint(); }
-    finally { c.restore(); }
-  }
-  function zone(c,e) {
-    const id=e.skillId, radius=skillProfiles[id].radius;
-    if(!radius)return;
-    const p=e.age/e.duration, center=id==="sanctuary"?e.source:e.target;
-    if(id==="naga_trap") { coil(c,center.x,center.y,radius,p); return; }
-    const green=id==="sanctuary", color=green?"#b4e0a8":"#bea2e9", light=green?"#f2df9f":"#b0ebed";
-    c.fillStyle=green?"#8abf9620":"#bc98df18"; c.beginPath(); c.arc(center.x,center.y,radius,0,TAU); c.fill();
-    circle(c,center.x,center.y,radius,color,1.5);
-    c.setLineDash([4,7]); circle(c,center.x,center.y,radius-5,light,1); c.setLineDash([]);
-    for(let i=0;i<8;i++) {
-      const a=i*TAU/8, x=center.x+Math.cos(a)*radius*.68, y=center.y+Math.sin(a)*radius*.68;
-      if(id==="lotus_storm")lotus(c,x,y-5,9+2*Math.sin(p*Math.PI),color,"#ffeac1");
-      else if(green)glyph(c,x,y,7,color,light);
-      else { c.save(); c.translate(x,y); c.rotate(a+Math.PI/2); arrow(c,0,0,color,light,.55); c.restore(); }
-    }
-    circle(c,center.x,center.y,radius*.32,light,1);
-  }
-  function drawGround(c,s) {
-    events(s,e=>{if(e.kind==="skill"&&own(skillProfiles,e.skillId)&&skillProfiles[e.skillId].radius)
-      saved(c,(1-e.age/e.duration)*.8,()=>zone(c,e));});
-    const cs=s?.classCombat;
-    if(!cs)return;
-    const traps=Array.isArray(cs.traps)?cs.traps:[];
-    for(let i=0;i<Math.min(8,traps.length);i++){
-      const t=traps[i]; if(t?.id!=="naga_trap"||!point(t)||!finite(t.remaining)||t.remaining<=0)continue;
-      saved(c,Math.min(1,t.remaining/.5)*.75,()=>coil(c,t.x,t.y,D.skills.naga_trap.radius,t.remaining*.35));
-    }
-    if(!point(s.player))return;
+  function buffs(s,paint){
+    const cs=s?.classCombat;if(!cs||!point(s.player))return;
     for(const id of ["ward_script","shield_counter","garuda_combo"]){
       const b=own(cs.buffs,id)?cs.buffs[id]:null;
-      if(!finite(b?.remaining)||b.remaining<=0)continue;
-      saved(c,Math.min(1,b.remaining/.5)*.55,()=>{
-        const col=id==="garuda_combo"?"#efbf72":"#a8dba4";
-        c.strokeStyle=col; c.lineWidth=1.2; c.beginPath(); c.ellipse(s.player.x,s.player.y+1,19,7,0,0,TAU); c.stroke();
-        for(let i=0;i<4;i++){const a=i*TAU/4; diamond(c,s.player.x+Math.cos(a)*19,s.player.y+1+Math.sin(a)*7,2.3,"#f7dc9a");}
+      if(finite(b?.remaining)&&b.remaining>0)paint(id,b.remaining,s.player,phase(b.remaining));
+    }
+  }
+  function drawGround(c,s){
+    events(s,e=>{if(e.kind==="skill"&&own(S.profiles,e.skillId))P.withSaved(c,P.envelope(P.progress(e)),()=>S.drawGround(c,e));});
+    const traps=s?.classCombat?.traps;
+    if(Array.isArray(traps))for(let i=0;i<Math.min(8,traps.length);i++){
+      const t=traps[i];if(t?.id!=="naga_trap"||!point(t)||!finite(t.remaining)||t.remaining<=0)continue;
+      P.withSaved(c,Math.min(1,t.remaining/.5)*.7,()=>{
+        P.halo(c,t.x,t.y,D.skills.naga_trap.radius,D.skills.naga_trap.radius,"#8fb98570",.7);
+        serpent(c,t.x,t.y,D.skills.naga_trap.radius,phase(t.remaining));
       });
     }
+    buffs(s,(id,remaining,p,t)=>P.withSaved(c,Math.min(1,remaining/.5)*.42,()=>{
+      const gold=id==="garuda_combo",color=gold?"#d8ac68":id==="shield_counter"?"#bfa46a":"#95bc91";
+      P.halo(c,p.x,p.y+2,18+Math.sin(t)*1.3,6,color,1);
+      if(id==="ward_script")for(const side of [-1,1])P.petal(c,p.x+side*12,p.y+3,6,side*1.1,color,IVORY);
+      else if(id==="shield_counter")P.arcRibbon(c,p.x,p.y+2,20,7,-.3+Math.sin(t)*.1,2.3,3,color,IVORY);
+      else for(const side of [-1,1])P.ribbon(c,[[p.x+side*6,p.y],[p.x+side*15,p.y+5],[p.x+side*20,p.y+1-Math.sin(t)]],3,color,IVORY);
+    }));
   }
-  function weapon(c,e,large=false) {
-    const q=weaponProfiles[e.weaponType], p=e.age/e.duration;
-    const dx=e.target.x-e.source.x,dy=e.target.y-e.source.y;
-    const ranged=["staff","orb","book","bow","magic_bow"].includes(e.weaponType);
-    c.translate(e.source.x,e.source.y-17);
-    c.rotate(ranged&&(dx||dy)?Math.atan2(dy,dx):angle(e.facing));
-    const travel=clamp(p*1.35,0,1), reach=Math.min(250,Math.hypot(dx,dy));
-    const x=15+Math.max(0,reach-15)*travel;
-    switch(e.weaponType){
-      case "training":line(c,q.color,2,[[12,-7],[27,5]]);break;
-      case "sword":crescent(c,large?42:31,0,q.color,q.light,p);break;
-      case "dual_sword":
-        c.save(); c.rotate(-.35); crescent(c,large?39:28,-7,q.color,q.light,p); c.restore();
-        c.save(); c.rotate(.35); crescent(c,large?39:28,7,q.color,q.light,p); c.restore();break;
-      case "sword_shield":shield(c,17,-4,large?18:12,q.color,q.light); crescent(c,large?35:26,5,q.color,q.light,p);break;
-      case "staff":
-        line(c,q.color,2,[[Math.max(5,x-27),0],[x,0]]); lotus(c,x,0,large?14:8,q.color,q.light); break;
-      case "orb":
-        stroke(c,q.color,2,()=>{c.moveTo(Math.max(5,x-35),0);c.quadraticCurveTo(x-18,-12,x,0);});
-        circle(c,x,0,large?12:6,q.light,1.5); disc(c,x,0,large?7:3.5,q.color);circle(c,x,0,large?16:10,q.color,.7);break;
-      case "book":
-        line(c,q.color,1.3,[[Math.max(6,x-32),-5],[x-5,0],[Math.max(6,x-32),5]]);glyph(c,x,0,large?15:9,q.color,q.light);break;
-      case "knuckle":
-        line(c,q.color,3,[[10,-3],[25,0]]); spark(c,large?35:28,0,large?13:8,q.light);
-        line(c,q.color,1.2,[[20,-9],[25,-6]]);line(c,q.color,1.2,[[20,9],[25,6]]);break;
-      case "dagger":
-        line(c,q.color,2.6,[[9,3],[large?47:34,-2]]);line(c,q.light,1,[[13,1],[large?47:34,-2],[large?35:25,-5]]);break;
-      case "claw":
-        for(let i=-1;i<=1;i++)stroke(c,i? q.color:q.light,i?2:2.6,()=>{c.moveTo(12,i*7-9);c.quadraticCurveTo(29,i*7-3,large?46:36,i*7+8);});break;
-      case "bow":arrow(c,x,0,q.color,q.light,large?1.35:1);break;
-      case "magic_bow":
-        arrow(c,x,0,q.color,q.light,large?1.25:1);
-        diamond(c,x-12,0,large?10:7,q.light);for(let i=0;i<3;i++)disc(c,x-19-i*8,(i%2?1:-1)*5,1.6,q.color);break;
+  function critical(c,e,p){
+    const x=e.target.x,y=e.target.y-16;
+    P.withSaved(c,1,()=>{
+      c.translate(x,y);
+      const drift=p*8;
+      P.withSaved(c,.16,()=>P.spark(c,0,0,23*(1-p*.6),"#edb477",IVORY,-.2));
+      P.ribbon(c,[[-24-drift,-18-drift],[0,-2],[25+drift,17+drift]],8*(1-p*.5),"#e34c43","#fff1b0");
+      P.ribbon(c,[[-17-drift,23+drift],[-1,1],[20+drift,-25-drift]],6*(1-p*.4),"#e99759",IVORY);
+      P.spark(c,-2,0,8*(1-p*.6),"#f4cb83",IVORY,p*.4);
+      P.withSaved(c,.65,()=>P.halo(c,0,0,22+p*10,15+p*8,"#e6bc70",1.5*(1-p*.5)));
+      P.motes(c,0,0,p,7,"#e99c60",IVORY,e.id,34);
+    });
+  }
+  function impact(c,e){
+    const p=P.progress(e),q=W.profiles[e.weaponType],x=e.target.x,y=e.target.y-16;
+    if(e.result==="crit"&&!e.magic){critical(c,e,p);return;}
+    if(e.phase==="trap"){
+      serpent(c,x,y+7,15+p*8,p*TAU);P.spark(c,x,y,8*(1-p*.5),"#b6d094",IVORY,p);return;
     }
-  }
-  function signature(c,e) {
-    const id=e.skillId,p=e.age/e.duration;
-    if(["lotus_storm","sanctuary","arcane_volley","naga_trap"].includes(id)) {
-      const pos=id==="sanctuary"?e.source:e.target;
-      if(id==="lotus_storm")lotus(c,pos.x,pos.y-20,22,"#dab0e6","#ffecbd");
-      else if(id==="sanctuary")glyph(c,pos.x,pos.y-20,24,"#a5d7a5","#ffe5a2");
-      else if(id==="arcane_volley")for(let i=-1;i<=1;i++){
-        c.save(); c.translate(pos.x+i*19,pos.y-26-Math.abs(i)*9); c.rotate(Math.PI/2+.15*i); arrow(c,0,0,"#bd9ce5","#b1eee6",1);c.restore();
+    const poison=e.skillId==="moon_venom",dot=e.phase==="dot";
+    const color=dot?(poison?"#98bf7f":"#d57b80"):q.color;
+    if(dot){
+      if(poison)P.petal(c,x,y+4,9*(1-p*.3),p*.7,color,IVORY);
+      else P.ribbon(c,[[x-7,y-5-p*3],[x,y+1],[x+6,y+9+p*3]],4,color,IVORY);
+      P.motes(c,x,y,p,3,color,IVORY,e.id,12);return;
+    }
+    P.glowDot(c,x,y,4.5*(1-p*.65),q.light,IVORY);
+    if(e.magic){
+      P.lotus(c,x,y+4,12*(.8+p*.5),color,q.light,p);
+      P.motes(c,x,y,p,5,color,q.light,e.id,20);
+    }else{
+      P.spark(c,x,y,10+p*6,"#d6ad70",IVORY,-.22+p*.2);
+      for(let i=0;i<3;i++){
+        const a=-.75+i*2.15,r=8+p*12;
+        P.ribbon(c,[[x+Math.cos(a)*r*.3,y+Math.sin(a)*r*.3],[x+Math.cos(a)*r,y+Math.sin(a)*r]],2.7*(1-p*.5),color,IVORY);
       }
-      else {c.save();c.translate(pos.x,pos.y-5);line(c,"#b3e09b",2,[[0,0],[0,-22],[7,-27],[12,-23]]);diamond(c,12,-23,3,"#ffe5a2");c.restore();}
-      return;
+      P.motes(c,x,y,p,3,"#d1a665",IVORY,e.id,20);
     }
-    if(id==="ward_script") {
-      glyph(c,e.source.x,e.source.y-22,25,"#a7dfa8","#f8df9a");
-      c.strokeStyle="#c5ecae"; c.lineWidth=1; c.beginPath();c.ellipse(e.source.x,e.source.y-23,21,31,0,0,TAU);c.stroke();return;
-    }
-    const type={arun_slash:"sword",lotus_bolt:"staff",quick_stab:"dagger",aimed_shot:"bow",royal_flurry:"dual_sword",shield_counter:"sword_shield",orb_burst:"orb",garuda_combo:"knuckle",moon_venom:"dagger",tiger_rend:"claw"}[id];
-    if(!type)return;
-    weapon(c,{...e,weaponType:type},true);
-    const q=weaponProfiles[type];
-    if(id==="arun_slash")for(let i=-2;i<=2;i++) { const a=i*.36;line(c,"#ffe5a4",1.4,[[Math.cos(a)*46,Math.sin(a)*46],[Math.cos(a)*53,Math.sin(a)*53]]); }
-    else if(id==="lotus_bolt") {diamond(c,10,0,12,q.light);circle(c,10,0,17,q.color);}
-    else if(id==="quick_stab")line(c,"#eee2ff",1,[[13,5],[39,5]]);
-    else if(id==="aimed_shot"){const d=Math.min(250,Math.hypot(e.target.x-e.source.x,e.target.y-e.source.y));circle(c,d,0,12,q.light,1);line(c,q.color,1,[[d-18,0],[d-9,0]]);line(c,q.color,1,[[d+9,0],[d+18,0]]);}
-    else if(id==="royal_flurry"){c.save();c.rotate(-.15);crescent(c,47,0,"#f5e0aa","#fff9dd",p);c.restore();}
-    else if(id==="shield_counter")spark(c,37,-13,10,"#fff2c1");
-    else if(id==="orb_burst")for(let i=-1;i<=1;i++)line(c,"#b0ecf2",1.5,[[13,i*6],[24,i*10],[35,i*4],[46,i*10]]);
-    else if(id==="garuda_combo"){spark(c,23,-16,11,q.color);line(c,q.light,2,[[9,-16],[20,-16]]);}
-    else if(id==="moon_venom"){line(c,"#a9d894",2,[[30,0],[37,7],[42,2]]);disc(c,43,2,3,"#bee3a0");}
-    else if(id==="tiger_rend"){for(let i=0;i<3;i++)line(c,"#eea0a0",1,[[21+i*8,-18],[15+i*8,18]]);}
   }
-  function critical(c,x,y,p) {
-    const radius=22+p*14, reach=29+p*8, half=5.8*(1-p*.4);
-    // Tapered crossed cuts have a solid silhouette over the monster sprite.
-    for(const a of [-Math.PI/4,Math.PI/4]) {
-      const cos=Math.cos(a),sin=Math.sin(a);
-      for(const [length,width,color] of [[reach,half,"#e34c43"],[reach*.88,half*.38,"#fff1b0"]]) {
-        c.fillStyle=color;c.beginPath();
-        [[-length,0],[0,-width],[length,0],[0,width]].forEach(([dx,dy],i)=>{
-          const px=x+dx*cos-dy*sin,py=y+dx*sin+dy*cos;
-          if(i)c.lineTo(px,py);else c.moveTo(px,py);
-        });
-        c.closePath();c.fill();
+  function persistentFront(c,s){
+    buffs(s,(id,remaining,p,t)=>P.withSaved(c,Math.min(1,remaining/.5)*.75,()=>{
+      if(id==="ward_script"){
+        for(const side of [-1,1])P.glyph(c,p.x+side*(19+Math.sin(t)*1.1),p.y-16+Math.cos(t+side)*2,5.2,"#a9c692",IVORY,t);
+      }else if(id==="shield_counter"){
+        const x=p.x+18,y=p.y-17+Math.sin(t)*1.2;
+        P.polygon(c,[[x-7,y-8],[x+7,y-8],[x+6,y+3],[x,y+9],[x-6,y+3]],"#bea166");
+        P.polygon(c,[[x-3,y-6],[x+2,y-6],[x+1,y+4],[x,y+6]],IVORY);
+        P.spark(c,x+5,y-6,3.6,"#dfbc7c",IVORY,t*.2);
+      }else{
+        for(const side of [-1,1]){
+          const x=p.x+side*15,y=p.y-13+Math.sin(t+side)*1.3;
+          P.petal(c,x,y,10,side*.7,"#d9ab6a",IVORY);P.petal(c,x+side*4,y+2,7,side*1.1,"#e6c281",IVORY);
+        }
       }
+    }));
+    const cs=s?.classCombat,player=s?.player;
+    if(cs&&point(player)&&finite(cs.orbTimer)&&cs.orbTimer>0&&finite(cs.orbCharges)){
+      const count=P.clamp(Math.floor(cs.orbCharges),0,3),t=phase(cs.orbTimer);
+      P.withSaved(c,Math.min(1,cs.orbTimer/.5)*.9,()=>{for(let i=0;i<count;i++){
+        const a=-Math.PI/2+(i-1)*.8+Math.sin(t)*.1,x=player.x+Math.cos(a)*24,y=player.y-25+Math.sin(a)*15;
+        P.glowDot(c,x,y,3.8,"#79bdc7",IVORY);
+        P.polygon(c,[[x,y-5],[x+3,y],[x,y+4],[x-3,y]],"#8ccfd0");
+        P.polygon(c,[[x,y-4],[x+1,y],[x,y+1],[x-1,y]],IVORY);
+      }});
     }
-    circle(c,x,y,radius,"#ffcb68",2.3);
-    circle(c,x,y,radius*.79,"#e34c43",1.2);
-    for(let i=0;i<8;i++) {
-      const a=i*TAU/8,inner=radius+3,outer=inner+5+p*3;
-      line(c,i%2?"#fff1b0":"#ef7350",1.8,[[x+Math.cos(a)*inner,y+Math.sin(a)*inner],[x+Math.cos(a)*outer,y+Math.sin(a)*outer]]);
-    }
-    disc(c,x,y,2.5*(1-p*.5),"#fff1b0");
-  }
-  function impact(c,e) {
-    const p=e.age/e.duration, q=weaponProfiles[e.weaponType], crit=e.result==="crit"&&!e.magic;
-    const x=e.target.x,y=e.target.y-16,r=8+p*9;
-    const color=e.phase==="dot"?(e.skillId==="moon_venom"?"#bde29e":"#ef9b9b"):q.light;
-    if(e.phase==="trap") {coil(c,x,y,15+p*8,p);return;}
-    if(crit){critical(c,x,y,p);return;}
-    for(let i=0;i<5;i++) {
-      const a=i*TAU/5+.2;
-      line(c,color,1.5,[[x+Math.cos(a)*r*.48,y+Math.sin(a)*r*.48],[x+Math.cos(a)*r,y+Math.sin(a)*r]]);
-    }
-    if(e.magic)circle(c,x,y,r*.7,q.color,1);
-  }
-  function persistentFront(c,s) {
-    const cs=s?.classCombat, player=s?.player;
-    if(cs&&point(player)) {
-      for(const id of ["ward_script","shield_counter","garuda_combo"]) {
-        const b=own(cs.buffs,id)?cs.buffs[id]:null;if(!finite(b?.remaining)||b.remaining<=0)continue;
-        saved(c,Math.min(1,b.remaining/.5)*.7,()=>{
-          if(id==="shield_counter")shield(c,player.x+15,player.y-19,13,"#d8be78","#eaf3cb");
-          else if(id==="ward_script"){glyph(c,player.x,player.y-22,21,"#b0d6a0","#e8d694");}
-          else {for(const side of [-1,1]){diamond(c,player.x+side*16,player.y-18,5,"#f6c979",1.5);line(c,"#ffe6ae",1,[[player.x+side*13,player.y-10],[player.x+side*17,player.y-14]]);}}
-        });
-      }
-      if(finite(cs.orbTimer)&&cs.orbTimer>0&&finite(cs.orbCharges)) {
-        const count=clamp(Math.floor(cs.orbCharges),0,3);
-        saved(c,Math.min(1,cs.orbTimer/.5)*.85,()=>{for(let i=0;i<count;i++){
-          const a=-Math.PI/2+(i-1)*.85+Math.sin(cs.orbTimer)*.08;
-          const x=player.x+Math.cos(a)*23,y=player.y-27+Math.sin(a)*15;
-          disc(c,x,y,3.5,"#8ad9e6");circle(c,x,y,5.5,"#efdb96",1);disc(c,x-1,y-1,1.2,"#edfaff");
+    const monsters=Array.isArray(s?.monsters)?s.monsters:[];
+    for(let i=0;i<Math.min(64,monsters.length);i++){
+      const m=monsters[i];if(!point(m)||m.dead||!(m.hp>0)||!Array.isArray(m.classDots))continue;
+      for(let j=0;j<Math.min(2,m.classDots.length);j++){
+        const d=m.classDots[j];if(!["moon_venom","tiger_rend"].includes(d?.id)||!finite(d.remaining)||d.remaining<=0)continue;
+        const t=phase(d.remaining),poison=d.id==="moon_venom",color=poison?"#a5bc80":"#d58489";
+        P.withSaved(c,Math.min(1,d.remaining/.5)*.8,()=>{for(let k=0;k<3;k++){
+          const x=m.x+(k-1)*6,y=m.y-22-Math.sin(t*2+k)*2;
+          if(poison)P.petal(c,x,y,4.5+k*.5,.3*Math.sin(t+k),color,IVORY);
+          else P.ribbon(c,[[x+2,y-4],[x-1,y+1],[x-2,y+6]],2.8,color,IVORY);
         }});
       }
     }
-    const monsters=Array.isArray(s?.monsters)?s.monsters:[];
-    for(let i=0;i<Math.min(monsters.length,64);i++){
-      const m=monsters[i];if(!point(m)||m.dead||!(m.hp>0)||!Array.isArray(m.classDots))continue;
-      for(let j=0;j<Math.min(m.classDots.length,2);j++){
-        const d=m.classDots[j];if(!["moon_venom","tiger_rend"].includes(d?.id)||!finite(d.remaining)||d.remaining<=0)continue;
-        saved(c,Math.min(1,d.remaining/.5)*.65,()=>{
-          const poison=d.id==="moon_venom",color=poison?"#acd793":"#e19194";
-          for(let k=0;k<3;k++){
-            const x=m.x+(k-1)*7,y=m.y-23-(Math.sin((d.remaining%TAU)*3+k)*.5+.5)*7;
-            if(poison){disc(c,x,y,2,color);circle(c,x,y,3.3,color,.7);}
-            else line(c,color,1.8,[[x+2,y-3],[x-1,y+5]]);
-          }
-        });
-      }
-    }
   }
-  function drawFront(c,s) {
+  function drawFront(c,s){
     persistentFront(c,s);
     events(s,e=>{
       if(e.kind==="impact"&&!["hit","crit"].includes(e.result))return;
-      if(e.kind==="skill"&&!own(skillProfiles,e.skillId))return;
-      const alpha=e.kind==="impact"&&e.result==="crit"&&!e.magic
-        ? .96*Math.pow(1-e.age/e.duration,.65)
-        : Math.sin(Math.PI*(.15+.85*(1-e.age/e.duration)))*.9;
-      saved(c,alpha,()=>{
-        if(e.kind==="impact")impact(c,e);
-        else if(e.kind==="skill")signature(c,e);
-        else weapon(c,e);
-      });
+      if(e.kind==="skill"&&!own(S.profiles,e.skillId))return;
+      const p=P.progress(e),alpha=e.kind==="impact"?.96*Math.pow(1-p,1.1):P.envelope(p);
+      P.withSaved(c,alpha,()=>{if(e.kind==="impact")impact(c,e);else if(e.kind==="skill")S.drawFront(c,e);else W.draw(c,e);});
     });
   }
-  const api=Object.freeze({drawGround,drawFront,weaponProfiles,skillProfiles});
-  if(typeof module==="object")module.exports=api;
-  else root.BCCombatEffects=api;
+  const api=Object.freeze({drawGround,drawFront,weaponProfiles:W.profiles,skillProfiles:S.profiles});
+  if(typeof module==="object")module.exports=api;else root.BCCombatEffects=api;
 })(typeof window==="object"?window:globalThis);

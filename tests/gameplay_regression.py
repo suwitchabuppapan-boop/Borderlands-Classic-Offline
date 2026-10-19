@@ -14,7 +14,7 @@ async def run_checks(page, artifacts=None):
     await page.evaluate("localStorage.clear()")
     await page.reload()
     await page.wait_for_function("window.BCGame && BCRender.assets.ready")
-    assert await page.locator("#release-label").inner_text() == "รุ่น 1.14"
+    assert await page.locator("#release-label").inner_text() == "รุ่น 1.15"
     assert await page.evaluate("Object.keys(BCData.items).length") == 61
     assert await page.locator(".menu-grid [data-panel]").count() == 9
     menus = await page.locator(".menu-grid [data-panel]").evaluate_all("els=>els.map(e=>e.dataset.panel)")
