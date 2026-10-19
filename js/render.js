@@ -247,6 +247,7 @@
       c.strokeStyle = "#fffde9b0"; c.lineWidth = 1 / textScale;
       c.beginPath(); c.ellipse(s.destination.x, s.destination.y, 6, 3, 0, 0, Math.PI * 2); c.stroke();
     }
+    root.BCCombatEffects?.drawGround(c, s);
     const entities = s.monsters.filter(m => !m.dead).map(m => ({ y: m.y,
       draw: () => monster(c, m, s.clock, m.uid === s.target) }));
     if (s.zone === 0) for (const n of D.npcs) entities.push({ y: n.y, draw: () => {
@@ -262,6 +263,7 @@
       label(c, D.classes[s.classId].name, s.player.x, s.player.y - (s.equipment.head ? 46 : 39), "#fff", 11);
     } });
     entities.sort((a, b) => a.y - b.y).forEach(e => e.draw());
+    root.BCCombatEffects?.drawFront(c, s);
     for (const e of s.effects) {
       c.globalAlpha = Math.min(1, e.ttl * 2);
       label(c, e.text, e.x, e.y - (1 - e.ttl) * 28, e.color, 13); c.globalAlpha = 1;

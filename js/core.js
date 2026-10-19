@@ -6,6 +6,7 @@
   const Items = typeof module === "object" ? require("./item-rules.js") : root.BCItemRules;
   const Combat = typeof module === "object" ? require("./class-combat.js") : root.BCClassCombat;
   const AutoQuest = typeof module === "object" ? require("./auto-quest.js") : root.BCAutoQuest;
+  const Feedback = typeof module === "object" ? require("./combat-feedback.js") : root.BCCombatFeedback;
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -140,6 +141,7 @@
     return s.seed / 4294967296;
   }
   function spawn(s) {
+    Feedback.clear(s);
     delete s.classCombat;
     s.monsters = D.maps[s.zone].mobs.map((kind, i) => ({
       uid: `${s.zone}-${i}`,
@@ -218,6 +220,13 @@
       s.destination = null;
     }
   }
+  function feedback(s, event) {
+    return Feedback.emit(s, {
+      source: s.player, target: s.player, facing: s.player.facing,
+      weaponType: classInfo(s).weaponType, skillId: null, result: null,
+      phase: "direct", amount: null, magic: false, ...event,
+    });
+  }
   function damage(s, m, mult = 1, always = false, options = {}) {
     if (!m || m.dead || m.hp <= 0) return false;
     const d = D.monsters[m.kind], st = stats(s), magic = !!options.magic;
@@ -226,16 +235,20 @@
     const critical = options.normal === true && !magic && random(s) * 100 < Math.max(0, st.crit - (d.luk || 0) / 5);
     if (!magic && !always && !critical && random(s) * 100 > Rules.playerHitChance(st, d)) {
       effect(s, m.x, m.y - 20, "MISS", "#bec8cd");
+      feedback(s, { kind: "impact", source: options.source || s.player, target: m,
+        skillId: options.skillId || null, phase: options.phase || "direct", result: "miss", amount: 0, magic });
       return false;
     }
     const defense = (magic ? d.mdef || 0 : d.def) * (!magic && m.provoke > 0 ? 0.5 : 1) * (options.defenseScale ?? 1);
     const amount = Rules.damageTaken((magic ? st.matk : st.atk) * mult * (critical ? 1.4 : 1), 0, defense);
     m.hp -= amount;
     effect(s, m.x, m.y - 25, (critical ? "CRIT " : "") + amount, critical ? "#ffdc82" : magic ? "#d6c7ff" : "#fff3cf");
+    feedback(s, { kind: "impact", source: options.source || s.player, target: m,
+      skillId: options.skillId || null, phase: options.phase || "direct", result: critical ? "crit" : "hit", amount, magic });
     if (m.hp <= 0) kill(s, m);
     return true;
   }
-  const combatHelpers = { damage, effect, stats, dist, kill };
+  const combatHelpers = { damage, effect, stats, dist, kill, feedback };
   function doAction(s, action, p = {}) {
     const st = stats(s),
       fail = (message) => ({ ok: false, message }),
@@ -291,13 +304,15 @@
         return fail("ไม่มีศัตรูในระยะ");
       if (skill) s.player.sp -= skill.sp;
       s.cooldowns[id] = skill ? skill.cooldown : st.interval;
+      if (["first_aid", "magnum", "provoke"].includes(id))
+        feedback(s, { kind: "skill", skillId: id, target: id === "provoke" ? m : s.player });
       if (id === "first_aid") {
         s.player.hp = Math.min(st.maxHp, s.player.hp + 20);
         effect(s, s.player.x, s.player.y - 30, "+20 HP", "#b6edb8");
       } else if (id === "magnum") {
         s.monsters
           .filter((m) => !m.dead && dist(s.player, m) < 100)
-          .forEach((m) => damage(s, m, 1.6 + s.skills.magnum * 0.25, true));
+          .forEach((m) => damage(s, m, 1.6 + s.skills.magnum * 0.25, true, { skillId: id, phase: "direct" }));
         effect(s, s.player.x, s.player.y, `✹ ${D.skills.magnum.name}`, "#f4b489");
       } else if (id === "provoke") {
         m.provoke = 15;
@@ -308,7 +323,9 @@
         if (dx || dy)
           s.player.facing =
             Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : dy > 0 ? 0 : 2;
-        const landed = damage(s, m, id === "bash" ? 1.5 + s.skills.bash * 0.15 : 1, id !== "attack", { normal: id === "attack", magic: id === "attack" && st.basicMagic });
+        feedback(s, { kind: id === "attack" ? "attack" : "skill", target: m,
+          skillId: id === "attack" ? null : id, magic: id === "attack" && !!st.basicMagic });
+        const landed = damage(s, m, id === "bash" ? 1.5 + s.skills.bash * 0.15 : 1, id !== "attack", { normal: id === "attack", magic: id === "attack" && st.basicMagic, skillId: id === "attack" ? null : id, phase: "direct" });
         if (id === "attack" && landed) Combat.afterAttack(s, m, combatHelpers);
         s.cooldowns.swing = 0.22;
       }
@@ -540,6 +557,7 @@
     const dt = clamp(Number.isFinite(seconds) ? seconds : 0, 0, 0.1);
     if (!dt) return;
     s.clock += dt;
+    Feedback.tick(s, dt);
     for (const id of Object.keys(s.cooldowns))
       s.cooldowns[id] = Math.max(0, s.cooldowns[id] - dt);
     s.effects = s.effects.filter((e) => (e.ttl -= dt) > 0);

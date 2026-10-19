@@ -29,6 +29,7 @@
     selectedInventoryItem = "potion",
     inventoryCategory = "all",
     shopWeaponType = "",
+    skillsTab = "current",
     codexTab = "world",
     catalogCollection = "regular",
     catalogType = "all",
@@ -143,6 +144,11 @@
     if (result.message) toast(result.message);
     updateHUD();
     if (panel) renderPanel();
+    if (panel === "skills" && action === "learn") {
+      const learned = $("side-panel").querySelector(`[data-act="learn"][data-id="${p.id}"]`);
+      const focus = learned && !learned.disabled ? learned : $("side-panel").querySelector(`[data-skills-tab="${skillsTab}"]`);
+      focus?.focus({ preventScroll: true });
+    }
     return result;
   }
   const questPhaseNames = {
@@ -235,6 +241,7 @@
     guideVisit = false;
     lastFocus = document.activeElement;
     panel = name;
+    if (name === "skills") skillsTab = "current";
     keys.clear();
     state.destination = null;
     state.target = null;
@@ -459,6 +466,22 @@
     const reason = C.learnReason(s, id);
     return `<div class="skill-card" data-skill="${id}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small>${owner ? `${esc(owner.name)} · Class ${owner.tier}` : id === "first_aid" ? "ใช้ได้ทุกอาชีพ" : "สกิลเดิมที่เรียนไว้"} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, reason ? `disabled title="${esc(reason)}"` : "")}</div>`;
   }
+  function skillTree(s) {
+    const tree = window.BCSkillTree, accessible = tree.nodesFor(s.classId);
+    const inherited = new Set(accessible.ancestry.map(n => n.classId));
+    const progress = C.trialProgress(s);
+    const card = (node) => {
+      const { classId, classDef: c, skillId, skill: d } = node;
+      const relation = classId === s.classId ? "own" : inherited.has(classId) ? "inherited" : "locked";
+      const relationText = { own: "อาชีพปัจจุบัน", inherited: "สืบทอด", locked: "ล็อก · ต่างอาชีพ" }[relation];
+      const reason = C.learnReason(s, skillId), trial = c.trial;
+      const active = progress?.classId === classId ? progress : null;
+      const trialText = trial ? ` · ทดสอบกำจัด${D.monsters[trial.kind].name} ${trial.count} ตัว${active ? ` (${active.current}/${trial.count}${active.complete ? " · สำเร็จ" : ""})` : " · นับหลังรับทดสอบ"}` : "";
+      return `<article class="skill-tree-node" data-class="${classId}" data-skill="${skillId}" data-state="${relation}"><div class="skill-tree-class"><b>${esc(c.name)}</b><span class="skill-tree-state">${relationText}</span></div><h3>${esc(d.name)} <span>Lv.${s.skills[skillId] || 0} / ${d.max}</span></h3><p class="skill-tree-meta">SP ${d.sp} · CD ${d.cooldown} วินาที · ระยะ ${d.range}${d.range === 0 ? " (ตนเอง)" : ""}</p><p class="skill-tree-description">${esc(d.description)}</p><p class="skill-tree-requirement">Class ${c.tier} · เปลี่ยนอาชีพที่ Job Lv.${c.tier === 1 ? 10 : 40}${esc(trialText)}</p><div class="skill-tree-learn">${button("learn", "เรียน", skillId, `${reason ? `disabled title="${esc(reason)}"` : ""} aria-label="เรียน ${esc(d.name)}"`)}<small>${esc(reason || "ใช้ 1 แต้มสกิลต่อระดับ")}</small></div></article>`;
+    };
+    const legacy = C.skillsFor(s).filter(id => !D.skills[id].owner && id !== "first_aid" && s.skills[id] > 0);
+    return `<p class="panel-note skill-tree-help">เส้นทาง Class 1 ทั้ง 5 อาชีพ → Class 2 อาชีพละ 2 ทาง<br>เรียนได้เฉพาะอาชีพปัจจุบันและอาชีพที่สืบทอด · ดูเส้นทางไม่เปลี่ยนอาชีพหรือปลดล็อกอาวุธ<br>เปลี่ยนอาชีพและรับทดสอบกับ${esc(npc("guide").name)}ที่เมือง</p><div class="skill-tree-families">${tree.paths().map(family => `<section class="skill-tree-family" aria-label="เส้นทาง${esc(family.classDef.name)}">${card(family)}<div class="skill-tree-children">${family.children.map(card).join("")}</div></section>`).join("")}</div><section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3 class="shop-title">สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n => skillCard(s, n.skillId)).join("")}</section>${legacy.length ? `<section class="skill-tree-legacy" aria-label="สกิลเดิมที่เรียนไว้"><h3 class="shop-title">สกิลเดิมที่เรียนไว้</h3><p class="panel-note">คงสกิลและเงื่อนไขเดิมจากเซฟ · แยกจากเส้นทางอาชีพ</p>${legacy.map(id => skillCard(s, id)).join("")}</section>` : ""}`;
+  }
   const statNumber = (value) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 1, useGrouping: false });
   function statBuild(s, st) {
     const type = classInfo(s).weaponType;
@@ -544,14 +567,17 @@
     }
     if (panel === "skills") {
       const ids = C.skillsFor(s), legacy = new Set(["bash", "magnum", "provoke"]);
-      html = `<p class="panel-note">${esc(className(s))} · ${classLabel(s)} · แต้มสกิล <b>${s.skillPoints}</b><br>สกิลของอาชีพปัจจุบันและอาชีพที่สืบทอด · แต่ละสกิลใช้แต้มเรียนตามระดับ</p>`;
-      for (const id of ids.filter((id) => !legacy.has(id))) html += skillCard(s, id);
-      const learnedLegacy = ids.filter((id) => legacy.has(id) && s.skills[id] > 0);
-      if (learnedLegacy.length) {
-        html += '<h3 class="shop-title">สกิลเดิมที่เรียนไว้</h3>';
-        for (const id of learnedLegacy) html += skillCard(s, id);
+      html = `<div class="skills-tabs" role="tablist" aria-label="มุมมองสกิล">${[["current", "สกิลปัจจุบัน"], ["tree", "ผังสกิลอาชีพ"]].map(([id, label]) => `<button id="skills-tab-${id}" data-skills-tab="${id}" role="tab" aria-selected="${skillsTab === id}" aria-controls="skills-tabpanel" tabindex="${skillsTab === id ? 0 : -1}">${label}</button>`).join("")}</div><div id="skills-tabpanel" role="tabpanel" aria-labelledby="skills-tab-${skillsTab}"><p class="panel-note">${esc(className(s))} · ${classLabel(s)} · แต้มสกิล <b data-skill-points>${s.skillPoints}</b><br>สกิลของอาชีพปัจจุบันและอาชีพที่สืบทอด · แต่ละสกิลใช้แต้มเรียนตามระดับ</p>`;
+      if (skillsTab === "tree") html += skillTree(s);
+      else {
+        for (const id of ids.filter((id) => !legacy.has(id))) html += skillCard(s, id);
+        const learnedLegacy = ids.filter((id) => legacy.has(id) && s.skills[id] > 0);
+        if (learnedLegacy.length) {
+          html += '<h3 class="shop-title">สกิลเดิมที่เรียนไว้</h3>';
+          for (const id of learnedLegacy) html += skillCard(s, id);
+        }
       }
-      html += '<button data-open="hotbar" class="outline-button">จัดสกิลลง Hotbar →</button>';
+      html += '<button data-open="hotbar" class="outline-button">จัดสกิลลง Hotbar →</button></div>';
     }
     if (panel === "quest" || panel === "npc") {
       if (panel === "npc")
@@ -874,6 +900,12 @@
   document.addEventListener("click", (event) => {
     const b = event.target.closest("button");
     if (!b) return;
+    if (b.dataset.skillsTab) {
+      skillsTab = b.dataset.skillsTab === "tree" ? "tree" : "current";
+      renderPanel();
+      $("side-panel").querySelector(`[data-skills-tab="${skillsTab}"]`)?.focus({ preventScroll: true });
+      return;
+    }
     if (b.dataset.codexTab) {
       codexTab = b.dataset.codexTab === "items" ? "items" : "world";
       renderPanel();
@@ -1038,12 +1070,19 @@
       return;
     }
     if (panel) {
+      if (event.target.matches("[data-skills-tab]") && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        skillsTab = event.key === "Home" ? "current" : event.key === "End" ? "tree" : skillsTab === "current" ? "tree" : "current";
+        renderPanel();
+        $("side-panel").querySelector(`[data-skills-tab="${skillsTab}"]`).focus({ preventScroll: true });
+        return;
+      }
       if (event.key === "Tab") {
         const focusable = [
           ...$("panel-window").querySelectorAll(
             "button:not(:disabled),select:not(:disabled),input:not(:disabled),summary",
           ),
-        ].filter((el) => el.getClientRects().length > 0);
+        ].filter((el) => el.tabIndex >= 0 && el.getClientRects().length > 0);
         const first = focusable[0],
           end = focusable[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) {

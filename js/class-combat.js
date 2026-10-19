@@ -44,9 +44,9 @@
   function effect(s, h, x, y, text, color) {
     if (h?.effect) h.effect(s, x, y, text, color);
   }
-  function hit(s, m, power, skill, h) {
+  function hit(s, m, power, skill, h, id, phase = "direct", source = s.player) {
     if (!live(m)) return;
-    h.damage(s, m, power, true, { magic: !!skill.magic, defenseScale: skill.defenseScale ?? 1 });
+    return h.damage(s, m, power, true, { magic: !!skill.magic, defenseScale: skill.defenseScale ?? 1, skillId: id, phase, source });
   }
   function face(s, m) {
     if (!m) return;
@@ -78,13 +78,18 @@
     s.cooldowns[id] = skill.cooldown;
     s.cooldowns.swing = 0.22;
     face(s, target);
+    if (h?.feedback) h.feedback(s, {
+      kind: "skill", source: s.player, target: target || s.player,
+      facing: s.player.facing, weaponType: D.classes[s.classId].weaponType,
+      skillId: id, result: null, phase: "direct", amount: null, magic: !!skill.magic,
+    });
     if (skill.kind === "self") {
       heal(s, skill, level, h);
       buff(s, id, skill, level);
     } else if (skill.kind === "sanctuary" || skill.kind === "aoe") {
       const center = skill.kind === "sanctuary" ? s.player : target;
       for (const m of s.monsters || [])
-        if (live(m) && (h?.dist || distance)(center, m) <= skill.radius) hit(s, m, power, skill, h);
+        if (live(m) && (h?.dist || distance)(center, m) <= skill.radius) hit(s, m, power, skill, h, id);
       if (skill.kind === "sanctuary") heal(s, skill, level, h);
       effect(s, h, center.x, center.y, skill.name, skill.color);
     } else if (skill.kind === "trap") {
@@ -99,10 +104,10 @@
       const cs = state(s), charges = clamp(cs.orbCharges || 0, 0, skill.chargeCap);
       cs.orbCharges = 0;
       cs.orbTimer = 0;
-      hit(s, target, power + charges * skill.chargePower, skill, h);
+      hit(s, target, power + charges * skill.chargePower, skill, h, id);
     } else {
       const hits = skill.hits || 1;
-      for (let i = 0; i < hits && live(target); i++) hit(s, target, power, skill, h);
+      for (let i = 0; i < hits && live(target); i++) hit(s, target, power, skill, h, id);
       if (skill.kind === "guard" || skill.kind === "combo_buff") buff(s, id, skill, level);
       if (skill.kind === "dot" && live(target)) {
         const dots = (target.classDots || []).filter((dot) => dot.id !== id);
@@ -160,7 +165,7 @@
         dot.remaining = Math.max(0, dot.remaining - dt);
         // Carry fractional time while keeping every DOT's total hit count bounded.
         const due = Math.min(60, Math.floor((dot.elapsed + 1e-9) / skill.interval));
-        for (let i = 0; i < due && live(m); i++) hit(s, m, dot.power, skill, h);
+        for (let i = 0; i < due && live(m); i++) hit(s, m, dot.power, skill, h, dot.id, "dot");
         dot.elapsed = Math.max(0, dot.elapsed - due * skill.interval);
         if (dot.remaining > 0 && live(m)) remaining.push(dot);
       }
@@ -175,7 +180,7 @@
         (!trap.requiredKind || enemy.kind === trap.requiredKind) &&
         (h?.dist || distance)(trap, enemy) <= skill.radius);
       if (!m) return true;
-      hit(s, m, scaled(skill, "power", "powerPerLevel", trap.level), skill, h);
+      hit(s, m, scaled(skill, "power", "powerPerLevel", trap.level), skill, h, trap.id, "trap", trap);
       if (live(m)) m.snare = Math.max(m.snare || 0, skill.snareDuration);
       effect(s, h, trap.x, trap.y, skill.name, skill.color);
       return false;
