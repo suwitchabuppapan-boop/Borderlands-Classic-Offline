@@ -4,7 +4,7 @@ A single-player Thai fantasy browser RPG. Start as a villager, choose one of fiv
 
 Play: https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/
 
-Version **1.13** adds directional attack effects for all 11 combat weapon types and effects for the 15 existing class skills. Open **สกิล → ผังสกิลอาชีพ** to browse the five families, see your inherited skills, and spend skill points. Class 2 inherits its own Class 1 skills; other branches remain locked. Combat power, SP costs, cooldowns, loot and existing saves retain the 1.12 rules.
+Version **1.14** shows only your current class and inherited skills in **สกิล → ผังสกิลอาชีพ**, with shared First Aid and learned legacy skills kept separately. True physical criticals now produce visible red/gold crossed slashes, rings and sparks. Auto Battle and Auto Quest continue while in-game menus are open or the window loses focus. Weapon/skill effects, combat powers, SP costs, cooldowns, loot and save compatibility retain their existing rules.
 
 ## Run and test
 
@@ -24,7 +24,9 @@ python3 scripts/release_site.py stage --out /tmp/siam-release
 
 See [scripts/README.md](scripts/README.md) for packaging and verification of public files. The parity tests use the 1.12 recovery commit in Git history; those comparisons are explicitly skipped in a source ZIP without Git history. The remaining action and browser tests still run. Current evidence and limits are in [TEST_RESULTS.md](TEST_RESULTS.md).
 
-Move with WASD/arrows or click the map. Click a monster to approach and attack, use Space to attack, and use hotbar keys 1–9. Menus pause the simulation. Shops require proximity to the merchant; ครูอิน handles quests and class changes; หมอมะลิ heals for free. Auto Quest handles the three main quests using normal movement, combat, supplies and rewards. Prepare equipment and stats first.
+Move with WASD/arrows or click the map. Click a monster to approach and attack, use Space to attack, and use hotbar keys 1–9. Menus keep the simulation running. Shops require proximity to the merchant; ครูอิน handles quests and class changes; หมอมะลิ heals for free. Auto Quest handles the three main quests using normal movement, combat, supplies and rewards. Prepare equipment and stats first.
+
+Keep the game page open for background farming. A shared fixed-step clock prevents RAF and background timers from counting time twice. If the browser freezes or throttles a minimized tab, elapsed time is replayed through actual combat on resume in bounded chunks; commands wait until outstanding time is settled. Browser/OS suspension may prevent real-time work while hidden. Closing/reloading the page does not grant offline rewards or restore automatic farming.
 
 ## Saves, source and artwork
 

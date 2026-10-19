@@ -71,6 +71,19 @@ test("invalid and prototype class IDs return fresh empty results", () => {
   }
   assert.notEqual(T.nodesFor(null).shared, T.nodesFor(null).shared);
 });
+test("filtered current-class views retain every future and foreign catalog path", () => {
+  const catalog = T.paths().map(n => [n.classId, ...n.children.map(child => child.classId)]);
+  for (const classId of Object.keys(D.classes)) {
+    const s = C.createState();
+    s.classId = classId;
+    // Forged in-memory foreign signatures must not turn into current-class skills.
+    for (const skillId of Object.keys(D.skills)) s.skills[skillId] = D.skills[skillId].max;
+    const { ancestry, shared } = T.nodesFor(classId);
+    const expected = [...ancestry, ...shared].map(n => n.skillId).sort();
+    assert.deepEqual(C.skillsFor(s).filter(id => D.skills[id].owner || id === "first_aid").sort(), expected);
+    assert.deepEqual(T.paths().map(n => [n.classId, ...n.children.map(child => child.classId)]), catalog);
+  }
+});
 test("callers can change node collections without affecting another view or canonical data", () => {
   const a = T.paths(), b = T.paths();
   assert.notEqual(a, b); assert.notEqual(a[0], b[0]); assert.notEqual(a[0].children, b[0].children);

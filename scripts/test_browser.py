@@ -22,13 +22,13 @@ REPO = Path(__file__).resolve().parents[1]
 def load_public_cache(directory):
     directory = Path(directory).resolve()
     manifest = json.loads((directory / "public-manifest.json").read_text())
-    require(manifest.get("release") == RELEASE and manifest.get("file_count") == 44, "Invalid public cache release/count")
+    require(manifest.get("release") == RELEASE and manifest.get("file_count") == len(CONTENT), "Invalid public cache release/count")
     base = normalize_base(manifest["base_url"])
     require(urlsplit(base).scheme != "https" or manifest.get("tls_verified") is True, "HTTPS cache was not TLS verified")
-    require(set(manifest.get("files", {})) == set(CONTENT), "Public cache must describe exactly 44 content files")
+    require(set(manifest.get("files", {})) == set(CONTENT), f"Public cache must describe exactly {len(CONTENT)} content files")
     root = directory / "files"
     names = {path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file() or path.is_symlink()}
-    require(names == set(CONTENT), "Public cache files must be exactly the verified 44 files")
+    require(names == set(CONTENT), f"Public cache files must be exactly the verified {len(CONTENT)} files")
     files = {name: read_safe(root, name) for name in CONTENT}
     actual = inventory(files)
     require(manifest.get("stage_files") == actual, "Cached bytes differ from staged SHA-256 manifest")

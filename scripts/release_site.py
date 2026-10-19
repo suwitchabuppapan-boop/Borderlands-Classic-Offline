@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build deterministic 1.13 release archives and verify deployed bytes (stdlib only)."""
+"""Build deterministic 1.14 release archives and verify deployed bytes (stdlib only)."""
 from __future__ import annotations
 
 import argparse
@@ -18,13 +18,13 @@ from urllib.request import Request, urlopen
 import zipfile
 
 
-RELEASE = "1.13"
+RELEASE = "1.14"
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_BASE = "https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/"
 SCRIPTS = tuple("js/" + name + ".js" for name in (
     "classic-data", "item-rules", "stat-rules", "combat-feedback", "class-combat",
     "auto-quest", "core", "character", "siam-art", "school-art", "combat-effects",
-    "skill-tree", "render", "game",
+    "skill-tree", "render", "simulation-clock", "game",
 ))
 ART = tuple("assets/art/" + name + ".webp" for name in (
     "cavern", "class-acolyte", "class-archer", "class-claw", "class-mage",
@@ -79,7 +79,7 @@ class References(HTMLParser):
 
 
 def validate_runtime(files):
-    require(set(files) == set(RUNTIME) and len(files) == 45, "Runtime must contain exactly the specified 45 files")
+    require(set(files) == set(RUNTIME) and len(files) == 46, "Runtime must contain exactly the specified 46 files")
     parser = References()
     html = files["index.html"].decode("utf-8")
     parser.feed(html)
@@ -89,8 +89,8 @@ def validate_runtime(files):
             url = urlsplit(reference)
             require(not url.scheme and not url.netloc and not url.fragment and url.path == name
                     and parse_qs(url.query) == {"v": [RELEASE]}, f"Wrong release/order reference: {reference}; expected {name}?v={RELEASE}")
-    require(re.search(r'id=[\"\']release-label[\"\'][^>]*>[^<]*\b1\.13\b', html), "HTML release label must be 1.13")
-    require(re.search(r'\brelease\s*:\s*[\"\']1\.13[\"\']', files["js/classic-data.js"].decode("utf-8")), "BCData release must be 1.13")
+    require(re.search(r'id=[\"\']release-label[\"\'][^>]*>[^<]*\b1\.14\b', html), "HTML release label must be 1.14")
+    require(re.search(r'\brelease\s*:\s*[\"\']1\.14[\"\']', files["js/classic-data.js"].decode("utf-8")), "BCData release must be 1.14")
     require(files[".nojekyll"] == b"", ".nojekyll must be empty")
     for name in ART:
         data = files[name]
@@ -160,7 +160,7 @@ def load_stage(path):
     stage = resolve_stage(path)
     manifest_path = stage.parent / "runtime-manifest.json"
     manifest = json.loads(manifest_path.read_text())
-    require(manifest.get("release") == RELEASE and manifest.get("file_count") == 45, "Invalid runtime manifest release/count")
+    require(manifest.get("release") == RELEASE and manifest.get("file_count") == 46, "Invalid runtime manifest release/count")
     require(manifest.get("script_order") == list(SCRIPTS), "Invalid runtime manifest script order")
     names = {item.relative_to(stage).as_posix() for item in stage.rglob("*") if item.is_file() or item.is_symlink()}
     require(names == set(RUNTIME), f"Staged file inventory differs: extra={sorted(names-set(RUNTIME))}, missing={sorted(set(RUNTIME)-names)}")
@@ -176,22 +176,22 @@ def stage_release(args):
     require(out != repo and repo not in out.parents, "Use an output directory outside the source checkout")
     files = {name: read_safe(repo, name) for name in RUNTIME}
     require({p.name for p in (repo / "assets/art").glob("*.webp")} == {PurePosixPath(p).name for p in ART}, "Source art inventory must be exactly 27 WebP files")
-    require({p.name for p in (repo / "js").glob("*.js")} == {PurePosixPath(p).name for p in SCRIPTS}, "Source JS inventory must be exactly 14 modules")
+    require({p.name for p in (repo / "js").glob("*.js")} == {PurePosixPath(p).name for p in SCRIPTS}, "Source JS inventory must be exactly 15 modules")
     validate_runtime(files)
     source = source_files(repo)
     require(all(source.get(name) == data for name, data in files.items()), "Source archive must contain every runtime file unchanged")
     write_files(out / "site", files)
-    runtime_manifest = {"release": RELEASE, "file_count": 45, "script_order": list(SCRIPTS), "files": inventory(files)}
+    runtime_manifest = {"release": RELEASE, "file_count": 46, "script_order": list(SCRIPTS), "files": inventory(files)}
     (out / "runtime-manifest.json").write_bytes(json_bytes(runtime_manifest))
     (out / "source-manifest.json").write_bytes(json_bytes({"release": RELEASE, "file_count": len(source), "files": inventory(source)}))
     zip_files(out / "Borderlands-Site.zip", files)
-    zip_files(out / "Siam-Arun-1.13.zip", source)
+    zip_files(out / "Siam-Arun-1.14.zip", source)
     sums = {name: sha((out / name).read_bytes()) for name in (
-        "Borderlands-Site.zip", "Siam-Arun-1.13.zip", "runtime-manifest.json", "source-manifest.json")}
+        "Borderlands-Site.zip", "Siam-Arun-1.14.zip", "runtime-manifest.json", "source-manifest.json")}
     sums.update({"site/" + name: sha(data) for name, data in files.items()})
     (out / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in sorted(sums.items())), encoding="utf-8")
     load_stage(out)
-    print(json.dumps({"release": RELEASE, "runtime_files": len(files), "source_files": len(source), "stage": str(out / "site"), "archives": {name: sums[name] for name in ("Borderlands-Site.zip", "Siam-Arun-1.13.zip")}}, indent=2))
+    print(json.dumps({"release": RELEASE, "runtime_files": len(files), "source_files": len(source), "stage": str(out / "site"), "archives": {name: sums[name] for name in ("Borderlands-Site.zip", "Siam-Arun-1.14.zip")}}, indent=2))
 
 
 def normalize_base(base):
@@ -205,7 +205,7 @@ def fetch_file(base, name, expected, timeout):
     url = urljoin(base, quote(name))
     for attempt in range(4):
         try:
-            request = Request(url, headers={"User-Agent": "Siam-Arun-release-verifier/1.13", "Cache-Control": "no-cache", "Accept-Encoding": "identity"})
+            request = Request(url, headers={"User-Agent": "Siam-Arun-release-verifier/1.14", "Cache-Control": "no-cache", "Accept-Encoding": "identity"})
             # urlopen's default context verifies HTTPS certificates and hostnames.
             with urlopen(request, timeout=timeout) as response:
                 require(response.status == 200, f"Unexpected HTTP status for {url}: {response.status}")
@@ -232,11 +232,11 @@ def verify_public(args):
         fetched = list(pool.map(lambda name: fetch_file(base, name, staged[name], args.timeout), CONTENT))
     files = {name: data for name, data, _ in fetched}
     write_files(out / "files", files)
-    manifest = {"release": RELEASE, "base_url": base, "file_count": 44, "tls_verified": urlsplit(base).scheme == "https",
+    manifest = {"release": RELEASE, "base_url": base, "file_count": 45, "tls_verified": urlsplit(base).scheme == "https",
                 "stage_files": inventory({name: staged[name] for name in CONTENT}),
                 "files": {name: metadata for name, _, metadata in fetched}}
     (out / "public-manifest.json").write_bytes(json_bytes(manifest))
-    print(json.dumps({"release": RELEASE, "verified_content_files": 44, "base_url": base, "tls_verified": manifest["tls_verified"], "cache": str(out)}, indent=2))
+    print(json.dumps({"release": RELEASE, "verified_content_files": 45, "base_url": base, "tls_verified": manifest["tls_verified"], "cache": str(out)}, indent=2))
 
 
 def main():
@@ -246,10 +246,10 @@ def main():
     stage.add_argument("--repo", default=str(REPO))
     stage.add_argument("--out", required=True)
     stage.set_defaults(action=stage_release)
-    verify = commands.add_parser("verify-stage", help="Check the staged 45-file inventory and SHA-256 manifest")
+    verify = commands.add_parser("verify-stage", help="Check the staged 46-file inventory and SHA-256 manifest")
     verify.add_argument("--stage", required=True)
     verify.set_defaults(action=lambda args: print(json.dumps({"verified_runtime_files": len(load_stage(args.stage)[1])})))
-    public = commands.add_parser("verify-public", help="Fetch and compare all 44 deployed content files; cache exact bytes")
+    public = commands.add_parser("verify-public", help="Fetch and compare all 45 deployed content files; cache exact bytes")
     public.add_argument("--stage", required=True)
     public.add_argument("--out", required=True)
     public.add_argument("--base", default=DEFAULT_BASE)

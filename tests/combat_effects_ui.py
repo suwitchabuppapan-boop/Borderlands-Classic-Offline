@@ -73,7 +73,43 @@ async def run_checks(page, artifacts=None):
       const hit=e=>pixels(state([event({kind:'impact',...e})]));
       const miss=hit({result:'miss'}),normal=hit({result:'hit'}),crit=hit({result:'crit'}),magic=hit({result:'hit',magic:true}),magicCrit=hit({result:'crit',magic:true});
       if(miss.count!==0||crit.count<=normal.count||magic.hash!==magicCrit.hash)throw Error('Actual hit/crit/miss pixels incorrect');
-      return {images:{'combat-weapons-4-directions.png':profile.toDataURL(),'combat-15-signatures.png':skill.toDataURL(),'combat-persistent-states.png':persistent.toDataURL()},weaponChecks,skillChecks,persistentChecks,impacts:{miss,normal,crit,magic,magicCrit}};
+      // These outcomes come from the real seeded damage path, with no synthetic result field.
+      const realCase=(seed,classId='swordsman')=>{
+        const s=BCCore.createState(),cls=D.classes[classId];
+        Object.assign(s,{classId,weaponSchool:cls.weaponType,job:'Swordman',seed});s.equipment.weapon=cls.trainingWeapon;
+        s.stats.luk=99;s.stats.dex=1;s.player.x=105;s.player.y=130;
+        s.monsters=[{uid:'critical-target',kind:'guardian',x:145,y:130,hp:10000,cd:9999,dead:0,provoke:0}];
+        const r=BCCore.act(s,'attack',{target:'critical-target'});if(!r.ok)throw Error(r.message);
+        const impact=s.combatFeedback.events.find(e=>e.kind==='impact');
+        if(impact.duration!==.25)throw Error('Critical lifetime no longer matches actual impact event');
+        const savedTarget={...impact.target};s.monsters[0].x=900;
+        if(impact.target.x!==savedTarget.x||!Object.isFrozen(impact.target))throw Error('Impact lost its immutable hit target');
+        return {classId,seed,impact,hpLost:10000-s.monsters[0].hp};
+      };
+      const criticalCases=[realCase(158),realCase(1),realCase(161),realCase(1,'mage')];
+      if(criticalCases.map(v=>v.impact.result).join(',')!=='hit,crit,miss,hit')throw Error('Seeded actual damage outcomes changed');
+      const critical=canvas(1040,220),criticalChecks=[];
+      criticalCases.forEach((record,i)=>{
+        const e={...record.impact,age:.08},s=state([e]),check=pixels(s);
+        criticalChecks.push({...record,...check});
+        const x=i*260,c=painter(critical,x,0,260,220,record.classId+' · '+e.result+' · seed '+record.seed);
+        c.save();c.translate(x,0);
+        person(c,e.source,record.classId,1);
+        const body=BCRender.cells.sprites[14],height=48,width=height*body.w/body.h;
+        c.drawImage(BCRender.images.sprites,body.x,body.y,body.w,body.h,e.target.x-width/2,e.target.y-height,width,height);
+        FX.drawFront(c,s);c.restore();
+      });
+      const criticalOnly=pixels(state([{...criticalCases[1].impact,age:.08}]));
+      if(criticalOnly.count<1200)throw Error('Critical geometry is still too small: '+criticalOnly.count+' painted pixels; expected at least 1200');
+      if(criticalOnly.count<criticalChecks[0].count*5)throw Error('Critical does not stand out from a normal hit');
+      const times=[0,.04,.08,.14,.20,.249,.25],strip=canvas(1400,190),criticalTimesteps=[];
+      times.forEach((age,i)=>{
+        const s=state([{...criticalCases[1].impact,age}]),check=pixels(s);criticalTimesteps.push({age,...check});
+        const c=painter(strip,i*200,0,200,190,Math.round(age*1000)+' ms / 250 ms');
+        c.save();c.translate(i*200-35,-5);FX.drawFront(c,s);c.restore();
+      });
+      if(!criticalTimesteps[0].count||criticalTimesteps.at(-1).count)throw Error('Critical must appear immediately and expire at 250ms');
+      return {images:{'combat-weapons-4-directions.png':profile.toDataURL(),'combat-15-signatures.png':skill.toDataURL(),'combat-persistent-states.png':persistent.toDataURL(),'combat-real-critical-vs-normal.png':critical.toDataURL(),'combat-critical-timesteps.png':strip.toDataURL()},weaponChecks,skillChecks,persistentChecks,impacts:{miss,normal,crit,magic,magicCrit},criticalChecks,criticalTimesteps};
     }''')
     image_paths = []
     for name, data in sheets.pop('images').items():
@@ -88,10 +124,12 @@ async def run_checks(page, artifacts=None):
       BCRender.draw=function(canvas,s){
         original(canvas,s);const record=window.__combatRaf;record.frames++;
         if(s.combatFeedback?.events.length){record.draws++;record.seen=s.combatFeedback.events.map(e=>({...e}));}
+        const critical=s.combatFeedback?.events.find(e=>e.kind==='impact'&&e.result==='crit'&&!e.magic&&e.age>=.03&&e.age<.14);
+        if(critical&&!record.criticalFrame){record.criticalFrame=canvas.toDataURL();record.criticalEvent={...critical};}
       };
       window.__combatSetup=classId=>{
         const target=BCGame.state,next=BCCore.createState(),job=BCData.classes[classId];
-        next.classId=classId;next.job=job.tier===2?'Class2':'Class1';next.weaponSchool=job.weaponType;next.equipment.weapon=job.trainingWeapon;
+        next.classId=classId;next.job=job.tier?'Swordman':'Novice';next.weaponSchool=job.weaponType;next.equipment.weapon=job.trainingWeapon;
         next.player.x=470;next.player.y=280;
         next.stats.dex=60;next.stats.int=60;next.stats.luk=1;const stats=BCCore.stats(next);next.player.sp=stats.maxSp;next.player.hp=stats.maxHp;
         next.monsters=[{uid:'fx-target',kind:'guardian',x:510,y:280,hp:BCData.monsters.guardian.hp,cd:9999,dead:0,provoke:0}];next.target='fx-target';
@@ -107,14 +145,36 @@ async def run_checks(page, artifacts=None):
     assert any(e['kind'] == 'attack' for e in attack['events'])
     assert any(e['kind'] == 'impact' for e in attack['events'])
     assert attack['hp'] < 700
-    # Real menu opens synchronously after the event so its age is frozen during RAF draws.
+    # The real menu remains open while the RAF simulation ages and expires the attack.
     await page.evaluate("BCGame.openPanel('help')")
-    frozen_age = await page.evaluate('BCGame.state.combatFeedback.events[0].age')
-    frozen_frames = await page.evaluate('__combatRaf.frames')
+    menu_clock = await page.evaluate('BCGame.state.clock')
+    menu_frames = await page.evaluate('__combatRaf.frames')
     await page.wait_for_timeout(220)
-    assert await page.evaluate('BCGame.state.combatFeedback.events[0].age') == frozen_age
-    assert await page.evaluate('__combatRaf.frames') > frozen_frames
+    assert await page.evaluate('BCGame.state.clock') > menu_clock
+    assert await page.evaluate('__combatRaf.frames') > menu_frames
+    await page.wait_for_function('BCGame.state.combatFeedback.events.length===0')
     await page.keyboard.press('Escape')
+    await page.wait_for_function('BCGame.state.combatFeedback.events.length===0')
+
+    # A seeded real critical resolves through C.act and is captured from an actual RAF draw.
+    real_critical = await page.evaluate('''() => {
+      const s=__combatSetup('swordsman');s.seed=1;s.stats.luk=99;s.stats.dex=1;
+      delete __combatRaf.criticalFrame;delete __combatRaf.criticalEvent;
+      const before=s.monsters[0].hp,r=BCCore.act(s,'attack',{target:s.target});if(!r.ok)throw Error(r.message);
+      const impact=s.combatFeedback.events.find(e=>e.kind==='impact');
+      if(impact.result!=='crit'||impact.magic)throw Error('Seed did not resolve an actual physical critical');
+      return {impact:{...impact},hpLost:before-s.monsters[0].hp};
+    }''')
+    await page.wait_for_function('!!__combatRaf.criticalFrame')
+    critical_frame = await page.evaluate('__combatRaf.criticalFrame')
+    critical_path = output / 'combat-real-raf-critical.png'
+    critical_path.write_bytes(base64.b64decode(critical_frame.split(',', 1)[1]))
+    image_paths.append(str(critical_path))
+    real_critical['rafImpact'] = await page.evaluate('__combatRaf.criticalEvent')
+    assert real_critical['hpLost'] == real_critical['impact']['amount'] > 0
+    assert real_critical['rafImpact']['target'] == real_critical['impact']['target']
+    assert real_critical['rafImpact']['duration'] == .25
+    assert 0 < real_critical['rafImpact']['age'] < .25
     await page.wait_for_function('BCGame.state.combatFeedback.events.length===0')
 
     # Hotbar keyboard cast follows real validation/SP/CD and is seen in actual RAF drawing.
@@ -137,12 +197,12 @@ async def run_checks(page, artifacts=None):
     assert await page.evaluate('BCGame.state.combatFeedback.events.length') == 0
     assert await page.evaluate('BCGame.state.classCombat.buffs.ward_script.remaining') > 0
     await page.evaluate("BCGame.openPanel('help')")
-    buff_age = await page.evaluate('BCGame.state.classCombat.buffs.ward_script.remaining')
+    buff_time = await page.evaluate('BCGame.state.classCombat.buffs.ward_script.remaining')
     await page.wait_for_timeout(120)
-    assert await page.evaluate('BCGame.state.classCombat.buffs.ward_script.remaining') == buff_age
-    await page.keyboard.press('Escape')
+    assert await page.evaluate('BCGame.state.classCombat.buffs.ward_script.remaining') < buff_time
     await page.evaluate('BCGame.state.classCombat.buffs.ward_script.remaining=.12')
     await page.wait_for_function('!BCGame.state.classCombat.buffs.ward_script')
+    await page.keyboard.press('Escape')
 
     await page.evaluate("__combatSetup('orb_weaver')")
     await page.locator('#game').focus()
@@ -176,8 +236,8 @@ async def run_checks(page, artifacts=None):
     assert await page.evaluate('BCGame.state.combatFeedback?.events.length || 0') == 0
     assert await page.evaluate('!!BCGame.state.classCombat') is False
     assert not errors, errors
-    result = {**sheets, 'attack': attack, 'cast': cast, 'travel': travel,
-              'rafChecks': ['keyboard attack', 'keyboard hotbar cast', 'menu freezes event and buff time while RAF draws',
+    result = {**sheets, 'attack': attack, 'realCritical': real_critical, 'cast': cast, 'travel': travel,
+              'rafChecks': ['keyboard attack', 'seeded actual physical critical captured during RAF', 'keyboard hotbar cast', 'menu advances simulation, events and buff expiry while RAF draws',
                             'event expiry', 'buff expiry', 'orb charge expiry', 'DOT expiry', 'trap expiry', 'map clear', 'save/reload clear'],
               'images': image_paths + [str(output / 'combat-real-raf-cast.png')], 'pageErrors': errors}
     (output / 'combat-canvas-results.json').write_text(json.dumps(result, indent=2), encoding='utf-8')

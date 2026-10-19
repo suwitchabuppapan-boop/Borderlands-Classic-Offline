@@ -5,12 +5,13 @@ The browser runner additionally uses Python Playwright and Chromium (this cloud
 environment has `/usr/bin/chromium`). Commands run from the repository root.
 
 ```sh
-python scripts/release_site.py stage --out /workspace/combat-fx-work/release-1.13
-python scripts/release_site.py verify-stage --stage /workspace/combat-fx-work/release-1.13
+python scripts/release_site.py stage --out /workspace/combat114/release-1.14
+python scripts/release_site.py verify-stage --stage /workspace/combat114/release-1.14
 ```
 
-The output contains `site/` with exactly 45 runtime files, `Borderlands-Site.zip`
-with those same files, and `Siam-Arun-1.13.zip` with allowlisted authored source,
+The output contains `site/` with exactly 46 runtime files (15 JavaScript modules,
+27 WebP images, index, CSS, license and `.nojekyll`), `Borderlands-Site.zip`
+with those same files, and `Siam-Arun-1.14.zip` with allowlisted authored source,
 tests, documentation and scripts from Git's tracked/untracked file inventory.
 It excludes Git history, credentials, saves, generated screenshots and third-party
 artwork. Each ZIP has sorted entries and fixed metadata, and is read back to
@@ -26,11 +27,11 @@ build finishes, verify every public content file:
 
 ```sh
 python scripts/release_site.py verify-public \
-  --stage /workspace/combat-fx-work/release-1.13 \
-  --out /workspace/combat-fx-work/public-1.13
+  --stage /workspace/combat114/release-1.14 \
+  --out /workspace/combat114/public-1.14
 ```
 
-This fetches 44 content files (`.nojekyll` is a deployment marker), with normal
+This fetches 45 content files (`.nojekyll` is a deployment marker), with normal
 TLS certificate/hostname verification, two workers and at most three retries
 only for HTTP 429/502/503/504. Every response must match staged bytes before the
 cache manifest is written. `--base URL` selects a different HTTPS deployment;
@@ -41,14 +42,15 @@ the checkout or the staged `site/` directory, then run:
 
 ```sh
 python scripts/test_browser.py --url http://127.0.0.1:8765/ \
-  --artifacts /workspace/combat-fx-work/browser-local
+  --artifacts /workspace/combat114/browser-local
 python scripts/test_browser.py \
-  --public-cache /workspace/combat-fx-work/public-1.13 \
-  --artifacts /workspace/combat-fx-work/browser-public
+  --public-cache /workspace/combat114/public-1.14 \
+  --artifacts /workspace/combat114/browser-public
 ```
 
 The runner imports `run_checks(page)` from every `tests/*_ui.py` and, when
-present, `tests/gameplay_regression.py`. It supports sync and async Playwright
+present, `tests/gameplay_regression.py` (four suites in 1.14, including
+`background_farming_ui.py`). It supports sync and async Playwright
 suites, runs them sequentially, and closes each browser/context before the next.
 Use `--suite skill_tree_ui` (repeatable) to select suites. Every suite starts with
 fresh storage. Reports capture page errors, failed requests, HTTP failures and

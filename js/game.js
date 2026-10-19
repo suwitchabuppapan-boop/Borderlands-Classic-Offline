@@ -3,6 +3,7 @@
   const D = window.BCData,
     C = window.BCCore,
     R = window.BCRender,
+    Clock = window.BCSimulationClock,
     $ = (id) => document.getElementById(id);
   const world = D.world,
     npc = (id) => D.npcs.find((person) => person.id === id);
@@ -20,10 +21,11 @@
     );
   let state = C.createState(),
     panel = null,
-    paused = false,
-    last = 0,
     hudTime = 0,
-    saveTime = 0,
+    lastSaveAt = Date.now(),
+    pumping = false,
+    catchupTimer = null,
+    manualDestination = null,
     toastTimer,
     hotSignature = "",
     selectedInventoryItem = "potion",
@@ -60,6 +62,19 @@
     storageError =
       "เบราว์เซอร์บันทึกไม่ได้ • ใช้ Export Save เพื่อเก็บความคืบหน้า";
   }
+  const simulation = Clock.create(Date.now());
+  function clearManualMovement() {
+    keys.clear();
+    if (manualDestination && state.destination === manualDestination) state.destination = null;
+    manualDestination = null;
+  }
+  function readyForAction() {
+    if (pumping) return true;
+    const result = pump(Date.now());
+    if (!result.behind) return true;
+    toast("กำลังคำนวณการฟาร์มที่ค้างอยู่ • รอสักครู่แล้วสั่งใหม่");
+    return false;
+  }
   function toast(message) {
     if (!message) return;
     $("toast").textContent = message;
@@ -68,6 +83,7 @@
     toastTimer = setTimeout(() => $("toast").classList.remove("visible"), 3600);
   }
   function save(manual = false) {
+    if (manual && !readyForAction()) return false;
     if (protectStorage) {
       if (
         !manual ||
@@ -83,6 +99,7 @@
     }
     try {
       localStorage.setItem(D.saveKey, C.serialize(state));
+      lastSaveAt = Date.now();
       storageError = "";
       $("save-indicator").textContent =
         "● บันทึกแล้ว · " +
@@ -103,6 +120,7 @@
     if (storageError) $("save-indicator").textContent = "⚠ " + storageError;
   }
   function exportSave() {
+    if (!readyForAction()) return;
     const blob = new Blob([C.serialize(state)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -114,6 +132,7 @@
     toast("ส่งออกเซฟแล้ว • เก็บไฟล์นี้ไว้ใช้ Import");
   }
   function loadSave(text) {
+    if (!readyForAction()) return false;
     const next = C.deserialize(text);
     codexTab = "world";
     catalogCollection = "regular";
@@ -127,7 +146,8 @@
     guideVisit = false;
     questBlockNotice = "";
     state = next;
-    keys.clear();
+    simulation.reset(Date.now());
+    clearManualMovement();
     protectStorage = false;
     hotSignature = "";
     save();
@@ -136,6 +156,7 @@
     toast("นำเข้าเซฟสำเร็จ");
   }
   function run(action, p = {}) {
+    if (!readyForAction()) return { ok: false, message: "กำลังคำนวณการฟาร์มที่ค้างอยู่" };
     if (["move", "target", "auto", "travel"].includes(action)) {
       shopVisit = false;
       guideVisit = false;
@@ -159,7 +180,7 @@
   };
   function questAutoCard(s) {
     const status = C.autoQuestStatus(s), complete = s.quest >= D.quests.length;
-    return `<section class="quest-auto-card" aria-label="ทำเควสต์หลักอัตโนมัติ"><h3>ทำเควสต์หลักอัตโนมัติ</h3><div class="quest-auto-panel-status" role="status" aria-live="polite">${esc(questPhaseNames[status.phase] || "พร้อมเริ่ม")}${status.message ? ` · ${esc(status.message)}` : ""}</div><p class="panel-note">รับภารกิจ เดินทาง ต่อสู้ และกลับส่งให้ครูอิน ต่อเนื่องทั้ง 3 ภารกิจ โดยใช้สเตตัส อุปกรณ์ และเสบียงที่มี<br>ใช้ค่า Auto Skill / Auto Potion ที่ตั้งไว้ เมนูและแท็บที่พักไว้จะหยุดเวลาเกม · สั่งเดินหรือโจมตีเองเพื่อหยุด Auto Quest</p>${button(status.active ? "auto-quest-stop" : "auto-quest", status.active ? "หยุดทำเควสต์อัตโนมัติ" : "ทำเควสต์หลักอัตโนมัติ", "", `${complete && !status.active ? "disabled" : ""} aria-pressed="${status.active}" class="${status.active ? "danger" : "primary"}"`)}</section>`;
+    return `<section class="quest-auto-card" aria-label="ทำเควสต์หลักอัตโนมัติ"><h3>ทำเควสต์หลักอัตโนมัติ</h3><div class="quest-auto-panel-status" role="status" aria-live="polite">${esc(questPhaseNames[status.phase] || "พร้อมเริ่ม")}${status.message ? ` · ${esc(status.message)}` : ""}</div><p class="panel-note">รับภารกิจ เดินทาง ต่อสู้ และกลับส่งให้ครูอิน ต่อเนื่องทั้ง 3 ภารกิจ โดยใช้สเตตัส อุปกรณ์ และเสบียงที่มี<br>ใช้ค่า Auto Skill / Auto Potion ที่ตั้งไว้ ฟาร์มต่อระหว่างเปิดเมนูและสลับแท็บ · สั่งเดินหรือโจมตีเองเพื่อหยุด Auto Quest</p>${button(status.active ? "auto-quest-stop" : "auto-quest", status.active ? "หยุดทำเควสต์อัตโนมัติ" : "ทำเควสต์หลักอัตโนมัติ", "", `${complete && !status.active ? "disabled" : ""} aria-pressed="${status.active}" class="${status.active ? "danger" : "primary"}"`)}</section>`;
   }
   function updateQuestAutoUI() {
     const status = C.autoQuestStatus(state), phase = questPhaseNames[status.phase] || "พร้อมเริ่ม";
@@ -242,9 +263,7 @@
     lastFocus = document.activeElement;
     panel = name;
     if (name === "skills") skillsTab = "current";
-    keys.clear();
-    state.destination = null;
-    state.target = null;
+    clearManualMovement();
     $("panel-window").hidden = false;
     $("panel-backdrop").hidden = false;
     renderPanel();
@@ -467,20 +486,19 @@
     return `<div class="skill-card" data-skill="${id}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small>${owner ? `${esc(owner.name)} · Class ${owner.tier}` : id === "first_aid" ? "ใช้ได้ทุกอาชีพ" : "สกิลเดิมที่เรียนไว้"} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, reason ? `disabled title="${esc(reason)}"` : "")}</div>`;
   }
   function skillTree(s) {
-    const tree = window.BCSkillTree, accessible = tree.nodesFor(s.classId);
-    const inherited = new Set(accessible.ancestry.map(n => n.classId));
+    const accessible = window.BCSkillTree.nodesFor(s.classId);
     const progress = C.trialProgress(s);
     const card = (node) => {
       const { classId, classDef: c, skillId, skill: d } = node;
-      const relation = classId === s.classId ? "own" : inherited.has(classId) ? "inherited" : "locked";
-      const relationText = { own: "อาชีพปัจจุบัน", inherited: "สืบทอด", locked: "ล็อก · ต่างอาชีพ" }[relation];
+      const relation = classId === s.classId ? "own" : "inherited";
+      const relationText = { own: "อาชีพปัจจุบัน", inherited: "สืบทอด" }[relation];
       const reason = C.learnReason(s, skillId), trial = c.trial;
       const active = progress?.classId === classId ? progress : null;
       const trialText = trial ? ` · ทดสอบกำจัด${D.monsters[trial.kind].name} ${trial.count} ตัว${active ? ` (${active.current}/${trial.count}${active.complete ? " · สำเร็จ" : ""})` : " · นับหลังรับทดสอบ"}` : "";
       return `<article class="skill-tree-node" data-class="${classId}" data-skill="${skillId}" data-state="${relation}"><div class="skill-tree-class"><b>${esc(c.name)}</b><span class="skill-tree-state">${relationText}</span></div><h3>${esc(d.name)} <span>Lv.${s.skills[skillId] || 0} / ${d.max}</span></h3><p class="skill-tree-meta">SP ${d.sp} · CD ${d.cooldown} วินาที · ระยะ ${d.range}${d.range === 0 ? " (ตนเอง)" : ""}</p><p class="skill-tree-description">${esc(d.description)}</p><p class="skill-tree-requirement">Class ${c.tier} · เปลี่ยนอาชีพที่ Job Lv.${c.tier === 1 ? 10 : 40}${esc(trialText)}</p><div class="skill-tree-learn">${button("learn", "เรียน", skillId, `${reason ? `disabled title="${esc(reason)}"` : ""} aria-label="เรียน ${esc(d.name)}"`)}<small>${esc(reason || "ใช้ 1 แต้มสกิลต่อระดับ")}</small></div></article>`;
     };
     const legacy = C.skillsFor(s).filter(id => !D.skills[id].owner && id !== "first_aid" && s.skills[id] > 0);
-    return `<p class="panel-note skill-tree-help">เส้นทาง Class 1 ทั้ง 5 อาชีพ → Class 2 อาชีพละ 2 ทาง<br>เรียนได้เฉพาะอาชีพปัจจุบันและอาชีพที่สืบทอด · ดูเส้นทางไม่เปลี่ยนอาชีพหรือปลดล็อกอาวุธ<br>เปลี่ยนอาชีพและรับทดสอบกับ${esc(npc("guide").name)}ที่เมือง</p><div class="skill-tree-families">${tree.paths().map(family => `<section class="skill-tree-family" aria-label="เส้นทาง${esc(family.classDef.name)}">${card(family)}<div class="skill-tree-children">${family.children.map(card).join("")}</div></section>`).join("")}</div><section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3 class="shop-title">สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n => skillCard(s, n.skillId)).join("")}</section>${legacy.length ? `<section class="skill-tree-legacy" aria-label="สกิลเดิมที่เรียนไว้"><h3 class="shop-title">สกิลเดิมที่เรียนไว้</h3><p class="panel-note">คงสกิลและเงื่อนไขเดิมจากเซฟ · แยกจากเส้นทางอาชีพ</p>${legacy.map(id => skillCard(s, id)).join("")}</section>` : ""}`;
+    return `<p class="panel-note skill-tree-help">แสดงเฉพาะสกิลอาชีพปัจจุบันและสกิลที่สืบทอด<br>เปลี่ยนอาชีพและรับทดสอบกับ${esc(npc("guide").name)}ที่เมือง</p>${accessible.ancestry.length ? `<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${accessible.ancestry.map(card).join("")}</section>` : ""}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3 class="shop-title">สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n => skillCard(s, n.skillId)).join("")}</section>${legacy.length ? `<section class="skill-tree-legacy" aria-label="สกิลเดิมที่เรียนไว้"><h3 class="shop-title">สกิลเดิมที่เรียนไว้</h3><p class="panel-note">คงสกิลและเงื่อนไขเดิมจากเซฟ · แยกจากเส้นทางอาชีพ</p>${legacy.map(id => skillCard(s, id)).join("")}</section>` : ""}`;
   }
   const statNumber = (value) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 1, useGrouping: false });
   function statBuild(s, st) {
@@ -630,7 +648,7 @@
       );
     }
     if (panel === "auto") {
-      html = `${questAutoCard(s)}<p class="panel-note">Auto Battle จะหาเป้าหมายและต่อสู้ในแมปปัจจุบัน · Auto Quest จะเลือกเฉพาะมอนสเตอร์ที่ต้องใช้ในภารกิจ ทำงานเฉพาะขณะหน้าเกมเปิดและไม่มีหน้าต่างเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้สกิลอาชีพที่เรียนแล้วเมื่อเหมาะกับเป้าหมาย</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
+      html = `${questAutoCard(s)}<p class="panel-note">Auto Battle จะหาเป้าหมายและต่อสู้ในแมปปัจจุบัน · Auto Quest จะเลือกเฉพาะมอนสเตอร์ที่ต้องใช้ในภารกิจ ทำงานเฉพาะขณะหน้าเกมเปิดและฟาร์มต่อได้แม้เปิดเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้สกิลอาชีพที่เรียนแล้วเมื่อเหมาะกับเป้าหมาย</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
     }
     if (panel === "settings") {
       html = `<p class="panel-note">ความคืบหน้าเก็บในเบราว์เซอร์และที่อยู่ที่เล่นนี้ ใช้ Export เพื่อย้ายเครื่องหรือสำรองเซฟ</p><div class="settings-row"><label for="hair-select">สีผมของนักผจญภัย</label><select id="hair-select">${["น้ำตาล", "ทองเข้ม", "ดำ", "แดงอิฐ", "ทองอ่อน", "เทาอมฟ้า"].map((n, i) => `<option value="${i}" ${s.settings.hair === i ? "selected" : ""}>${n}</option>`).join("")}</select></div><div class="settings-actions">${button("save", "บันทึกเกม")}${button("export", "Export Save")}${button("import", "Import Save")}</div><p class="panel-note">ใช้เซฟเดิมต่อในโลก${esc(world.title)}ได้ • อาวุธ หมวก อาชีพ และภารกิจเดิมยังอยู่ครบ</p><hr class="section-rule"><p class="panel-note">เริ่มต้นการผจญภัยใหม่จะล้างความคืบหน้าปัจจุบัน ควร Export ไว้ก่อน</p>${button("reset", "เริ่มเกมใหม่", "", 'class="danger"')}`;
@@ -663,7 +681,7 @@
         ? s.log.map((t) => `<div class="log-line">${esc(t)}</div>`).join("")
         : '<p class="empty">ทุกการผจญภัยมีเรื่องราว • ออกไปเริ่มเรื่องของคุณ</p>';
     if (panel === "help")
-      html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ อาวุธต้องตรงกับประเภทของอาชีพ ซื้ออาวุธสำหรับอาชีพถัดไปเก็บได้ ภาพชุดและท่าถือเป็นแบบประจำอาชีพถาวร อาวุธที่สวมเพิ่มค่าสถานะ ถอดแล้วใช้รูปลักษณ์อาวุธฝึกโดยไม่มีโบนัส ดาบและโล่อยู่ในช่องอาวุธเดียวกัน</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ ชาวบ้าน Job Lv.10 เลือก Class 1 ได้ 5 อาชีพ จากนั้น Job Lv.40 รับการทดสอบเพื่อเลือก Class 2 หนึ่งในสองเส้นทาง ต้องอยู่ใกล้ครูอิน การทดสอบนับเฉพาะตัวที่กำจัดหลังรับ เมื่อเปลี่ยนอาชีพ Job Lv.เริ่มที่ 1 และสืบทอดสกิลเดิม โดยไม่แจกอาวุธหรืออัฐ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิดเมนูหรือเปลี่ยนไปแท็บอื่น เกมจะพักให้คุณ บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
+      html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ อาวุธต้องตรงกับประเภทของอาชีพ ซื้ออาวุธสำหรับอาชีพถัดไปเก็บได้ ภาพชุดและท่าถือเป็นแบบประจำอาชีพถาวร อาวุธที่สวมเพิ่มค่าสถานะ ถอดแล้วใช้รูปลักษณ์อาวุธฝึกโดยไม่มีโบนัส ดาบและโล่อยู่ในช่องอาวุธเดียวกัน</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ ชาวบ้าน Job Lv.10 เลือก Class 1 ได้ 5 อาชีพ จากนั้น Job Lv.40 รับการทดสอบเพื่อเลือก Class 2 หนึ่งในสองเส้นทาง ต้องอยู่ใกล้ครูอิน การทดสอบนับเฉพาะตัวที่กำจัดหลังรับ เมื่อเปลี่ยนอาชีพ Job Lv.เริ่มที่ 1 และสืบทอดสกิลเดิม โดยไม่แจกอาวุธหรืออัฐ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิด Auto Battle หรือ Auto Quest แล้วฟาร์มต่อได้ระหว่างเปิดเมนู ย่อหน้าต่าง หรือสลับแท็บ หากเบราว์เซอร์พักการทำงาน ระบบจะคำนวณเวลาที่ค้างเมื่อกลับมา ต้องเปิดหน้าเกมไว้ · บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
     if (panel === "help")
       html += `<div class="help-list stat-guide-note"><p>สเตตัสเริ่มที่ 1 ทั้ง 6 ค่า พร้อม 48 แต้ม ใช้แต้มมากขึ้นทุกช่วง 10 ค่า ดูค่าใช้จ่ายที่ปุ่ม ＋ ในหน้าสเตตัส STR ใช้กับอาวุธประชิด, DEX ใช้กับธนู, INT ใช้กับคทา หนังสือ และแก้วมณี ธนูมนตรายิงปกติใช้ DEX แต่สกิลเวทใช้ INT</p><p>AGI ช่วยความเร็วตีและหลบกายภาพ, VIT เพิ่ม HP ป้องกันและผลยา HP, INT เพิ่ม SP ป้องกันเวทและผลยา SP ส่วน LUK ช่วยคริติคอลกายภาพและหลบสมบูรณ์ คริเฉพาะตีปกติกายภาพ ความเสียหาย ×1.4 ไม่ใช้กับสกิลหรือเวท ความเร็วเดินและคูลดาวน์สกิลคงเดิม</p><p>DEF ป้องกันกายภาพ ส่วน MDEF ป้องกันเวท เช่น ${esc(D.monsters.willow.name)} อุปกรณ์ระบุ ATK / MATK แยกกัน เปิดรายละเอียดในหน้าสเตตัสเพื่อดูส่วนพื้นฐาน ส่วนเกราะ และอัตราฟื้นฟู</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรีสเตตัสฟรี คืนแต้มที่ลงไว้ทั้งหมดและจัดบิลด์ใหม่ได้ โดยคงอาชีพ อุปกรณ์ และความคืบหน้า</p></div>`;
     $("side-panel").innerHTML = html;
@@ -841,7 +859,7 @@
   }
   $("game").addEventListener("pointerdown", (event) => {
     if (panel) return;
-    paused = false;
+    if (!readyForAction()) return;
     $("game").focus({ preventScroll: true });
     const p = worldPoint($("game"), event);
     const m = state.monsters
@@ -947,6 +965,7 @@
     }
     const a = b.dataset.act;
     if (!a) return;
+    if (!readyForAction()) return;
     if (a === "auto-quest" || a === "auto-quest-stop") {
       toggleQuestAuto(a);
       return;
@@ -978,6 +997,8 @@
         )
       ) {
         state = C.createState();
+        simulation.reset(Date.now());
+        clearManualMovement();
         shopVisit = false;
         guideVisit = false;
         questBlockNotice = "";
@@ -995,6 +1016,10 @@
   });
   document.addEventListener("change", (event) => {
     const el = event.target;
+    if ((el.dataset.bind !== undefined || ["hair-select", "auto-potion", "auto-skill"].includes(el.id)) && !readyForAction()) {
+      renderPanel();
+      return;
+    }
     if (["catalog-type", "catalog-collection", "catalog-status", "catalog-weapon-type", "catalog-grade"].includes(el.id)) {
       if (el.id === "catalog-type") catalogType = Object.hasOwn(itemTypeNames, el.value) ? el.value : "all";
       else if (el.id === "catalog-collection") {
@@ -1100,6 +1125,7 @@
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
     if (movement[key]) {
       event.preventDefault();
+      if (!readyForAction()) return;
       shopVisit = false;
       guideVisit = false;
       if (C.autoQuestStatus(state).active) run("auto-quest-stop");
@@ -1122,23 +1148,17 @@
   document.addEventListener("keyup", (e) => {
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (!movement[key]) return;
+    if (!pumping) pump(Date.now());
     keys.delete(key);
-    if (!keys.size && !state.target) state.destination = null;
+    if (!keys.size) clearManualMovement();
   });
   function suspend() {
-    shopVisit = false;
-    guideVisit = false;
-    keys.clear();
-    state.destination = null;
-    state.target = null;
-    paused = true;
-    $("pause-banner").hidden = false;
+    clearManualMovement();
+    pump(Date.now());
     save();
   }
   function resume() {
-    paused = false;
-    last = performance.now();
-    $("pause-banner").hidden = true;
+    pump(Date.now());
   }
   window.addEventListener("blur", suspend);
   window.addEventListener("focus", resume);
@@ -1146,12 +1166,9 @@
     if (document.hidden) suspend();
     else resume();
   });
-  window.addEventListener("pagehide", () => save());
-  function frame(time) {
-    const dt = Math.max(0, Math.min(0.1, (time - (last || time)) / 1000));
-    last = time;
-    if (!paused && !document.hidden && !panel) {
-      if (keys.size) {
+  window.addEventListener("pagehide", suspend);
+  function simulationStep(dt) {
+      if (!panel && !document.hidden && keys.size) {
         let dx = 0,
           dy = 0;
         for (const k of keys) {
@@ -1164,6 +1181,7 @@
             x: state.player.x + (dx / len) * 25,
             y: state.player.y + (dy / len) * 25,
           });
+          manualDestination = state.destination;
         } else state.destination = null;
       }
       C.tick(state, dt);
@@ -1175,9 +1193,9 @@
         state.destination = null;
       if (!C.autoQuestStatus(state).active && Math.abs(state.player.y - 280) < 48) {
         if (state.player.x > 904 && state.zone < 2)
-          run("travel", { direction: 1 });
+          C.act(state, "travel", { direction: 1 });
         else if (state.player.x < 56 && state.zone > 0)
-          run("travel", { direction: -1 });
+          C.act(state, "travel", { direction: -1 });
       }
       if (shopVisit && (state.zone !== 0 || !state.destination)) {
         shopVisit = false;
@@ -1188,18 +1206,34 @@
         if (nearGuide()) openPanel("npc");
       }
       notifyQuestBlock();
+  }
+  function pump(now) {
+    if (pumping) return { behind: simulation.pendingSeconds >= Clock.STEP };
+    pumping = true;
+    let result;
+    try { result = simulation.advance(now, simulationStep); }
+    finally { pumping = false; }
+    const banner = $("pause-banner");
+    banner.hidden = !result.behind;
+    if (result.behind) {
+      banner.textContent = `กำลังคำนวณการฟาร์มต่อเนื่อง • เหลือ ${Math.ceil(result.pendingSeconds)} วินาที`;
+      if (catchupTimer === null) catchupTimer = setTimeout(() => {
+        catchupTimer = null;
+        pump(Date.now());
+      }, 0);
     }
-    R.draw($("game"), state);
-    hudTime += dt;
-    saveTime += dt;
-    if (hudTime > 0.12) {
-      updateHUD();
-      hudTime = 0;
-    }
-    if (saveTime > 10) {
+    hudTime += result.steps * Clock.STEP;
+    if (!document.hidden && hudTime >= .12) { updateHUD(); hudTime = 0; }
+    if (now - lastSaveAt >= 10000) {
+      lastSaveAt = now;
       save();
-      saveTime = 0;
     }
+    return result;
+  }
+  setInterval(() => pump(Date.now()), 250);
+  function frame() {
+    pump(Date.now());
+    R.draw($("game"), state);
     requestAnimationFrame(frame);
   }
   window.BCGame = {
@@ -1207,7 +1241,7 @@
       return state;
     },
     loadSave,
-    save,
+    save: () => save(true),
     openPanel,
   };
   document.querySelectorAll(".menu-grid [data-panel]").forEach((button) => {

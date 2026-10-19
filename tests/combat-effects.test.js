@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const modulePath = path.join(__dirname, '../js/combat-effects.js');
 const D = require('../js/classic-data.js');
+const Core = require('../js/core.js');
+const Feedback = require('../js/combat-feedback.js');
 const exists = fs.existsSync(modulePath);
 const FX = exists ? require(modulePath) : null;
 const types = Object.keys(D.weaponTypes);
@@ -66,6 +68,38 @@ if (FX) {
     assert.notEqual(trace('hit',false),trace('crit',false));
     assert.equal(trace('hit',true),trace('crit',true));
   });
+  test('physical critical is immediately visible with thick red/gold crossed slashes and an expanding ring', () => {
+    const start=draw(frozen(state([event({kind:'impact',result:'crit',age:0,duration:.25})])));
+    assert.ok(start.some(call=>call[0]==='globalAlpha' && call[1]>=.9),'critical must be visible on its first frame');
+    assert.ok(start.some(call=>call[0]==='fillStyle' && call[1]==='#e34c43'),'critical needs a strong red slash silhouette');
+    assert.ok(start.some(call=>call[0]==='fillStyle' && call[1]==='#fff1b0'),'critical needs a gold slash core');
+    assert.ok(start.filter(call=>call[0]==='fill').length>=4,'two tapered slashes must each have a red body and gold core');
+    const ring=start.find(call=>call[0]==='arc' && call[1]===300 && call[2]===264 && call[3]>=20);
+    assert.ok(ring,'critical ring must surround the target body');
+    const later=draw(state([event({kind:'impact',result:'crit',age:.15,duration:.25})]));
+    assert.ok(later.some(call=>call[0]==='arc' && call[1]===300 && call[2]===264 && call[3]>ring[3]),'ring expands over its real event lifetime');
+  });
+  test('seeded real critical uses its immutable hit snapshot and expires at the actual impact duration', () => {
+    const outcomes={};
+    for(const [seed,result] of [[1,'crit'],[158,'hit'],[161,'miss']]) {
+      const s=Core.createState(),cls=D.classes.swordsman;
+      Object.assign(s,{classId:'swordsman',weaponSchool:cls.weaponType,job:'Swordman',seed});s.equipment.weapon=cls.trainingWeapon;
+      s.stats.luk=99;s.stats.dex=1;s.player.x=250;s.player.y=310;
+      s.monsters=[{uid:'crit-target',kind:'guardian',x:280,y:310,hp:10000,cd:9999,dead:0,provoke:0}];
+      assert.equal(Core.act(s,'attack',{target:'crit-target'}).ok,true);
+      const impact=s.combatFeedback.events.find(e=>e.kind==='impact');assert.equal(impact.result,result);
+      assert.equal(impact.duration,.25);assert.equal(impact.magic,false);
+      const view=frozen(state([impact]));const before=JSON.stringify(view);outcomes[result]=draw(view);
+      assert.equal(JSON.stringify(view),before);s.monsters[0].x=900;
+      assert.deepEqual(impact.target,{x:280,y:310});assert.ok(Object.isFrozen(impact.target));
+      const lifecycle={combatFeedback:{events:[{...impact}]}};Feedback.tick(lifecycle,.249);
+      assert.ok(draw(state(lifecycle.combatFeedback.events)).length>0 || result==='miss');
+      Feedback.tick(lifecycle,.001);assert.equal(draw(state(lifecycle.combatFeedback.events)).length,0);
+    }
+    assert.equal(outcomes.miss.length,0);
+    assert.ok(outcomes.crit.some(call=>call[0]==='fillStyle' && call[1]==='#e34c43'));
+    assert.ok(!outcomes.hit.some(call=>call[0]==='fillStyle' && call[1]==='#e34c43'));
+  });
   test('persistent buffs, three orb charges, trap and live DOTs draw only while actual timers are positive', () => {
     const extra={classCombat:{buffs:{ward_script:{remaining:2},shield_counter:{remaining:2},garuda_combo:{remaining:2}},orbCharges:3,orbTimer:2,traps:[{id:'naga_trap',x:350,y:320,remaining:2}]},monsters:[{x:300,y:280,hp:100,dead:0,classDots:[{id:'moon_venom',remaining:2},{id:'tiger_rend',remaining:1}]}]};
     assert.ok(draw(frozen(state([],extra))).length>100);
@@ -85,6 +119,9 @@ if (FX) {
   test('drawing is bounded to sixty-four events and bounded persistent collections', () => {
     const e=event(); const small=draw(state(Array(64).fill(e))).length; const large=draw(state(Array(10000).fill(e))).length;
     assert.equal(large,small); assert.ok(large<20000);
+    const critical=event({kind:'impact',result:'crit',duration:.25});
+    const criticalSmall=draw(state(Array(64).fill(critical))).length;
+    assert.equal(draw(state(Array(10000).fill(critical))).length,criticalSmall);assert.ok(criticalSmall<20000);
     const monster={x:300,y:280,hp:10,classDots:Array(10000).fill({id:'moon_venom',remaining:2})};
     assert.ok(draw(state([],{monsters:Array(10000).fill(monster)})).length<20000);
   });

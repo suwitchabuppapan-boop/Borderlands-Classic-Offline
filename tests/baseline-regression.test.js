@@ -18,7 +18,7 @@ test("all catalog, class, skill, combat and drop data matches published 1.12 exc
   vm.runInNewContext(source, context);
   const baseline = JSON.parse(JSON.stringify(context.module.exports));
   const actual = JSON.parse(JSON.stringify(D));
-  assert.equal(actual.world.release, "1.13");
+  assert.equal(actual.world.release, "1.14");
   delete actual.world.release; delete baseline.world.release;
   assert.deepEqual(actual, baseline);
 });

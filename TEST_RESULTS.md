@@ -1,4 +1,19 @@
-# 1.13 verification — 2026-10-19
+# 1.14 verification — 2026-10-19
+
+User scope: show only the current class and inherited skills; make physical criticals visually distinct; continue farming through in-game menus and minimized/unfocused windows. The user clarified that popups mean in-game menus, not a separate browser window.
+
+- Frozen runtime: `node --test tests/*.test.js` — **119 passed, 0 failed, 0 skipped**: 46 feedback/core, 15 renderer, 23 skill tree, 7 simulation clock, 28 baseline tests. Existing 15,092 baseline state/save/RNG parity checkpoints still pass. Core combat, class-combat, all 27 images and class crop metadata are unchanged from 1.13.
+- `python3 scripts/test_browser.py --base-url http://127.0.0.1:8766/ --artifacts /workspace/combat114/browser-local` — **4 suites passed, 0 failed**: background farming, combat effects, skills and existing gameplay. No page/resource/HTTP errors. Real merchant/save/three-quest regressions remain covered.
+- Skills browser coverage checks all 16 identities: villager has no class signature card, Class 1 has its own card, and Class 2 has its own plus its parent. Shared First Aid and learned legacy skills remain separate. Foreign/sibling/future cards are absent; catalog paths and core access guards are preserved. Learning, hotbar/save, focus and 1440/390px layouts pass; screenshots inspected.
+- Actual seeded physical criticals draw red/gold crossed slashes, expanding rings and sparks for the original 250ms impact duration at the frozen hit location. Real Canvas critical geometry at 80ms covers 1,603 pixels versus 522 in 1.13 and 100 for a normal hit. Normal/miss/magic pixel hashes remain unchanged. 48 weapon/direction cases, 15 signatures, persistent-state checks and 11 real RAF scenarios pass; contact sheets and actual RAF critical screenshot inspected.
+- A shared 60Hz elapsed-time ledger drives RAF and 250ms background callbacks without duplicate time. Each pump performs at most 3,600 real engine steps, retains all debt and yields between chunks. Mutating commands wait for debt to settle. No drop/EXP approximation or offline reward formula is used.
+- Scheduler tests replay one simulated hour without dropping steps, compare regular versus delayed real Auto Battle state/RNG/saves, and compare 900 seconds of real Auto Quest scheduling through all three quests and six portals with complete state equality.
+- Chromium checks actual kills/loot while the inventory popup remains open, continued time/auto intent on blur, actual CDP page freezing and elapsed catchup, RAF/interval time equality, manual-key release and save/reload epoch. A targeted denied-storage fixture confirms autosave attempts retain their 10s cadence. Regression evidence: the old menu froze time; backward clock overlap failed before the high-water correction; failed autosaves retried 17 times per 250ms before the cadence fix, once afterward.
+- Independent review identified the backward-time and failed-autosave issues; both are fixed and verified. No unresolved Important/Critical runtime findings remain. Python compilation and `git diff --check` pass.
+
+Keep the page open for background farming. Browsers/OS may suspend hidden or minimized pages; actual elapsed work is reconciled through the engine on resume. Closing or reloading grants no offline rewards and does not restart Auto. Direct file startup and Windows START.bat remain untested on an actual Windows machine. Public verification follows publication; previous 1.13 evidence is retained below as history.
+
+## Historical 1.13 verification — 2026-10-19
 
 Baseline: published 1.12 recovered from `gh-pages` commit `f7b3cf90fe7a513c8c452d7085b40dbfe9cb04d8`, preserved as source commit `eefb5c30bdf2a2f28ccc6210f25d3bebe3231149`. This checkout did not contain the previous session's test files. The counts below describe fresh tests in this branch, not historical checks.
 
