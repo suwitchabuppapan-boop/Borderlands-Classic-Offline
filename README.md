@@ -1,13 +1,37 @@
-# Borderlands Classic Offline
+# Siam Arun — สยามอรุณ
 
-Private repository for the offline, single-player Borderlands Classic project.
+A single-player Thai fantasy browser RPG. Start as a villager, choose one of five Class 1 paths, then one of ten Class 2 branches. Explore three maps, fight monsters, complete quests and collect equipment. Progress is saved locally in your browser.
 
-**Master prepared:** v1.5b (base v1.4.2 + v1.5 Novice + v1.5 Swordman + v1.5a + v1.5b). Source code and artwork have **not yet been uploaded to this repository**; this first commit establishes the repository instructions only.
+Play: https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/
 
-The prepared master is available in two packages in the originating ChatGPT conversation:
-- `Borderlands_Master_v1_5b_PERSONAL_OFFLINE.zip`: personal-use game package that contains user-provided Ragnarok/Phieti-derived graphics. Keep local; do not publish without permission.
-- `Borderlands_Master_v1_5b_GITHUB_SAFE.zip`: source and runnable game with replacement character artwork and CSS-based skin, intended for upload to this repository.
+Version **1.13** adds directional attack effects for all 11 combat weapon types and effects for the 15 existing class skills. Open **สกิล → ผังสกิลอาชีพ** to browse the five families, see your inherited skills, and spend skill points. Class 2 inherits its own Class 1 skills; other branches remain locked. Combat power, SP costs, cooldowns, loot and existing saves retain the 1.12 rules.
 
-After downloading and extracting the **GITHUB_SAFE** package, clone this repository, copy the extracted files into your clone, review the changes, commit, and push. Do not upload the personal-use ZIP itself. The game is launched with `START.bat` on Windows or `index.html`; gameplay does not require Python or a server. Opening `file://` on a real Windows machine still needs user-side verification.
+## Run and test
 
-**Security:** Do not commit API keys, environment files, individual save files, or unlicensed third-party sprites. Rotate any credentials previously shared in chat. A private repository does not grant a license to distribute third-party art.
+The game uses static HTML, CSS and JavaScript Canvas. No npm packages, build step, server backend, API key or database is required. For local development:
+
+```sh
+python3 -m http.server 8765 --bind 127.0.0.1
+```
+
+From another terminal in the repository, with Node.js, Python Playwright and Chromium installed:
+
+```sh
+node --test tests/*.test.js
+python3 scripts/test_browser.py --base-url http://127.0.0.1:8765/ --artifacts /tmp/siam-browser
+python3 scripts/release_site.py stage --out /tmp/siam-release
+```
+
+See [scripts/README.md](scripts/README.md) for packaging and verification of public files. The parity tests use the 1.12 recovery commit in Git history; those comparisons are explicitly skipped in a source ZIP without Git history. The remaining action and browser tests still run. Current evidence and limits are in [TEST_RESULTS.md](TEST_RESULTS.md).
+
+Move with WASD/arrows or click the map. Click a monster to approach and attack, use Space to attack, and use hotbar keys 1–9. Menus pause the simulation. Shops require proximity to the merchant; ครูอิน handles quests and class changes; หมอมะลิ heals for free. Auto Quest handles the three main quests using normal movement, combat, supplies and rewards. Prepare equipment and stats first.
+
+## Saves, source and artwork
+
+Use the Settings menu to export/import a backup. Storage key: `borderlands-solo-rebuilt-v1`. Version 1.12 saves and supported earlier rebuilt saves migrate through the existing validator. Saves from the unrelated historical pre-rebuild game are not supported.
+
+The catalog contains 61 items: 42 obtainable now, 17 planned, and 2 retained for legacy saves. Planned bosses and drops shown in the guide are not live encounters. The 11 weapon paths each have three grades.
+
+Current art consists of 27 Siam fantasy atlases/images, preserved from published 1.12. This release adds Canvas geometry and no bitmap artwork. See [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md). The versioned v1.3–v1.5b README files describe historical packages, not this game.
+
+The cloud checkout initially contained old `main`; published 1.12 was recovered from `gh-pages` into commit `eefb5c3`. Current source, tests and docs are maintained on `codex/siam-arun-combat-effects`. Do not overwrite this version with historical sprite packages.
