@@ -102,7 +102,7 @@
     if (typeof id !== "string" || !own(D.skills, id)) return false;
     if (id === "first_aid") return true;
     const owner = D.skills[id].owner;
-    if (!owner) return s.skills[id] > 0;
+    if (!owner) return false;
     let classId = s.classId;
     while (typeof classId === "string" && own(D.classes, classId)) {
       if (classId === owner) return true;
@@ -117,7 +117,6 @@
     if (!skillAvailable(s, id) || id === "first_aid") return "อาชีพนี้เรียนสกิลนี้ไม่ได้";
     if (s.skillPoints < 1) return "ไม่มีแต้มสกิล";
     if (s.skills[id] >= D.skills[id].max) return "สกิลเต็มระดับแล้ว";
-    if (id === "magnum" && s.skills.bash < 5) return `ต้องเรียน${D.skills.bash.name}ระดับ 5 ก่อน`;
     return "";
   }
   function weaponProfile(s) {
@@ -151,7 +150,6 @@
       hp: D.monsters[kind].hp,
       cd: 1 + i * 0.17,
       dead: 0,
-      provoke: 0,
     }));
     s.target = null;
     s.destination = null;
@@ -161,8 +159,8 @@
     s.log.length = Math.min(s.log.length, 40);
     return text;
   }
-  function effect(s, x, y, text, color = "#fff") {
-    s.effects.push({ x, y, text, color, ttl: 1 });
+  function effect(s, x, y, text, color = "#fff", meta = {}) {
+    s.effects.push({ x, y, text, color, ttl: 1, ...meta });
     if (s.effects.length > 40) s.effects.shift();
   }
   function gain(s, exp, jexp) {
@@ -231,18 +229,18 @@
     if (!m || m.dead || m.hp <= 0) return false;
     const d = D.monsters[m.kind], st = stats(s), magic = !!options.magic;
     // Random criticals belong only to ordinary physical attacks, never spells,
-    // signatures, legacy skills, traps, or DOT. Magic also bypasses ordinary FLEE.
+    // class signatures, traps, or DOT. Magic also bypasses ordinary FLEE.
     const critical = options.normal === true && !magic && random(s) * 100 < Math.max(0, st.crit - (d.luk || 0) / 5);
     if (!magic && !always && !critical && random(s) * 100 > Rules.playerHitChance(st, d)) {
-      effect(s, m.x, m.y - 20, "MISS", "#bec8cd");
+      effect(s, m.x, m.y - 20, "MISS", "#bec8cd", { kind: "miss", target: "monster" });
       feedback(s, { kind: "impact", source: options.source || s.player, target: m,
         skillId: options.skillId || null, phase: options.phase || "direct", result: "miss", amount: 0, magic });
       return false;
     }
-    const defense = (magic ? d.mdef || 0 : d.def) * (!magic && m.provoke > 0 ? 0.5 : 1) * (options.defenseScale ?? 1);
+    const defense = (magic ? d.mdef || 0 : d.def) * (options.defenseScale ?? 1);
     const amount = Rules.damageTaken((magic ? st.matk : st.atk) * mult * (critical ? 1.4 : 1), 0, defense);
     m.hp -= amount;
-    effect(s, m.x, m.y - 25, (critical ? "CRIT " : "") + amount, critical ? "#ffdc82" : magic ? "#d6c7ff" : "#fff3cf");
+    effect(s, m.x, m.y - 25, (critical ? "CRIT " : "") + amount, critical ? "#ffdc82" : magic ? "#d6c7ff" : "#fff3cf", { kind: "damage", amount, critical, magic, target: "monster" });
     feedback(s, { kind: "impact", source: options.source || s.player, target: m,
       skillId: options.skillId || null, phase: options.phase || "direct", result: critical ? "crit" : "hit", amount, magic });
     if (m.hp <= 0) kill(s, m);
@@ -288,35 +286,15 @@
       const m = s.monsters.find(
         (m) => m.uid === (p.target || s.target) && !m.dead,
       );
-      if (
-        id !== "first_aid" &&
-        id !== "magnum" &&
-        (!m || dist(s.player, m) >
-          (id === "attack" ? attackRange(s) : id === "provoke" ? 180 : 58))
-      )
+      if (id !== "first_aid" && (!m || dist(s.player, m) > attackRange(s)))
         return fail("เลือกศัตรูและเดินเข้าใกล้ก่อน");
-      if (id === "provoke" && D.monsters[m.kind].boss)
-        return fail("คำรามพิทักษ์ใช้กับบอสไม่ได้");
-      if (
-        id === "magnum" &&
-        !s.monsters.some((m) => !m.dead && dist(s.player, m) < 100)
-      )
-        return fail("ไม่มีศัตรูในระยะ");
       if (skill) s.player.sp -= skill.sp;
       s.cooldowns[id] = skill ? skill.cooldown : st.interval;
-      if (["first_aid", "magnum", "provoke"].includes(id))
-        feedback(s, { kind: "skill", skillId: id, target: id === "provoke" ? m : s.player });
+      if (id === "first_aid")
+        feedback(s, { kind: "skill", skillId: id, target: s.player });
       if (id === "first_aid") {
         s.player.hp = Math.min(st.maxHp, s.player.hp + 20);
         effect(s, s.player.x, s.player.y - 30, "+20 HP", "#b6edb8");
-      } else if (id === "magnum") {
-        s.monsters
-          .filter((m) => !m.dead && dist(s.player, m) < 100)
-          .forEach((m) => damage(s, m, 1.6 + s.skills.magnum * 0.25, true, { skillId: id, phase: "direct" }));
-        effect(s, s.player.x, s.player.y, `✹ ${D.skills.magnum.name}`, "#f4b489");
-      } else if (id === "provoke") {
-        m.provoke = 15;
-        effect(s, m.x, m.y - 30, D.skills.provoke.name, "#d7b5ed");
       } else {
         const dx = m.x - s.player.x,
           dy = m.y - s.player.y;
@@ -325,7 +303,7 @@
             Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : dy > 0 ? 0 : 2;
         feedback(s, { kind: id === "attack" ? "attack" : "skill", target: m,
           skillId: id === "attack" ? null : id, magic: id === "attack" && !!st.basicMagic });
-        const landed = damage(s, m, id === "bash" ? 1.5 + s.skills.bash * 0.15 : 1, id !== "attack", { normal: id === "attack", magic: id === "attack" && st.basicMagic, skillId: id === "attack" ? null : id, phase: "direct" });
+        const landed = damage(s, m, 1, false, { normal: id === "attack", magic: id === "attack" && st.basicMagic, skillId: id === "attack" ? null : id, phase: "direct" });
         if (id === "attack" && landed) Combat.afterAttack(s, m, combatHelpers);
         s.cooldowns.swing = 0.22;
       }
@@ -451,7 +429,7 @@
       for (const key of Object.keys(D.statNames)) s.stats[key] = 1;
       delete s.classCombat;
       s.auto = false; s.target = null; s.destination = null; s.cooldowns = {};
-      for (const m of s.monsters) { delete m.classDots; m.snare = 0; m.provoke = 0; }
+      for (const m of s.monsters) { delete m.classDots; m.snare = 0; }
       const reset = stats(s);
       s.player.hp = Math.min(s.player.hp, reset.maxHp);
       s.player.sp = Math.min(s.player.sp, reset.maxSp);
@@ -598,9 +576,7 @@
         if (suggested && skillAvailable(s, suggested)) {
           const result = doAction(s, "skill", { id: suggested, target: target.uid });
           if (!result.ok) doAction(s, "attack", { target: target.uid });
-        } else if (automatic && s.settings.autoSkill && skillAvailable(s, "bash") && s.skills.bash && gap <= 58 && s.player.sp >= D.skills.bash.sp && !(s.cooldowns.bash > 0))
-          doAction(s, "skill", { id: "bash", target: target.uid });
-        else doAction(s, "attack", { target: target.uid });
+        } else doAction(s, "attack", { target: target.uid });
       }
     }
     if (s.destination) {
@@ -621,13 +597,11 @@
         m.dead = Math.max(0, m.dead - dt);
         if (!m.dead) {
           m.hp = D.monsters[m.kind].hp;
-          m.provoke = 0;
           m.cd = 1;
         }
         continue;
       }
       const d = D.monsters[m.kind];
-      m.provoke = Math.max(0, m.provoke - dt);
       m.cd = Math.max(0, m.cd - dt);
       const gap = dist(m, s.player);
       if (gap < 175 && s.player.x > 310) {
@@ -642,14 +616,14 @@
           const perfect = !magic && random(s) * 100 < defense.perfectDodge;
           if (!perfect && (magic || random(s) * 100 < Rules.enemyHitChance(d, defense))) {
             const hit = Rules.damageTaken(
-              d.atk * (m.provoke ? 1.2 : 1),
+              d.atk,
               magic ? defense.softMdef : defense.softDef,
               magic ? defense.hardMdef : defense.hardDef,
               Combat.modifiers(s).damageTaken || 1,
             );
             s.player.hp = Math.max(0, s.player.hp - hit);
-            effect(s, s.player.x, s.player.y - 35, `${magic ? "เวท " : ""}−${hit}`, magic ? "#cab4ff" : "#ffa7a1");
-          } else effect(s, s.player.x, s.player.y - 35, perfect ? "LUCKY" : "DODGE", "#aee0cd");
+            effect(s, s.player.x, s.player.y - 35, `${magic ? "เวท " : ""}−${hit}`, magic ? "#cab4ff" : "#ffa7a1", { kind: "damage", amount: hit, critical: false, magic, target: "player" });
+          } else effect(s, s.player.x, s.player.y - 35, perfect ? "LUCKY" : "DODGE", "#aee0cd", { kind: perfect ? "lucky" : "miss", target: "player" });
         }
       }
     }
@@ -744,15 +718,10 @@
       n <= max &&
       (!int || Number.isInteger(n));
     if (!["Novice", "Swordman"].includes(v.job)) bad();
-    if (own(v, "statVersion") && v.statVersion !== 2) bad();
-    const legacyStats = !own(v, "statVersion");
-    const legacyClass = !own(v, "classId");
-    const legacyClasses = { training: "villager", sword: "swordsman", dual_sword: "royal_duelist", greatsword: "city_guardian", sword_shield: "city_guardian", staff: "lotus_mage", book: "divine_scribe", knuckle: "garuda_monk", dagger: "moon_shadow", bow: "naga_ranger" };
+    if (v.statVersion !== 2 || !own(v, "classId") || !own(v, "weaponSchool") || !own(v, "classTrial")) bad();
     if (!obj(v.equipment) || !obj(v.skills) || !obj(v.kills)) bad();
     const wornWeaponType = typeof v.equipment.weapon === "string" && own(D.items, v.equipment.weapon) ? D.items[v.equipment.weapon].weaponType : undefined;
-    let weaponSchool = own(v, "weaponSchool") ? v.weaponSchool : wornWeaponType || "sword";
-    if (legacyClass && weaponSchool === "greatsword") weaponSchool = "sword_shield";
-    const classId = legacyClass ? (typeof weaponSchool === "string" && own(legacyClasses, weaponSchool) ? legacyClasses[weaponSchool] : undefined) : v.classId;
+    const weaponSchool = v.weaponSchool, classId = v.classId;
     if (typeof classId !== "string" || !own(D.classes, classId) || typeof weaponSchool !== "string" || !own(D.weaponTypes, weaponSchool) || D.classes[classId].weaponType !== weaponSchool || (wornWeaponType && wornWeaponType !== weaponSchool)) bad();
     for (const [k, min, max] of [
       ["baseLevel", 1, 30],
@@ -779,36 +748,30 @@
     for (const k of Object.keys(D.statNames))
       if (!num(v.stats[k], 1, 99)) bad();
     if (Object.keys(v.stats).length !== 6) bad();
-    const skills = { ...v.skills };
-    if (Object.keys(skills).some(k => !own(D.skills, k))) bad();
+    // Unknown catalog IDs are discarded; retained IDs still obey the complete
+    // current schema. No historic catalog or class/stat/equipment migration runs.
+    const skills = Object.fromEntries(Object.entries(v.skills).filter(([id]) => own(D.skills, id)));
     for (const k of Object.keys(D.skills)) {
-      if (legacyClass && D.skills[k].owner && !own(skills, k)) skills[k] = 0;
       if (!num(skills[k], k === "first_aid" ? 1 : 0, D.skills[k].max)) bad();
     }
     if (Object.keys(skills).length !== Object.keys(D.skills).length) bad();
     const access = { classId, skills };
     if (Object.keys(skills).some(k => skills[k] > 0 && D.skills[k].owner && !skillAvailable(access, k))) bad();
-    if ((v.job === "Novice" && (skills.bash || skills.magnum || skills.provoke)) || (skills.magnum > 0 && skills.bash < 5)) bad();
-    for (const [k, n] of Object.entries(v.inventory))
-      if (!own(D.items, k) || !num(n, 0, 100000)) bad();
+    const inventory = Object.fromEntries(Object.entries(v.inventory).filter(([id]) => own(D.items, id)));
+    for (const n of Object.values(inventory)) if (!num(n, 0, 100000)) bad();
     const equipmentSlots = ["weapon", "armor", "accessory", "head"];
-    const legacyEquipment = !own(v.equipment, "head");
-    if (
-      Object.keys(v.equipment).length !== (legacyEquipment ? 3 : 4) ||
-      Object.keys(v.equipment).some((slot) => !equipmentSlots.includes(slot))
-    )
-      bad();
-    for (const slot of legacyEquipment ? equipmentSlots.slice(0, 3) : equipmentSlots)
-      if (
-        !own(v.equipment, slot) ||
-        (v.equipment[slot] !== null &&
-          (typeof v.equipment[slot] !== "string" || !own(D.items, v.equipment[slot]) ||
-            D.items[v.equipment[slot]].type !== slot))
-      )
-        bad();
+    if (Object.keys(v.equipment).length !== equipmentSlots.length ||
+        Object.keys(v.equipment).some(slot => !equipmentSlots.includes(slot))) bad();
+    const equipment = {};
+    for (const slot of equipmentSlots) {
+      const id = v.equipment[slot];
+      if (!own(v.equipment, slot) || (id !== null && (typeof id !== "string" || !id))) bad();
+      if (id !== null && own(D.items, id) && D.items[id].type !== slot) bad();
+      equipment[slot] = id !== null && own(D.items, id) ? id : null;
+    }
     for (const [k, n] of Object.entries(v.kills))
       if (!own(D.monsters, k) || !num(n, 0, 1000000)) bad();
-    const classTrial = legacyClass ? null : v.classTrial;
+    const classTrial = v.classTrial;
     if (classTrial !== null) {
       if (!obj(classTrial) || Object.keys(classTrial).length !== 2 || !own(classTrial, "classId") || !own(classTrial, "baseline") || typeof classTrial.classId !== "string" || !own(D.classes, classTrial.classId)) bad();
       const c = D.classes[classTrial.classId];
@@ -822,12 +785,17 @@
       !num(v.player.facing, 0, 3)
     )
       bad();
-    if (
-      !Array.isArray(v.hotbar) ||
-      v.hotbar.length !== 9 ||
-      !v.hotbar.every((b) => validBinding(b, { ...v, classId, skills }))
-    )
-      bad();
+    if (!Array.isArray(v.hotbar) || v.hotbar.length !== 9) bad();
+    const hotbar = v.hotbar.map(binding => {
+      if (typeof binding === "string") {
+        const parts = binding.split(":");
+        if (parts.length !== 2 || !parts[1]) bad();
+        const [type, id] = parts;
+        if ((type === "skill" && !own(D.skills, id)) || (type === "item" && !own(D.items, id))) return null;
+      }
+      if (!validBinding(binding, { ...v, classId, skills })) bad();
+      return binding;
+    });
     if (
       typeof v.questActive !== "boolean" ||
       !num(v.settings.hair, 0, 5) ||
@@ -838,12 +806,13 @@
     const s = createState();
     for (const k of Object.keys(JSON.parse(serialize(s)).state)) s[k] = v[k];
     s.statVersion = 2;
-    if (legacyStats) s.statPoints += Rules.levelTotal(s.baseLevel) - 3 * (s.baseLevel - 1);
     s.classId = classId;
     s.classTrial = classTrial;
     s.skills = skills;
     s.weaponSchool = weaponSchool;
-    if (legacyEquipment) s.equipment = { ...v.equipment, head: null };
+    s.inventory = inventory;
+    s.equipment = equipment;
+    s.hotbar = hotbar;
     const st = stats(s);
     s.player.hp = Math.min(s.player.hp, st.maxHp);
     s.player.sp = Math.min(s.player.sp, st.maxSp);

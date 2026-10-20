@@ -10,7 +10,7 @@ const at = (s, id) => Object.assign(s.player, D.npcs.find(n => n.id === id));
 const saved = s => JSON.parse(C.serialize(s)).state;
 const economic = s => JSON.stringify({ silver:s.silver, inventory:s.inventory, equipment:s.equipment });
 
-test("all catalog, class, skill, combat and drop data matches published 1.12 except release", t => {
+test("retained catalog, class, skill, combat and drop data matches published 1.12", t => {
   const context = { module: { exports: {} } };
   let source;
   try { source=execFileSync("git", ["show", "eefb5c3:js/classic-data.js"], {encoding:"utf8",stdio:["ignore","pipe","pipe"]}); }
@@ -18,16 +18,19 @@ test("all catalog, class, skill, combat and drop data matches published 1.12 exc
   vm.runInNewContext(source, context);
   const baseline = JSON.parse(JSON.stringify(context.module.exports));
   const actual = JSON.parse(JSON.stringify(D));
-  assert.equal(actual.world.release, "1.15");
+  assert.equal(actual.world.release, '1.16');
   delete actual.world.release; delete baseline.world.release;
+  for(const id of ["rusty_sword","yak_greatsword"]) delete baseline.items[id];
+  for(const id of ["bash","magnum","provoke"]) delete baseline.skills[id];
+  delete baseline.itemCatalog.legacy;
   assert.deepEqual(actual, baseline);
 });
 
-test("61 items retain 11 complete weapon paths and honest live/planned/legacy sources", () => {
-  assert.equal(Object.keys(D.items).length,61);
-  const counts={available:0,planned:0,legacy:0};
+test("59 current items retain 11 complete weapon paths and honest live/planned sources", () => {
+  assert.equal(Object.keys(D.items).length,59);
+  const counts={available:0,planned:0};
   for(const id of Object.keys(D.items)) counts[I.availability(id)]++;
-  assert.deepEqual(counts,{available:42,planned:17,legacy:2});
+  assert.deepEqual(counts,{available:42,planned:17});
   assert.equal(Object.keys(D.itemCatalog.progressions).length,11);
   for(const [type,ids] of Object.entries(D.itemCatalog.progressions)) {
     assert.equal(ids.length,3);
@@ -86,7 +89,7 @@ test("real buy/equip/unequip/sell conserves item quantities and pays exactly adv
 });
 
 for(const [id,cls] of Object.entries(D.classes)) {
-  test(`raw 1.12 ${id} save preserves class, gear, all 61 item IDs and ancestral skills`,()=>{
+  test(`current-format ${id} save preserves class, gear, all 59 item IDs and ancestral skills`,()=>{
     const s=C.createState(); s.classId=id; s.weaponSchool=cls.weaponType;
     s.job=cls.tier?"Swordman":"Novice"; s.equipment.weapon=cls.trainingWeapon;
     for(const key of Object.keys(D.items)) s.inventory[key]=2;
@@ -105,14 +108,11 @@ for(const [id,cls] of Object.entries(D.classes)) {
   });
 }
 
-test("legacy old save migrates school, missing head slot and old stat points",()=>{
-  const raw=JSON.parse(C.serialize(C.createState()));
-  delete raw.state.classId; delete raw.state.classTrial; delete raw.state.statVersion;
-  delete raw.state.equipment.head;
-  for(const [id,skill] of Object.entries(D.skills)) if(skill.owner) delete raw.state.skills[id];
-  const s=C.deserialize(JSON.stringify(raw));
-  assert.equal(s.classId,"villager"); assert.equal(s.statVersion,2);
-  assert.equal(s.equipment.head,null); assert.equal(s.skills.first_aid,1);
+test("old schemas without current class, stat version and four equipment slots are rejected",()=>{
+  for(const change of [v=>delete v.classId,v=>delete v.statVersion,v=>delete v.equipment.head]) {
+    const raw=JSON.parse(C.serialize(C.createState())); change(raw.state);
+    assert.throws(()=>C.deserialize(JSON.stringify(raw)),/ไฟล์เซฟ/);
+  }
 });
 
 test("final quest reward is atomic at stack ceiling and can only be collected once",()=>{

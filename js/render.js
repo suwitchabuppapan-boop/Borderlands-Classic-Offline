@@ -264,7 +264,31 @@
     } });
     entities.sort((a, b) => a.y - b.y).forEach(e => e.draw());
     root.BCCombatEffects?.drawFront(c, s);
+    const occupiedNumbers = [], numberPositions = new Map();
+    // Newest hits sit nearest their target. Pack earlier hits above measured
+    // glyph/legend/flash bounds so combos and simultaneous DOTs remain legible.
+    for (const e of s.effects.slice(-40).reverse()) {
+      const screenX = (e.x - camera.x) * textScale, screenY = (e.y - camera.y) * textScale;
+      const options = { scale: textScale, snapX: Math.round(screenX) - screenX, snapY: Math.round(screenY) - screenY };
+      const box = root.BCDamageText?.bounds(e, options);
+      if (!box) continue;
+      const placed = { left: screenX + box.left, right: screenX + box.right,
+        top: screenY + box.top, bottom: screenY + box.bottom };
+      options.offsetY = 0;
+      // Compare actual screen rectangles, including hits and misses whose
+      // world anchors differ. Each upward move clears at least one rectangle.
+      for (let pass = 0; pass < occupiedNumbers.length; pass++) {
+        const collision = occupiedNumbers.find(other => placed.left < other.right + 2 &&
+          placed.right + 2 > other.left && placed.top < other.bottom + 6 && placed.bottom + 6 > other.top);
+        if (!collision) break;
+        const shift = placed.bottom - collision.top + 6;
+        options.offsetY += shift; placed.top -= shift; placed.bottom -= shift;
+      }
+      occupiedNumbers.push(placed);
+      numberPositions.set(e, options);
+    }
     for (const e of s.effects) {
+      if (numberPositions.has(e) && root.BCDamageText.draw(c, e, numberPositions.get(e))) continue;
       c.globalAlpha = Math.min(1, e.ttl * 2);
       label(c, e.text, e.x, e.y - (1 - e.ttl) * 28, e.color, 13); c.globalAlpha = 1;
     }

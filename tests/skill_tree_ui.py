@@ -10,14 +10,27 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
     output.mkdir(parents=True, exist_ok=True)
     page.wait_for_function("window.BCGame && window.BCCore && window.BCData")
     page.evaluate("""() => {
-      window.skillTreeFixture = (classId, points = 12, legacy = false) => {
+      window.skillTreeFixture = (classId, points = 12, obsolete = false) => {
         const s = BCCore.createState(), d = BCData.classes[classId];
         s.classId = classId; s.weaponSchool = d.weaponType;
         s.job = d.tier ? 'Swordman' : 'Novice'; s.equipment.weapon = null;
         s.skillPoints = points;
-        if (legacy) { s.skills.bash = 5; s.skills.magnum = 1; s.skills.provoke = 1; }
         const st = BCCore.stats(s); s.player.hp = st.maxHp; s.player.sp = st.maxSp;
-        BCGame.loadSave(BCCore.serialize(s)); BCGame.openPanel('skills');
+        const save = JSON.parse(BCCore.serialize(s));
+        if (obsolete) {
+          // A real 1.15-format import keeps current progress and prunes obsolete
+          // definitions rather than keeping hidden cast/equip/hotbar support.
+          Object.assign(save.state.skills, {bash: 5, magnum: 1, provoke: 1});
+          Object.assign(save.state.inventory, {rusty_sword: 2, yak_greatsword: 1});
+          save.state.equipment.weapon = 'rusty_sword';
+          save.state.equipment.armor = 'cloth_armor';
+          save.state.hotbar[4] = 'skill:bash';
+          save.state.hotbar[5] = 'item:yak_greatsword';
+          save.state.baseLevel = 12; save.state.exp = 20; save.state.silver = 321;
+          save.state.stats.str = 17;
+          window.obsoleteSkillTreeImport = save.state;
+        }
+        BCGame.loadSave(JSON.stringify(save)); BCGame.openPanel('skills');
       };
       window.skillTreeUserState = () => JSON.parse(BCCore.serialize(BCGame.state)).state;
       skillTreeFixture('villager');
@@ -53,11 +66,26 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
         assert page.evaluate("skillTreeUserState()") == before_browse
         checked.append(class_id)
 
-    page.evaluate("skillTreeFixture('royal_duelist', 8, true)")
-    assert page.locator('.skill-card[data-skill="bash"]').count() == 1
+    page.evaluate("skillTreeFixture('swordsman', 8, true)")
+    migration = page.evaluate("""() => ({
+      classId:BCGame.state.classId, level:BCGame.state.baseLevel, exp:BCGame.state.exp,
+      silver:BCGame.state.silver, str:BCGame.state.stats.str, points:BCGame.state.skillPoints,
+      skills:Object.keys(BCGame.state.skills), inventory:Object.keys(BCGame.state.inventory),
+      equipment:BCGame.state.equipment, bindings:BCGame.state.hotbar.slice(4,6)
+    })""")
+    assert migration["classId"] == "swordsman" and migration["level"] == 12
+    assert migration["exp"] == 20 and migration["silver"] == 321 and migration["str"] == 17
+    assert migration["points"] == 8
+    assert not {"bash", "magnum", "provoke"}.intersection(migration["skills"])
+    assert not {"rusty_sword", "yak_greatsword"}.intersection(migration["inventory"])
+    assert migration["equipment"]["weapon"] is None and migration["equipment"]["armor"] == "cloth_armor"
+    assert migration["bindings"] == [None, None]
+    assert page.locator('.skill-card[data-skill="bash"]').count() == 0
     assert page.locator('[data-skill="shield_counter"]').count() == 0
+    page.evaluate("skillTreeFixture('royal_duelist', 8)")
     page.locator('[data-skills-tab="tree"]').click()
-    assert page.locator('.skill-tree-legacy [data-skill="bash"]').count() == 1
+    assert page.locator('.skill-tree-legacy').count() == 0
+    assert not {"bash", "magnum", "provoke"}.intersection(page.locator('[data-skill]').evaluate_all("els=>els.map(el=>el.dataset.skill)"))
     own = page.locator('.skill-tree-node[data-skill="royal_flurry"]')
     inherited = page.locator('.skill-tree-node[data-skill="arun_slash"]')
     sibling = page.locator('.skill-tree-node[data-skill="shield_counter"]')
@@ -93,6 +121,7 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
     page.keyboard.press("End")
     assert page.locator('[data-skills-tab="tree"]').get_attribute("aria-selected") == "true"
     page.locator('[data-open="hotbar"]').click()
+    assert page.locator('option[value="skill:bash"],option[value="skill:magnum"],option[value="skill:provoke"],option[value="item:rusty_sword"],option[value="item:yak_greatsword"]').count() == 0
     page.locator('[data-bind="1"]').select_option("skill:royal_flurry")
     assert page.evaluate("BCGame.state.hotbar[1]") == "skill:royal_flurry"
     assert page.locator('[data-bind="1"] option[value="skill:shield_counter"]').count() == 0
@@ -139,8 +168,8 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
     }""")
     page.locator('[data-skills-tab="tree"]').click()
     assert page.locator('.skill-tree-node[data-skill="arun_slash"] button').is_disabled()
-    result = {"classes": len(checked), "class_signatures": 15, "catalog_skills": 19, "tree_node_counts": {"villager": 0, "class_1": 1, "class_2": 2}, "learning_max": 5,
-              "checks": ["current compatibility", "exact current/inherited ancestry", "no sibling/foreign/future class cards", "SP/CD/range", "Job 10/40 trial requirements", "learn points/max", "forged foreign action rejected", "legacy separation", "hotbar", "save/reload", "tabs/arrows/focus/trap", "1440/390 layout"], "screenshots": screenshots}
+    result = {"classes": len(checked), "class_signatures": 15, "catalog_skills": 16, "tree_node_counts": {"villager": 0, "class_1": 1, "class_2": 2}, "learning_max": 5,
+              "checks": ["current compatibility", "exact current/inherited ancestry", "no sibling/foreign/future class cards", "SP/CD/range", "Job 10/40 trial requirements", "learn points/max", "forged foreign action rejected", "1.15-format import preserves current progress and prunes obsolete skills/items/equipment/bindings", "no obsolete hotbar options", "hotbar", "save/reload", "tabs/arrows/focus/trap", "1440/390 layout"], "migration": migration, "screenshots": screenshots}
     (output / "skill-tree-browser.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
     return result
 

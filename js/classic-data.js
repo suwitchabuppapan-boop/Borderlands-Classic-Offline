@@ -1,4 +1,4 @@
-/* Original Siam fantasy world and SOLO balance. Internal IDs preserve existing saves. */
+/* Original Siam fantasy world and SOLO balance. Current content catalog. */
 (function (root) {
   "use strict";
   const weaponTypes = {
@@ -74,25 +74,6 @@
       color: "#efc35d",
       icon: "●",
     },
-    rusty_sword: {
-      name: "ดาบซ้อมไม้",
-      type: "weapon",
-      weaponType: "sword",
-      price: 10,
-      weight: 80,
-      atk: 4,
-      color: "#ad8253",
-      icon: "⚔",
-      appearance: {
-        layer: "weapon",
-        style: "short_sword",
-        blade: "#9a7048",
-        edge: "#dfc190",
-        hilt: "#815c3e",
-        length: 17,
-        width: 3,
-      },
-    },
     iron_sword: {
       name: "ดาบเหล็กพิทักษ์",
       type: "weapon",
@@ -159,21 +140,6 @@
       appearance: {
         layer: "weapon", atlas: "siam-weapons", cell: 1, profile: "dual_sword",
         length: 22, width: 4,
-      },
-    },
-    yak_greatsword: {
-      name: "ดาบโล่ยักษ์แก้ว",
-      type: "weapon",
-      weaponType: "sword_shield",
-      price: 10,
-      weight: 150,
-      atk: 18,
-      color: "#8dc9b7",
-      icon: "⚔",
-      iconArt: { atlas: "class-weapons", cell: 1 },
-      appearance: {
-        layer: "weapon", atlas: "class-weapons", cell: 1, profile: "sword_shield",
-        length: 34, width: 9,
       },
     },
     lotus_staff: { matk: 14,
@@ -440,14 +406,12 @@
       bow: ["naga_bow", "silverwing_bow", "sun_bow"],
       magic_bow: ["arcane_bow", "naga_rune_bow", "moon_arcane_bow"],
     },
-    legacy: ["rusty_sword", "yak_greatsword"],
     start: ["training_stick", "cloth_armor", "potion", "ether", "novice_cap"],
     tiers: [{ min: 1, max: 5 }, { min: 6, max: 10 }, { min: 11, max: 15 }, { min: 16, max: 20 }, { min: 21, max: 25 }, { min: 26, max: 30 }],
   };
   itemCatalog.weapons = Object.values(itemCatalog.progressions).flat();
   itemCatalog.upgrades = Object.values(itemCatalog.progressions).flatMap(ids => ids.slice(1));
-  itemCatalog.regular = Object.keys(items).filter(id => !itemCatalog.legacy.includes(id));
-  for (const id of itemCatalog.legacy) items[id].legacy = true;
+  itemCatalog.regular = Object.keys(items);
   for (const [type, ids] of Object.entries(itemCatalog.progressions)) {
     const firstClass = Object.values(classes).some(c => c.tier === 1 && c.weaponType === type);
     ids.forEach((id, index) => {
@@ -460,17 +424,17 @@
   }
   // Prices are the real merchant/reference values; owned item IDs never change.
   for (const [id, price] of Object.entries({ arun_sword: 30, palace_dual_blades: 65, arun_sword_shield: 70, lotus_staff: 35, jade_orb: 75, golden_scripture: 30, garuda_knuckles: 55, moon_kris: 25, tiger_claws: 60, naga_bow: 35, arcane_bow: 80, iron_sword: 120, moon_blade: 350 })) items[id].price = price;
-  for (const id of ["training_stick", "rusty_sword", "yak_greatsword", "banyan_robe", "moon_armor", "moon_charm", "lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token", ...itemCatalog.upgrades]) items[id].shop = false;
+  for (const id of ["training_stick", "banyan_robe", "moon_armor", "moon_charm", "lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token", ...itemCatalog.upgrades]) items[id].shop = false;
   for (const [id, value] of Object.entries({ jellopy: 2, fluff: 4, tree_root: 6, bee_sting: 6, bronze_scrap: 12, guardian_core: 75 })) items[id].sellPrice = value;
   for (const item of Object.values(items)) { item.rarity = "common"; item.tier = 1; }
   for (const id of ["palace_dual_blades", "arun_sword_shield", "jade_orb", "garuda_knuckles", "tiger_claws", "arcane_bow", "leather_armor", "banyan_robe", "bronze_ring", "cat_ears", "iron_sword", "banyan_staff", "silverwing_bow", "guardian_core"]) items[id].rarity = "uncommon";
-  for (const id of ["yak_greatsword", "moon_blade", "moon_armor", "moon_charm", "sun_staff", "sun_bow"]) items[id].rarity = "rare";
+  for (const id of ["moon_blade", "moon_armor", "moon_charm", "sun_staff", "sun_bow"]) items[id].rarity = "rare";
   for (const id of ["lotus_hat", "banyan_charm", "silver_circlet", "bronze_guard_token", "moon_crown", "sun_king_token"]) items[id].rarity = "rare";
   for (const id of itemCatalog.upgrades) {
     items[id].rarity = items[id].grade === 2 ? "uncommon" : "rare";
     if (items[id].iconArt?.atlas === "weapon-upgrades-v2") items[id].tier = items[id].grade === 2 ? 3 : id.startsWith("moon_") ? 5 : id === "bronze_general_sword_shield" || id === "royal_garuda_knuckles" ? 4 : 6;
   }
-  for (const [tier, ids] of [[2, ["leather_armor", "banyan_robe", "banyan_charm", "iron_sword", "banyan_staff", "ether", "cat_ears", "bronze_ring", "tree_root", "bee_sting"]], [3, ["palace_dual_blades", "arun_sword_shield", "jade_orb", "garuda_knuckles", "tiger_claws", "arcane_bow", "yak_greatsword", "moon_blade", "moon_armor", "moon_charm", "silver_circlet", "guardian_core", "strong_potion"]], [4, ["bronze_guard_token", "bronze_scrap"]], [5, ["moon_crown", "silverwing_bow"]], [6, ["sun_king_token", "sun_staff", "sun_bow"]]]) for (const id of ids) items[id].tier = tier;
+  for (const [tier, ids] of [[2, ["leather_armor", "banyan_robe", "banyan_charm", "iron_sword", "banyan_staff", "ether", "cat_ears", "bronze_ring", "tree_root", "bee_sting"]], [3, ["palace_dual_blades", "arun_sword_shield", "jade_orb", "garuda_knuckles", "tiger_claws", "arcane_bow", "moon_blade", "moon_armor", "moon_charm", "silver_circlet", "guardian_core", "strong_potion"]], [4, ["bronze_guard_token", "bronze_scrap"]], [5, ["moon_crown", "silverwing_bow"]], [6, ["sun_king_token", "sun_staff", "sun_bow"]]]) for (const id of ids) items[id].tier = tier;
   const monsters = {
     poring: { agi: 1, dex: 2, luk: 0, mdef: 0, attackMagic: false,
       name: "หยดบัว",
@@ -677,36 +641,6 @@
       description: "ฟื้น HP 20 หน่วย",
       color: "#99cba1",
     },
-    bash: {
-      name: "ฟันหนัก",
-      thai: "ฟันหนัก",
-      max: 10,
-      sp: 6,
-      cooldown: 1.4,
-      icon: "⚔",
-      description: "โจมตีแรงขึ้น 50% + 15% ต่อระดับ",
-      color: "#e5bc77",
-    },
-    magnum: {
-      name: "วงดาบอัคคี",
-      thai: "วงดาบอัคคี",
-      max: 5,
-      sp: 20,
-      cooldown: 5,
-      icon: "✹",
-      description: "โจมตีศัตรูในรัศมี 100 หน่วย • ต้องเรียนฟันหนักระดับ 5",
-      color: "#e59975",
-    },
-    provoke: {
-      name: "คำรามพิทักษ์",
-      thai: "คำรามพิทักษ์",
-      max: 5,
-      sp: 5,
-      cooldown: 5,
-      icon: "⚑",
-      description: "ลด DEF 50% เพิ่ม ATK 20% เป็นเวลา 15 วินาที • ไม่ใช้กับบอส",
-      color: "#ceaddd",
-    },
   };
   const quests = [
     {
@@ -769,7 +703,7 @@
       title: "สยามอรุณ",
       subtitle: "ตำนานผู้กล้าแห่งลุ่มน้ำ",
       currency: "อัฐ",
-      release: "1.15",
+      release: "1.16",
       intro: "ท่าน้ำอรุณเคยมีสายน้ำใสไหลจากป่าหิมพานต์ แต่ยามนี้ประกายแก้วประหลาดปลุกเหล่าภูตให้ปั่นป่วน เริ่มต้นเป็นชาวบ้าน ฝึกวิชากับครูอิน และออกตามหาแก่นแก้วนาคาเพื่อคืนความสงบให้เมืองริมน้ำแห่งสยามแฟนตาซี",
     },
     jobs: {

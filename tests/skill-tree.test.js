@@ -104,19 +104,20 @@ test("the tree reads the catalog instead of duplicating its labels or family lis
   delete classes.mage; delete classes.lotus_mage; delete classes.orb_weaver;
   assert.equal(browser.BCSkillTree.paths().length, 4);
 });
-test("learned legacy skills remain separate, retain prerequisites, bind and round trip", () => {
+test("only current ancestral skills can be learned, bound and round tripped", () => {
   const s = C.createState();
   s.classId = "royal_duelist"; s.weaponSchool = "dual_sword"; s.job = "Swordman"; s.equipment.weapon = null;
-  s.skills.bash = 4; s.skills.magnum = 1; s.skills.provoke = 1; s.skillPoints = 8;
-  assert.equal(C.skillAvailable(s, "magnum"), true);
-  assert.match(C.learnReason(s, "magnum"), /ระดับ 5/);
-  assert.equal(C.act(s, "learn", { id: "magnum" }).ok, false);
-  assert.equal(C.act(s, "learn", { id: "bash" }).ok, true);
-  assert.equal(C.act(s, "learn", { id: "magnum" }).ok, true);
+  s.skillPoints = 8;
+  for(const id of ["bash","magnum","provoke"]) {
+    assert.equal(C.skillAvailable(s,id),false);
+    assert.equal(C.act(s,"learn",{id}).ok,false);
+    assert.equal(C.act(s,"bind",{slot:1,value:`skill:${id}`}).ok,false);
+  }
+  assert.equal(C.act(s, "learn", { id: "arun_slash" }).ok, true);
   assert.equal(C.act(s, "learn", { id: "royal_flurry" }).ok, true);
   assert.equal(C.act(s, "bind", { slot: 1, value: "skill:royal_flurry" }).ok, true);
   const restored = C.deserialize(C.serialize(s));
   assert.deepEqual(restored.skills, s.skills); assert.deepEqual(restored.hotbar, s.hotbar);
   const nodes = T.nodesFor(s.classId);
-  assert.equal([...nodes.ancestry, ...nodes.shared].some(n => ["bash", "magnum", "provoke"].includes(n.skillId)), false);
+  assert.deepEqual(nodes.ancestry.map(n=>n.skillId),["arun_slash","royal_flurry"]);
 });

@@ -32,6 +32,12 @@ const events = (s) => s.combatFeedback?.events || [];
 function advance(C, s, seconds) { for (let i = 0; i < Math.round(seconds * 10); i++) C.tick(s, .1); }
 function canonical(s) {
   const clean = JSON.parse(JSON.stringify(s)); delete clean.combatFeedback;
+  // 1.16 intentionally removes obsolete content and adds typed cosmetic text.
+  // Keep every other gameplay/save value and RNG bit in the comparison.
+  for (const id of ['bash','magnum','provoke']) if (clean.skills) delete clean.skills[id];
+  for (const id of ['rusty_sword','yak_greatsword']) if (clean.inventory) delete clean.inventory[id];
+  for (const m of clean.monsters || []) delete m.provoke;
+  for (const e of clean.effects || []) for (const key of ['kind','amount','critical','magic','target']) delete e[key];
   const sort = (v) => Array.isArray(v) ? v.map(sort) : v && typeof v === "object"
     ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sort(v[k])])) : v;
   return sort(clean);
@@ -163,13 +169,16 @@ test("rejected attacks and casts produce no feedback and do not allocate transie
   assert.equal(Core.act(s, "skill", { id: "sanctuary" }).ok, false); assert.equal(s.combatFeedback, undefined);
 });
 
-test("legacy casts carry their skill ID while preserving old learned skills", () => {
-  for (const id of ["first_aid", "bash", "magnum", "provoke"]) {
-    const s = makeState(); s.skills.bash = 5; s.skills[id] = 1;
-    assert.equal(Core.act(s, "skill", { id, target: s.monsters[0].uid }).ok, true);
-    assert.equal(events(s).filter(e => e.kind === "skill").length, 1);
-    assert.equal(events(s)[0].skillId, id);
-    events(s).filter(e => e.kind === "impact").forEach(e => assert.equal(e.skillId, id));
+test("shared First Aid emits a real cast while removed skills cannot execute", () => {
+  const s = makeState();
+  assert.equal(Core.act(s, "skill", { id:'first_aid' }).ok, true);
+  assert.equal(events(s).filter(e=>e.kind==='skill').length,1);
+  assert.equal(events(s)[0].skillId,'first_aid');
+  for (const id of ['bash','magnum','provoke']) {
+    const current=makeState(),before=Core.serialize(current);
+    assert.equal(Core.act(current,'skill',{id,target:current.monsters[0].uid}).ok,false);
+    assert.equal(Core.serialize(current),before);
+    assert.equal(events(current).length,0);
   }
 });
 
@@ -199,7 +208,7 @@ test("spawn, actual travel, death and import clear feedback; rejected travel and
   assert.equal(Core.deserialize(JSON.stringify(raw)).combatFeedback, undefined);
 });
 
-test("baseline 1.12 numerical state, serialized save and seeded RNG remain identical across all classes", (t) => {
+test("baseline numerical state, normalized saves and seeded RNG match except explicitly removed content and cosmetic text metadata", (t) => {
   // Recovery commit contains the exact published 1.12 runtime. Reconstruct its
   // engine privately so parity also works in a fresh source clone, without a
   // retained /tmp checkout or contamination from current CommonJS dependencies.
@@ -228,7 +237,7 @@ test("baseline 1.12 numerical state, serialized save and seeded RNG remain ident
     const a = makeState(Old, classId, seed), b = makeState(Core, classId, seed);
     const check = (label) => {
       assert.deepEqual(canonical(b), canonical(a), `${classId}/${seed}/${label}: full gameplay state`);
-      assert.equal(Core.serialize(b), Old.serialize(a), `${classId}/${seed}/${label}: serialized bytes`);
+      assert.deepEqual(canonical(JSON.parse(Core.serialize(b)).state), canonical(JSON.parse(Old.serialize(a)).state), `${classId}/${seed}/${label}: saved progress excluding removed content`);
       assert.equal(b.seed, a.seed); checkpoints++;
     };
     const action = (name, args) => { assert.deepEqual(Core.act(b, name, args), Old.act(a, name, args)); check(name); };
@@ -247,7 +256,7 @@ test("baseline 1.12 numerical state, serialized save and seeded RNG remain ident
     a.player.hp = b.player.hp = 0; Old.tick(a, .1); Core.tick(b, .1); check("death");
   }
   assert.equal(checkpoints, 15092, "all declared seeded action/tick checkpoints must execute");
-  t.diagnostic(`${checkpoints} state/save/RNG parity checkpoints across 16 classes and 4 seeds`);
+  t.diagnostic(`${checkpoints} normalized state/save/RNG parity checkpoints across 16 classes and 4 seeds; only deleted content and cosmetic text metadata excluded`);
 });
 
 

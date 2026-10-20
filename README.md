@@ -4,9 +4,11 @@ A single-player Thai fantasy browser RPG. Start as a villager, choose one of fiv
 
 Play: https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/
 
-Version **1.15** redraws all 11 weapon families and 15 class skills in an original classic Siam fantasy style: filled blade trails, ivory cores, lotus petals, jade fragments, scripture and Naga snares. Effects have distinct release/impact/dissipation shapes, with readable physical criticals and timer-driven wards, charges and DOT marks.
+Version **1.16** adds original outlined pixel combat numbers, a layered critical star and pixel Critical!!/Miss/Lucky!! lettering. Actual damage values and outcomes drive the display; simultaneous hits pack above measured bounds and anchors snap to the screen pixel grid. Obsolete items, skills, UI and ancient save migrations are removed.
 
-**สกิล → ผังสกิลอาชีพ** shows only the current class and its inherited skills, with shared First Aid and learned legacy skills separate. Auto Battle and Auto Quest keep running through in-game menus and focus changes. Combat powers, SP costs, cooldowns, loot and save compatibility retain their existing rules.
+The classic VFX redraw covers all 11 weapon families and 15 class skills in an original classic Siam fantasy style: filled blade trails, ivory cores, lotus petals, jade fragments, scripture and Naga snares. Effects have distinct release/impact/dissipation shapes, with readable physical criticals and timer-driven wards, charges and DOT marks.
+
+**สกิล → ผังสกิลอาชีพ** shows only the current class and its inherited skills, with shared First Aid. Auto Battle and Auto Quest keep running through in-game menus and focus changes. Current combat powers, SP costs, cooldowns and loot retain their existing rules.
 
 ## Run and test
 
@@ -32,10 +34,10 @@ Keep the game page open for background farming. A shared fixed-step clock preven
 
 ## Saves, source and artwork
 
-Use the Settings menu to export/import a backup. Storage key: `borderlands-solo-rebuilt-v1`. Version 1.12 saves and supported earlier rebuilt saves migrate through the existing validator. Saves from the unrelated historical pre-rebuild game are not supported.
+Use the Settings menu to export/import a backup. Storage key: `borderlands-solo-rebuilt-v1`. Current-format saves require the current class, stat version and four equipment slots. Unrecognized item/skill IDs and their bindings are discarded; current progress is preserved. Earlier classless/statless/headless formats are rejected.
 
-The catalog contains 61 items: 42 obtainable now, 17 planned, and 2 retained for legacy saves. Planned bosses and drops shown in the guide are not live encounters. The 11 weapon paths each have three grades.
+The catalog contains 59 items: 42 obtainable now and 17 planned. There are 16 skills: 15 class signatures and shared First Aid. Planned bosses and drops shown in the guide are not live encounters. The 11 weapon paths each have three grades.
 
-Current art consists of 27 Siam fantasy atlases/images, preserved from published 1.12. This release adds Canvas geometry and no bitmap artwork. See [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md). The versioned v1.3–v1.5b README files describe historical packages, not this game.
+Current art consists of 27 Siam fantasy atlases/images, preserved from published 1.12. This release adds Canvas geometry and no bitmap artwork. See [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md). Historical pre-rebuild package README files have been removed.
 
 The cloud checkout initially contained old `main`; published 1.12 was recovered from `gh-pages` into commit `eefb5c3`. Current source, tests and docs are maintained on `codex/siam-arun-combat-effects`. Do not overwrite this version with historical sprite packages.
