@@ -175,7 +175,6 @@ h1 { font-size: 12px; margin: 0; }
 .catalog-card.rarity-boss { border-left-color: #e1c78f; }
 .item-availability, .weapon-path em { display: inline-block; margin: 0 0 3px; color: #cbd8c3; font-size: 9px; font-style: normal; }
 .availability-planned { color: #e1c78f; }
-.availability-legacy, .source-legacy { color: #c9c4d9; }
 .weapon-progressions { margin-top: 9px; padding: 6px; border: 1px solid #b6ad8f70; border-radius: 3px; }
 .weapon-progressions > summary { color: #e1dac4; cursor: pointer; font-size: 10px; }
 .weapon-path { min-width: 0; margin-top: 7px; padding: 6px; border: 1px solid #a5977450; border-radius: 3px; background: #294c4760; }
@@ -194,7 +193,7 @@ h1 { font-size: 12px; margin: 0; }
 .item-sources li:first-child { margin-top: 0; }
 .item-sources em { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid #b4a57966; border-radius: 2px; color: #e1c78f; font-style: normal; white-space: nowrap; }
 .future-source { color: #b4bfb2; }
-.source-empty, .source-legacy, .catalog-empty { margin: 5px 0; font-size: 10px; }
+.source-empty, .catalog-empty { margin: 5px 0; font-size: 10px; }
 .source-empty, .catalog-empty { color: #ccd8c4; }
 .quest-item-rewards { margin: 5px 0 8px; }
 .quest-item-rewards > span { display: flex; align-items: center; gap: 6px; font-size: 10px; }
@@ -289,7 +288,7 @@ h1 { font-size: 12px; margin: 0; }
 .skill-tree-learn { display: flex; align-items: center; gap: 5px; margin-top: auto; padding-top: 4px; }
 .skill-tree-learn button { flex-shrink: 0; font-size: 10px; padding: 3px 7px; }
 .skill-tree-learn small { font-size: 9px; line-height: 1.5; color: #d7ddce; }
-.skill-tree-shared, .skill-tree-legacy { border-top: 1px solid #a89f7780; padding-top: 5px; margin-top: 10px; }
+.skill-tree-shared { border-top: 1px solid #a89f7780; padding-top: 5px; margin-top: 10px; }
 .quest-detail { display: block; }
 .eyebrow { color: #d4c394; font-size: 8px; }
 .quest-detail h3 { font-size: 12px; margin: 3px 0; }

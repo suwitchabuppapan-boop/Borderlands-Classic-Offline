@@ -47,7 +47,6 @@
   function availability(id) {
     const i = item(id);
     if (!i) return null;
-    if (i.legacy === true) return "legacy";
     return sourcesFor(id).some(source => source.available) ? "available" : "planned";
   }
   const api = { buyPrice, sellPrice, rollDrops, sourcesFor, availability };

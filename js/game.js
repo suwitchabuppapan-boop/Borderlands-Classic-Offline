@@ -237,7 +237,7 @@
   };
   const equipmentSlots = [
     ["head", "ศีรษะ", "novice_cap"],
-    ["weapon", "อาวุธ", "rusty_sword"],
+    ["weapon", "อาวุธ", "training_stick"],
     ["armor", "เกราะ", "cloth_armor"],
     ["accessory", "เครื่องประดับ", "bronze_ring"],
   ];
@@ -333,11 +333,11 @@
     else if (id === 'novice_cap') shape = '<ellipse cx="16" cy="23" rx="14" ry="5" fill="#d6b479"/><path d="M5 23L16 5l11 18z" fill="#d8bd83"/><path d="M9 18h14M11 14h10M13 10h6M5 23h22M16 6v17M12 12l-2 11m10-11l2 11" fill="none" stroke="#9e8455"/><path d="M3 24c7 3 19 3 26 0" fill="none" stroke="#f3e2b7" stroke-width="1.5"/><path d="M12 27l4 3 4-3" fill="none" stroke="#657c6b"/>';
     else if (id === 'cat_ears') shape = '<path d="M5 22L3 3l11 8h4L29 3l-2 19z" fill="#676475"/><path d="M7 15L6 7l7 6m7 0l6-6-1 8" fill="#e7a3b2"/><path d="M5 21c4-8 18-8 22 0v5h-4v-4c-4-5-10-5-14 0v4H5z" fill="#b1a3bf"/><path d="M8 20c4-5 13-5 17 0" fill="none" stroke="#ede1e2"/>';
     else if (id === 'silver_circlet') shape = '<path d="M4 18l3 8h18l3-8-6 2-6-7-6 7z" fill="#d7bd7b"/><path d="M10 21c-7-4-5-10-1-8-4 3 3 4 4 5m6 0c1-1 8-2 4-5 4-2 6 4-1 8" fill="none" stroke="#e6d4a2" stroke-width="2"/><path d="M16 3l5 13-5 7-5-7z" fill="#ddc589"/><path d="M16 9l3 7-3 4-3-4z" fill="#77aaa0"/><path d="M7 25h18" fill="none" stroke="#fff0c8" stroke-width="1.5"/>';
-    else if (id.includes('sword') || id === 'moon_blade' || ['attack','equipment','bash'].includes(id)) shape = blade(D.items[id]?.color || '#dbe5ef');
+    else if (id.includes('sword') || id === 'moon_blade' || ['attack','equipment'].includes(id)) shape = blade(D.items[id]?.color || '#dbe5ef');
     else if (id.includes('armor')) shape = armor(D.items[id].color);
     else if (id === 'apple') shape = '<path d="M18 7c10 0 14 12 5 20-5 4-13 4-17 1 6-4-1-10 3-16 2-3 5-5 9-5z" fill="#dfb556"/><path d="M9 24c5 2 10-3 11-9" fill="none" stroke="#f9d784" stroke-width="2"/><path d="M17 8l1-5" stroke="#806340" stroke-width="1.5"/><path d="M19 4c0-3 8-4 10-1-3 4-6 4-10 1z" fill="#769260"/>';
     else if (id === 'bronze_ring') shape = '<ellipse cx="16" cy="17" rx="10" ry="11" fill="#bb844c"/><ellipse cx="16" cy="17" rx="6" ry="7" fill="#39485e"/><path d="M8 13c2-6 11-8 15-2" fill="none" stroke="#f1d598" stroke-width="3"/><path d="M19 24l4-4" stroke="#e1b779" stroke-width="2"/>';
-    else if (['moon_charm','guardian_core','jellopy','provoke'].includes(id)) { const color = D.items[id]?.color || '#c4a0de'; shape = `<path d="M16 3l10 11-4 13-12 1-6-14z" fill="${color}"/><path d="M16 3l-4 12 10 12-1-15z" fill="#fff" opacity=".35"/><path d="M4 14l8 1 9-3 5 2M12 15l-2 13" fill="none" stroke="#617080"/>`; }
+    else if (['moon_charm','guardian_core','jellopy'].includes(id)) { const color = D.items[id]?.color || '#c4a0de'; shape = `<path d="M16 3l10 11-4 13-12 1-6-14z" fill="${color}"/><path d="M16 3l-4 12 10 12-1-15z" fill="#fff" opacity=".35"/><path d="M4 14l8 1 9-3 5 2M12 15l-2 13" fill="none" stroke="#617080"/>`; }
     else if (['fluff','log'].includes(id)) shape = '<path d="M5 27C8 12 18 2 28 3c3 9-9 19-18 18z" fill="#e8e4d9"/><path d="M5 27L25 6M13 19v-7m4 3h7M19 12V7" fill="none" stroke="#9ba4b4"/><path d="M6 29l3-6" stroke="#d2bb8f" stroke-width="2"/>';
     else if (id === 'tree_root') shape = '<path d="M13 3h8l-3 11 9 11-4 3-8-9-5 11-6-2 8-14z" fill="#b08760"/><path d="M16 7l-2 10 10 9M11 22l-4 5" fill="none" stroke="#dfbc8c"/>';
     else if (id === 'bee_sting') shape = '<path d="M23 5l5 7-20 17-4-2z" fill="#b8c7d7"/><path d="M24 5l-3-2-8 8 8 5 6-5z" fill="#d7b467"/><path d="M9 25l15-17" stroke="#fff"/>';
@@ -350,7 +350,6 @@
     else if (id === 'settings') shape = '<path d="M13 3h6l1 4 4 2 4-1 3 5-3 3v4l2 3-3 5-4-1-4 2h-6l-2-4-4-2-4 1-3-5 3-3v-4l-2-3 3-5 4 1 4-2z" fill="#bdc8d8"/><circle cx="16" cy="16" r="6" fill="#556780"/><circle cx="16" cy="16" r="3" fill="#dae4ef"/>';
     else if (id === 'auto') shape = '<path d="M7 11c4-10 20-8 21 3h-5c-1-7-10-8-13-2l3 3H2l2-11zM25 21c-4 10-20 8-21-3h5c1 7 10 8 13 2l-3-3h11l-2 11z" fill="#aec9a7"/>';
     else if (id === 'first_aid') shape = '<path d="M6 5h20v24H6z" fill="#dfd9cf"/><path d="M6 5h20v5H6z" fill="#9b829c"/><path d="M13 12h6v5h5v6h-5v5h-6v-5H8v-6h5z" fill="#df8296"/>';
-    else if (id === 'magnum') shape = '<path d="M15 29C-2 24 8 12 8 12c0 7 5 1 5 1s-3-7 6-12c-1 9 2 9 6 6-3 6 8 12 4 18-3 4-9 6-14 4z" fill="#d87d67"/><path d="M16 27c-7-3-5-9 1-15-1 6 7 9 4 13z" fill="#f2d283"/>';
     else shape = '<path d="M16 2l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#b7addf"/><path d="M16 6v20M6 16h20" stroke="#f7ecff"/><circle cx="16" cy="16" r="4" fill="#e1d9f9"/>';
     return `<svg class="game-icon" viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><g stroke="${ink}" stroke-width=".8" stroke-linejoin="round">${shape}</g></svg>`;
   }
@@ -361,7 +360,7 @@
   const itemTypeNames = { weapon: "อาวุธ", armor: "เกราะ", head: "ศีรษะ", accessory: "เครื่องประดับ", use: "ของใช้", loot: "ของดรอป" };
   const tierLabel = (tier) => tier ? `แนะนำ Lv.${(tier - 1) * 5 + 1}–${tier * 5}` : "";
   const gradeNames = { 1: "เริ่มต้น", 2: "รุ่นกลาง", 3: "รุ่นปลายทาง" };
-  const availabilityNames = { available: "หาได้แล้ว", planned: "ยังไม่เปิด", legacy: "ของเก่ารองรับเซฟ" };
+  const availabilityNames = { available: "หาได้แล้ว", planned: "ยังไม่เปิด" };
   const itemLevel = (i) => i.recommendedLevel
     ? `แนะนำ Base Lv.${i.recommendedLevel.min}–${i.recommendedLevel.max}` : tierLabel(i.tier);
   function weaponRole(i) {
@@ -394,7 +393,6 @@
       .join(" · ");
   function sourceRows(id) {
     const sources = window.BCItemRules.sourcesFor(id);
-    if (window.BCItemRules.availability(id) === "legacy") return '<p class="source-legacy">ของเก่ารองรับเซฟ · เก็บและใช้ตามประเภทอาชีพเดิมได้ · ไม่มีแหล่งรับเพิ่ม</p>';
     if (!sources.length) return '<p class="source-empty">ยังไม่มีแหล่งรับเพิ่ม</p>';
     return `<ul class="item-sources">${sources.map((source) => {
       const quantity = source.min ? ` ×${source.min === source.max ? source.min : `${source.min}–${source.max}`}` : "";
@@ -425,7 +423,7 @@
       const i = D.items[id], availability = window.BCItemRules.availability(id);
       return `<li data-path-item="${id}" data-availability="${availability}">${icon(id)}<span><b>ขั้น ${i.grade} · ${esc(i.name)}</b><small>${esc([i.atk ? `ATK +${i.atk}` : "", i.matk ? `MATK +${i.matk}` : "", i.def ? `DEF +${i.def}` : "", itemLevel(i)].filter(Boolean).join(" · "))}</small><em class="availability-${availability}">${availabilityNames[availability]}</em></span></li>`;
     }).join("")}</ol></article>`).join("")}</details>`;
-    return `<p class="panel-note">อาวุธครบทุกประเภท · ช่วงเลเวลเป็นคำแนะนำ<br>“ยังไม่เปิด” คือแหล่งในอนาคต · ของเก่าที่มีอยู่ยังรองรับเซฟ</p><div class="catalog-filters">${
+    return `<p class="panel-note">อาวุธครบทุกประเภท · ช่วงเลเวลเป็นคำแนะนำ<br>“ยังไม่เปิด” คือแหล่งในอนาคต</p><div class="catalog-filters">${
       select("catalog-collection", "รายการ", catalogCollection, [["regular", `รายการปกติ ${D.itemCatalog.regular.length} ชิ้น`], ["upgrades", `อาวุธอัปเกรด ${D.itemCatalog.upgrades.length} ชิ้น`], ["all", `ทั้งหมด ${Object.keys(D.items).length} ชิ้น`]]) +
       select("catalog-status", "สถานะแหล่งหา", catalogStatus, [["all", "ทุกสถานะ"], ...Object.entries(availabilityNames)]) +
       select("catalog-type", "ประเภท", catalogType, [["all", "ทุกประเภท"], ...Object.entries(itemTypeNames)]) +
@@ -483,7 +481,7 @@
   function skillCard(s, id) {
     const d = D.skills[id], owner = Object.values(D.classes).find((c) => c.skill === id);
     const reason = C.learnReason(s, id);
-    return `<div class="skill-card" data-skill="${id}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small>${owner ? `${esc(owner.name)} · Class ${owner.tier}` : id === "first_aid" ? "ใช้ได้ทุกอาชีพ" : "สกิลเดิมที่เรียนไว้"} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, reason ? `disabled title="${esc(reason)}"` : "")}</div>`;
+    return `<div class="skill-card" data-skill="${id}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small>${owner ? `${esc(owner.name)} · Class ${owner.tier}` : "ใช้ได้ทุกอาชีพ"} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, reason ? `disabled title="${esc(reason)}"` : "")}</div>`;
   }
   function skillTree(s) {
     const accessible = window.BCSkillTree.nodesFor(s.classId);
@@ -497,8 +495,7 @@
       const trialText = trial ? ` · ทดสอบกำจัด${D.monsters[trial.kind].name} ${trial.count} ตัว${active ? ` (${active.current}/${trial.count}${active.complete ? " · สำเร็จ" : ""})` : " · นับหลังรับทดสอบ"}` : "";
       return `<article class="skill-tree-node" data-class="${classId}" data-skill="${skillId}" data-state="${relation}"><div class="skill-tree-class"><b>${esc(c.name)}</b><span class="skill-tree-state">${relationText}</span></div><h3>${esc(d.name)} <span>Lv.${s.skills[skillId] || 0} / ${d.max}</span></h3><p class="skill-tree-meta">SP ${d.sp} · CD ${d.cooldown} วินาที · ระยะ ${d.range}${d.range === 0 ? " (ตนเอง)" : ""}</p><p class="skill-tree-description">${esc(d.description)}</p><p class="skill-tree-requirement">Class ${c.tier} · เปลี่ยนอาชีพที่ Job Lv.${c.tier === 1 ? 10 : 40}${esc(trialText)}</p><div class="skill-tree-learn">${button("learn", "เรียน", skillId, `${reason ? `disabled title="${esc(reason)}"` : ""} aria-label="เรียน ${esc(d.name)}"`)}<small>${esc(reason || "ใช้ 1 แต้มสกิลต่อระดับ")}</small></div></article>`;
     };
-    const legacy = C.skillsFor(s).filter(id => !D.skills[id].owner && id !== "first_aid" && s.skills[id] > 0);
-    return `<p class="panel-note skill-tree-help">แสดงเฉพาะสกิลอาชีพปัจจุบันและสกิลที่สืบทอด<br>เปลี่ยนอาชีพและรับทดสอบกับ${esc(npc("guide").name)}ที่เมือง</p>${accessible.ancestry.length ? `<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${accessible.ancestry.map(card).join("")}</section>` : ""}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3 class="shop-title">สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n => skillCard(s, n.skillId)).join("")}</section>${legacy.length ? `<section class="skill-tree-legacy" aria-label="สกิลเดิมที่เรียนไว้"><h3 class="shop-title">สกิลเดิมที่เรียนไว้</h3><p class="panel-note">คงสกิลและเงื่อนไขเดิมจากเซฟ · แยกจากเส้นทางอาชีพ</p>${legacy.map(id => skillCard(s, id)).join("")}</section>` : ""}`;
+    return `<p class="panel-note skill-tree-help">แสดงเฉพาะสกิลอาชีพปัจจุบันและสกิลที่สืบทอด<br>เปลี่ยนอาชีพและรับทดสอบกับ${esc(npc("guide").name)}ที่เมือง</p>${accessible.ancestry.length ? `<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${accessible.ancestry.map(card).join("")}</section>` : ""}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3 class="shop-title">สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n => skillCard(s, n.skillId)).join("")}</section>`;
   }
   const statNumber = (value) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 1, useGrouping: false });
   function statBuild(s, st) {
@@ -584,16 +581,11 @@
       html += '</div></div><button data-open="inventory" class="outline-button">เลือกอุปกรณ์จากกระเป๋า →</button><p class="panel-note equipment-note">อุปกรณ์แยกโบนัส ATK / MATK และ DEF / MDEF ตามที่ระบุ และนับรวมในน้ำหนักกระเป๋า</p>';
     }
     if (panel === "skills") {
-      const ids = C.skillsFor(s), legacy = new Set(["bash", "magnum", "provoke"]);
+      const ids = C.skillsFor(s);
       html = `<div class="skills-tabs" role="tablist" aria-label="มุมมองสกิล">${[["current", "สกิลปัจจุบัน"], ["tree", "ผังสกิลอาชีพ"]].map(([id, label]) => `<button id="skills-tab-${id}" data-skills-tab="${id}" role="tab" aria-selected="${skillsTab === id}" aria-controls="skills-tabpanel" tabindex="${skillsTab === id ? 0 : -1}">${label}</button>`).join("")}</div><div id="skills-tabpanel" role="tabpanel" aria-labelledby="skills-tab-${skillsTab}"><p class="panel-note">${esc(className(s))} · ${classLabel(s)} · แต้มสกิล <b data-skill-points>${s.skillPoints}</b><br>สกิลของอาชีพปัจจุบันและอาชีพที่สืบทอด · แต่ละสกิลใช้แต้มเรียนตามระดับ</p>`;
       if (skillsTab === "tree") html += skillTree(s);
       else {
-        for (const id of ids.filter((id) => !legacy.has(id))) html += skillCard(s, id);
-        const learnedLegacy = ids.filter((id) => legacy.has(id) && s.skills[id] > 0);
-        if (learnedLegacy.length) {
-          html += '<h3 class="shop-title">สกิลเดิมที่เรียนไว้</h3>';
-          for (const id of learnedLegacy) html += skillCard(s, id);
-        }
+        for (const id of ids) html += skillCard(s, id);
       }
       html += '<button data-open="hotbar" class="outline-button">จัดสกิลลง Hotbar →</button></div>';
     }
@@ -651,7 +643,7 @@
       html = `${questAutoCard(s)}<p class="panel-note">Auto Battle จะหาเป้าหมายและต่อสู้ในแมปปัจจุบัน · Auto Quest จะเลือกเฉพาะมอนสเตอร์ที่ต้องใช้ในภารกิจ ทำงานเฉพาะขณะหน้าเกมเปิดและฟาร์มต่อได้แม้เปิดเมนูทับอยู่</p><div class="settings-row"><label for="auto-potion">ใช้ยา HP เมื่อเลือดต่ำกว่า</label><select id="auto-potion">${[0, 20, 40, 60, 80, 90].map((n) => `<option value="${n}" ${s.settings.autoPotion === n ? "selected" : ""}>${n ? n + "%" : "ไม่ใช้ยา"}</option>`).join("")}</select></div><div class="settings-row"><label for="auto-skill">ใช้สกิลอาชีพที่เรียนแล้วเมื่อเหมาะกับเป้าหมาย</label><input type="checkbox" id="auto-skill" ${s.settings.autoSkill ? "checked" : ""}></div>`;
     }
     if (panel === "settings") {
-      html = `<p class="panel-note">ความคืบหน้าเก็บในเบราว์เซอร์และที่อยู่ที่เล่นนี้ ใช้ Export เพื่อย้ายเครื่องหรือสำรองเซฟ</p><div class="settings-row"><label for="hair-select">สีผมของนักผจญภัย</label><select id="hair-select">${["น้ำตาล", "ทองเข้ม", "ดำ", "แดงอิฐ", "ทองอ่อน", "เทาอมฟ้า"].map((n, i) => `<option value="${i}" ${s.settings.hair === i ? "selected" : ""}>${n}</option>`).join("")}</select></div><div class="settings-actions">${button("save", "บันทึกเกม")}${button("export", "Export Save")}${button("import", "Import Save")}</div><p class="panel-note">ใช้เซฟเดิมต่อในโลก${esc(world.title)}ได้ • อาวุธ หมวก อาชีพ และภารกิจเดิมยังอยู่ครบ</p><hr class="section-rule"><p class="panel-note">เริ่มต้นการผจญภัยใหม่จะล้างความคืบหน้าปัจจุบัน ควร Export ไว้ก่อน</p>${button("reset", "เริ่มเกมใหม่", "", 'class="danger"')}`;
+      html = `<p class="panel-note">ความคืบหน้าเก็บในเบราว์เซอร์และที่อยู่ที่เล่นนี้ ใช้ Export เพื่อย้ายเครื่องหรือสำรองเซฟ</p><div class="settings-row"><label for="hair-select">สีผมของนักผจญภัย</label><select id="hair-select">${["น้ำตาล", "ทองเข้ม", "ดำ", "แดงอิฐ", "ทองอ่อน", "เทาอมฟ้า"].map((n, i) => `<option value="${i}" ${s.settings.hair === i ? "selected" : ""}>${n}</option>`).join("")}</select></div><div class="settings-actions">${button("save", "บันทึกเกม")}${button("export", "Export Save")}${button("import", "Import Save")}</div><p class="panel-note">Export Save เพื่อสำรองความคืบหน้า และ Import Save เพื่อเล่นต่อ</p><hr class="section-rule"><p class="panel-note">เริ่มต้นการผจญภัยใหม่จะล้างความคืบหน้าปัจจุบัน ควร Export ไว้ก่อน</p>${button("reset", "เริ่มเกมใหม่", "", 'class="danger"')}`;
     }
     if (panel === "codex") {
       html = `<div class="codex-tabs" aria-label="หมวดคู่มือ">${[["world", "โลกและมอนสเตอร์"], ["items", "สารานุกรมไอเทม"]].map(([id, name]) => `<button data-codex-tab="${id}" aria-pressed="${codexTab === id}">${name}</button>`).join("")}</div>`;
@@ -1024,10 +1016,8 @@
       if (el.id === "catalog-type") catalogType = Object.hasOwn(itemTypeNames, el.value) ? el.value : "all";
       else if (el.id === "catalog-collection") {
         catalogCollection = ["regular", "upgrades", "all"].includes(el.value) ? el.value : "regular";
-        if (catalogStatus === "legacy" && catalogCollection !== "all") catalogStatus = "all";
       } else if (el.id === "catalog-status") {
         catalogStatus = Object.hasOwn(availabilityNames, el.value) ? el.value : "all";
-        if (catalogStatus === "legacy") catalogCollection = "all";
       } else if (el.id === "catalog-weapon-type") catalogWeaponType = Object.hasOwn(D.itemCatalog.progressions, el.value) ? el.value : "all";
       else catalogGrade = ["1", "2", "3"].includes(el.value) ? el.value : "all";
       renderPanel();
