@@ -14,6 +14,14 @@ User scope: implement the approved complete skill sets for five Class 1 paths an
 - Independent code reviews identified and verified fixes for melee inheritance range, hunt duration, Auto movement reachability, measured healing events, shield stacking, transition cleanup, active level bounds, chain endpoints, preparation projectile gating and consume socket origins. Browser checks also caught the missing readiness helper/Job label and faint late blade/thrust/arrow cores; those were corrected without lowering existing visibility thresholds.
 - Python compilation and `git diff --check` pass. Packaging requires **52 runtime / 21 JS / 51 public content / 27 image files**, with strict module order, deterministic ZIP metadata, CRC, extracted bytes and SHA-256 inventories. Source archives exclude generated screenshots, credentials, personal saves and old third-party sprite packages.
 
+## Published 1.17
+
+- Pages commit `e19faa02e09d5a0124779b186c7c1e6e8f1d2322` completed with **built** status. Twelve runtime text files changed from 1.16, including the two new modules; all 27 images remain byte-identical.
+- `python scripts/release_site.py verify-public --stage /workspace/skills117/release-1.17 --out /workspace/skills117/public-1.17` — **51/51 public content files match staged bytes**, fetched with normal TLS certificate/hostname verification. Index SHA-256: `32ccd046b861d420a3cc5d3fe41f86b5508d6634c0b9f0ffdfc5399571f3f7bd`.
+
+- `python scripts/test_browser.py --public-cache /workspace/skills117/public-1.17 --artifacts /workspace/skills117/browser-public` — **6 suites passed, 0 failed**, with zero page errors, failed requests, HTTP errors or unknown cache requests. The runner uses exactly TLS-fetched public bytes at their original Pages origin, without local runtime substitution or disabled HTTPS checking. High-HP combat fixtures isolate complete combos; the normal three-quest route is checked separately.
+- Runtime/source archives contain **52/87 files**. Final packaging checks exact source HEAD membership, ZIP CRC/extracted bytes, SHA manifests, all 27 baseline image bytes and equality with the verified public cache. Versioned archives are preserved separately under `/workspace/shared/downloads/1.17/`; earlier archives remain intact. Source is pushed on `codex/siam-arun-combat-effects` in draft PR #2; main remains unmerged.
+
 # Historical 1.16 verification — 2026-10-20
 
 User scope: remove all obsolete old-save content and support; redraw damage numbers in the pixel style of the supplied classic RPG reference. Current progress remains, while removed identifiers disappear from the catalog, skills, inventory, equipment and hotbar.
