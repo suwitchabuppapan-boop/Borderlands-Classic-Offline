@@ -642,6 +642,81 @@
       color: "#99cba1",
     },
   };
+  // Skill balance uses base + per-level * (learned level - 1), except passives
+  // whose coefficients apply once for every learned level (zero is neutral).
+  const classSkill = (name, owner, kind, sp, cooldown, range, power, description, extra = {}) => ({
+    name, thai: name, owner, max: 5, sp, cooldown, kind, category: power ? "attack" : "buff",
+    range, power, powerPerLevel: power ? 0.1 : 0, magic: false, icon: "✦", color: "#d9c48c", description, ...extra,
+  });
+  const passiveSkill = (name, owner, description, passive, extra = {}) => classSkill(name, owner, "passive", 0, 0, 0, 0, description, {category: "passive", passive, ...extra});
+  Object.assign(skills, {
+    swordsman_sweep: classSkill("กวาดคมอรุณ", "swordsman", "cone", 8, 4, 76, 1.1, "กวาดด้านหน้า 110% + 10% ต่อระดับ สูงสุด 5 เป้า มุม 103 องศา (เพิ่มตั้งแต่ระดับ 2)", {angle: 1.8, maxTargets: 5}),
+    swordsman_stance: classSkill("ตั้งหลักนักดาบ", "swordsman", "self", 7, 9, 0, 0, "เพิ่ม DEF 4 + 2 ต่อระดับ นาน 6 วินาที (เพิ่มตั้งแต่ระดับ 2)", {duration: 6, defBonus: 4, defPerLevel: 2}),
+    swordsman_discipline: passiveSkill("วิถีศาสตรา", "swordsman", "ดาบ ดาบคู่ และดาบโล่ เพิ่มความเสียหายกายภาพ 2.5% ต่อระดับ สูงสุด 12.5%", {physicalMultiplier: 0.025}, {weaponTypes: ["sword", "dual_sword", "sword_shield"]}),
+    royal_duelist_ring: classSkill("กงจักรทวิคม", "royal_duelist", "radial", 14, 6, 0, 1.4, "ฟันรอบตัวรัศมี 80 พลัง 140% + 12% ต่อระดับ สูงสุด 6 เป้า (เพิ่มตั้งแต่ระดับ 2)", {radius: 80, maxTargets: 6, powerPerLevel: 0.12}),
+    royal_duelist_tempo: classSkill("เร่งเพลงดาบ", "royal_duelist", "self", 10, 10, 0, 0, "ลดช่วงโจมตี 12% + 2% ต่อระดับ นาน 6 วินาที (เพิ่มตั้งแต่ระดับ 2)", {duration: 6, intervalMultiplier: 0.88, intervalPerLevel: -0.02}),
+    royal_duelist_rhythm: passiveSkill("จังหวะราชวัง", "royal_duelist", "ลด SP สกิลสายดาบ 3% ต่อระดับ สูงสุด 15% ปัดค่าใช้จ่ายขึ้น ไม่ลดปฐมพยาบาล", {swordSpReduction: 0.03}),
+    city_guardian_wave: classSkill("คลื่นโล่นคร", "city_guardian", "cone", 13, 6, 90, 1.3, "คลื่นด้านหน้า 130% + 12% ต่อระดับ สูงสุด 5 เป้า ลด ATK เป้าที่โดน 15% นาน 4 วินาที (เพิ่มตั้งแต่ระดับ 2)", {angle: 1.8, maxTargets: 5, powerPerLevel: 0.12, enemyAtkMultiplier: 0.85, duration: 4}),
+    city_guardian_vow: classSkill("คำสัตย์พิทักษ์", "city_guardian", "shield", 12, 10, 0, 0, "สร้างเกราะรับความเสียหาย 36 + 10 ต่อระดับ นาน 6 วินาที ไม่ซ้อนเพิ่ม (เพิ่มตั้งแต่ระดับ 2)", {duration: 6, shield: 36, shieldPerLevel: 10}),
+    city_guardian_foundation: passiveSkill("รากฐานนคร", "city_guardian", "เพิ่ม DEF 2 และ MDEF 1 ต่อระดับ สูงสุด DEF 10 และ MDEF 5", {defBonus: 2, mdefBonus: 1}),
+    petal_wave: classSkill("คลื่นกลีบบัว", "mage", "cone", 9, 4, 115, 1.1, "คลื่นเวทด้านหน้า 110% + 10% ต่อระดับ สูงสุด 5 เป้า มุม 103 องศา (เพิ่มตั้งแต่ระดับ 2)", {magic: true, angle: 1.8, maxTargets: 5}),
+    lotus_veil: classSkill("ม่านบัว", "mage", "shield", 9, 10, 0, 0, "สร้างเกราะรับความเสียหาย 25 + 7 ต่อระดับ นาน 6 วินาที ไม่ซ้อนเพิ่ม (เพิ่มตั้งแต่ระดับ 2)", {duration: 6, shield: 25, shieldPerLevel: 7, magic: true}),
+    mana_focus: passiveSkill("สมาธิมนตรา", "mage", "ลด SP สกิลเวท 2.5% ต่อระดับ สูงสุด 12.5% ปัดค่าใช้จ่ายขึ้น", {magicSpReduction: 0.025}),
+    blossom_mark: classSkill("ตราบัวสะพรั่ง", "lotus_mage", "mark", 11, 5, 190, 1.3, "เวทเดี่ยว 130% + 10% ต่อระดับ ตรานาน 6 วินาที เพิ่มสกิลพื้นที่ครั้งถัดไปที่โดนเป้า 20% + 3% ต่อระดับ (เพิ่มตั้งแต่ระดับ 2)", {magic: true, duration: 6, markMultiplier: 1.2, markPerLevel: 0.03}),
+    gather_petals: classSkill("รวมกลีบบัว", "lotus_mage", "empower", 10, 10, 0, 0, "เพิ่มพลังสกิลพื้นที่ครั้งถัดไป 20% + 3% ต่อระดับ ภายใน 8 วินาที ตราบัวไม่ใช้บัฟนี้ (เพิ่มตั้งแต่ระดับ 2)", {magic: true, duration: 8, empowerMultiplier: 1.2, empowerPerLevel: 0.03, empowerCategory: "aoe"}),
+    lotus_mastery: passiveSkill("ชำนาญวงมนตรา", "lotus_mage", "เพิ่มความเสียหายสกิลพื้นที่ 3% ต่อระดับ สูงสุด 15% ไม่ขยายรัศมี", {aoeMultiplier: 0.03}),
+    orb_chain: classSkill("มณีชิ่ง", "orb_weaver", "chain", 14, 6, 180, 1.4, "เวทชิ่งไม่ซ้ำสูงสุด 3 เป้า พลังแรก 140% + 12% ต่อระดับ เป้าถัดไปแรง 85% ของก่อนหน้า ระยะชิ่ง 100 (เพิ่มตั้งแต่ระดับ 2)", {magic: true, powerPerLevel: 0.12, maxTargets: 3, chainRange: 100, chainFalloff: 0.85}),
+    prism_veil: classSkill("ม่านมณี", "orb_weaver", "shield", 10, 9, 0, 0, "ใช้ประจุจริง 1 เม็ด สร้างเกราะ 40 + 10 ต่อระดับ นาน 6 วินาที ไม่มีประจุใช้ไม่ได้ (เพิ่มตั้งแต่ระดับ 2)", {magic: true, chargeCost: 1, duration: 6, shield: 40, shieldPerLevel: 10}),
+    orb_attunement: passiveSkill("แก้วประสาน", "orb_weaver", "เพิ่มความเสียหายโจมตีปกติเวท 3.5% ต่อระดับ สูงสุด 17.5% ไม่เพิ่มจำนวนฮิตหรือประจุ", {normalMagicMultiplier: 0.035}),
+    glyph_strike: classSkill("อักขระจู่โจม", "acolyte", "target", 6, 2.5, 130, 1.15, "อักขระเดี่ยว 115% + 10% ต่อระดับ หนังสือใช้ MATK สนับมือใช้ ATK และระยะประชิด (เพิ่มตั้งแต่ระดับ 2)", {adaptive: true, meleeRange: 48}),
+    scripture_wave: classSkill("คลื่นอาคม", "acolyte", "cone", 9, 4, 100, 1.05, "คลื่นด้านหน้า 105% + 10% ต่อระดับ สูงสุด 5 เป้า หนังสือใช้ MATK สนับมือใช้ ATK (เพิ่มตั้งแต่ระดับ 2)", {adaptive: true, angle: 1.8, maxTargets: 5, meleeRange: 70}),
+    steady_mind: passiveSkill("จิตมั่น", "acolyte", "เพิ่ม HP สูงสุดและ SP สูงสุด 2% ต่อระดับ อย่างละสูงสุด 10% ไม่ฟื้นค่าให้เอง", {maxHpMultiplier: 0.02, maxSpMultiplier: 0.02}),
+    verdict_seal: classSkill("ตราพิพากษา", "divine_scribe", "target", 14, 6, 180, 1.8, "เวทเดี่ยวพลัง 180% + 14% ต่อระดับ ระยะ 180 (เพิ่มตั้งแต่ระดับ 2)", {magic: true, powerPerLevel: 0.14}),
+    cleansing_script: classSkill("อักขระชำระ", "divine_scribe", "cleanse", 11, 10, 0, 0, "ชำระสถานะด้านลบที่ล้างได้ เพิ่ม MDEF 6 + 2 ต่อระดับ นาน 6 วินาที ไม่ฮีล (เพิ่มตั้งแต่ระดับ 2)", {magic: true, duration: 6, mdefBonus: 6, mdefPerLevel: 2, cleanse: true}),
+    mercy_scripture: passiveSkill("คัมภีร์เมตตา", "divine_scribe", "เพิ่มการฟื้น HP จากสกิล 4% ต่อระดับ สูงสุด 20% ไม่เพิ่มการฟื้นจากยา", {healMultiplier: 0.04}),
+    garuda_pierce: classSkill("หมัดครุฑาทะลวง", "garuda_monk", "target", 13, 5, 48, 1.6, "ต่อยเดี่ยว 160% + 12% ต่อระดับ ขณะบัฟกระบวนครุฑาแรงขึ้น 25% + 4% ต่อระดับ (เพิ่มตั้งแต่ระดับ 2)", {powerPerLevel: 0.12, condition: "garuda_combo", conditionMultiplier: 1.25, conditionPerLevel: 0.04}),
+    garuda_step: classSkill("ย่างครุฑา", "garuda_monk", "move", 8, 8, 160, 0, "ก้าวเข้าหาเป้าได้ 70 + 5 ต่อระดับ ไม่ข้ามสิ่งกีดขวางหรือประตู ไม่ทำดาเมจ (เพิ่มตั้งแต่ระดับ 2)", {category: "utility", moveMode: "toward", distance: 70, distancePerLevel: 5}),
+    garuda_body: passiveSkill("กายาครุฑา", "garuda_monk", "เมื่อใช้สนับมือ เพิ่ม HP สูงสุด 2% และลดความเสียหายรับ 1.5% ต่อระดับ สูงสุด 10% และ 7.5%", {maxHpMultiplier: 0.02, damageTakenMultiplier: -0.015}, {weaponTypes: ["knuckle"]}),
+    scout_sweep: classSkill("ตวัดมีด", "scout", "cone", 7, 3.5, 70, 1.05, "ตวัดด้านหน้า 105% + 10% ต่อระดับ สูงสุด 5 เป้า มุม 103 องศา (เพิ่มตั้งแต่ระดับ 2)", {angle: 1.8, maxTargets: 5}),
+    scout_shadow_step: classSkill("ก้าวเงา", "scout", "self", 8, 9, 0, 0, "เพิ่ม FLEE 8 + 2 ต่อระดับ และความเร็วเดิน 10% + 2% ต่อระดับ นาน 6 วินาที (เพิ่มตั้งแต่ระดับ 2)", {duration: 6, fleeBonus: 8, fleePerLevel: 2, moveMultiplier: 1.1, movePerLevel: 0.02}),
+    scout_weakpoint: passiveSkill("ชำนาญจุดอ่อน", "scout", "มีดและกรงเล็บ เพิ่ม HIT 2 และความเสียหายกายภาพ 1.5% ต่อระดับ สูงสุด HIT 10 และ 7.5%", {hitBonus: 2, physicalMultiplier: 0.015}, {weaponTypes: ["dagger", "claw"]}),
+    moon_shadow_finisher: classSkill("คมจันทร์ดับ", "moon_shadow", "target", 13, 5, 50, 1.6, "แทงเดี่ยว 160% + 12% ต่อระดับ เป้าที่มีพิษจริงแรงขึ้น 25% + 4% ต่อระดับ (เพิ่มตั้งแต่ระดับ 2)", {powerPerLevel: 0.12, condition: "poison", conditionMultiplier: 1.25, conditionPerLevel: 0.04}),
+    moon_shadow_veil: classSkill("ม่านหมอกจันทร์", "moon_shadow", "debuff", 10, 10, 0, 0, "ลด HIT ศัตรูใกล้ตัวรัศมี 95 สูงสุด 6 เป้า 12 + 2 ต่อระดับ นาน 5 วินาที ไม่สร้างพื้นที่พิษ (เพิ่มตั้งแต่ระดับ 2)", {category: "utility", radius: 95, maxTargets: 6, duration: 5, enemyHitPenalty: 12, enemyHitPerLevel: 2}),
+    moon_shadow_toxicology: passiveSkill("เชี่ยวชาญโอสถเงา", "moon_shadow", "เพิ่มความเสียหายพิษ 5% ต่อระดับ สูงสุด 25% ไม่เพิ่มจำนวน tick หรือระยะเวลาพิษ", {poisonMultiplier: 0.05}),
+    night_tiger_sweep: classSkill("ตะปบกวาด", "night_tiger", "cone", 14, 6, 82, 1.4, "ตะปบด้านหน้า 140% + 12% ต่อระดับ สูงสุด 5 เป้า เป้าที่เลือดไหลแรงขึ้น 25% + 4% ต่อระดับ (เพิ่มตั้งแต่ระดับ 2)", {angle: 1.8, maxTargets: 5, powerPerLevel: 0.12, condition: "bleed", conditionMultiplier: 1.25, conditionPerLevel: 0.04}),
+    night_tiger_tempo: classSkill("จังหวะล่า", "night_tiger", "self", 10, 10, 0, 0, "เพิ่ม HIT 10 + 2 ต่อระดับ และความเร็วเดิน 12% + 2% ต่อระดับ นาน 6 วินาที (เพิ่มตั้งแต่ระดับ 2)", {duration: 6, hitBonus: 10, hitPerLevel: 2, moveMultiplier: 1.12, movePerLevel: 0.02}),
+    night_tiger_instinct: passiveSkill("สัญชาตญาณพยัคฆ์", "night_tiger", "เมื่อใช้กรงเล็บ ลดช่วงโจมตี 2.5% ต่อระดับ สูงสุด 12.5% ไม่สร้างฮิตเพิ่ม", {intervalMultiplier: -0.025}, {weaponTypes: ["claw"]}),
+    archer_double_shot: classSkill("ศรคู่", "archer", "combo", 9, 4, 210, 0.65, "ยิงสูงสุด 2 ฮิต ฮิตละ 65% + 6% ต่อระดับ เป้าตายแล้วหยุดฮิตต่อไป (เพิ่มตั้งแต่ระดับ 2)", {hits: 2, powerPerLevel: 0.06}),
+    archer_backstep: classSkill("ก้าวพราน", "archer", "move", 7, 8, 0, 0, "ก้าวถอยจากทิศที่หัน 65 + 5 ต่อระดับ เคารพสิ่งกีดขวางและประตู ไม่ทำดาเมจ (เพิ่มตั้งแต่ระดับ 2)", {category: "utility", moveMode: "backward", distance: 65, distancePerLevel: 5}),
+    archer_bow_mastery: passiveSkill("ชำนาญธนู", "archer", "ธนูและธนูมนตรา เพิ่มความเสียหายธนู 2.5% และ HIT 1 ต่อระดับ สูงสุด 12.5% และ HIT 5", {bowMultiplier: 0.025, hitBonus: 1}, {weaponTypes: ["bow", "magic_bow"]}),
+    naga_piercing_shot: classSkill("ศรทะลวงนาคา", "naga_ranger", "pierce", 14, 6, 230, 1.45, "ศรแนวตรงกว้าง 24 ระยะ 230 ทะลุสูงสุด 4 เป้า พลัง 145% + 12% ต่อระดับ (เพิ่มตั้งแต่ระดับ 2)", {width: 24, maxTargets: 4, powerPerLevel: 0.12}),
+    naga_forest_veil: classSkill("พรางไพร", "naga_ranger", "self", 10, 10, 0, 0, "เพิ่ม FLEE 14 + 3 ต่อระดับ นาน 6 วินาที เป็นบัฟหลบหลีก ไม่หายตัว (เพิ่มตั้งแต่ระดับ 2)", {duration: 6, fleeBonus: 14, fleePerLevel: 3}),
+    naga_hunt_mastery: passiveSkill("พรานชำนาญ", "naga_ranger", "เพิ่มความเสียหายต่อเป้าที่มีตราล่าจริงจากบ่วง 4% ต่อระดับ สูงสุด 20% ตรานาน 6 วินาที แยกจากตรึง", {huntMultiplier: 0.04}, {huntDuration: 6}),
+    arcane_harmonic_arrow: classSkill("ศรประสานมนตรา", "arcane_archer", "target", 14, 5, 220, 1.8, "ศรเวทเดี่ยว 180% + 14% ต่อระดับ เป็นหนึ่งฮิต ไม่แยกกายภาพและเวท (เพิ่มตั้งแต่ระดับ 2)", {magic: true, powerPerLevel: 0.14}),
+    arcane_arrow_inscription: classSkill("ลงอักขระศร", "arcane_archer", "empower", 10, 10, 0, 0, "เพิ่มพลังสกิลศรครั้งถัดไป 20% + 3% ต่อระดับ ภายใน 8 วินาที ใช้บัฟครั้งเดียวต่อการยิงสกิล (เพิ่มตั้งแต่ระดับ 2)", {magic: true, duration: 8, empowerMultiplier: 1.2, empowerPerLevel: 0.03, empowerCategory: "arrow"}),
+    arcane_dual_art: passiveSkill("ศรสองศาสตร์", "arcane_archer", "ศรเวทใช้ DEX คูณ 1.20 + 0.04 ต่อระดับ เป็นหลัก และ INT คูณ 0.60 เสริม แทน INT เดิม เฉพาะเมื่อเรียนแล้ว", {magicBowDexFactor: 0.04, magicBowIntFactor: 0.6}, {magicBowDexBase: 1.2, weaponTypes: ["magic_bow"]}),
+  });
+  const classSkillIds = {
+    villager: ["first_aid"],
+    swordsman: ["arun_slash", "swordsman_sweep", "swordsman_stance", "swordsman_discipline"],
+    mage: ["lotus_bolt", "petal_wave", "lotus_veil", "mana_focus"],
+    acolyte: ["glyph_strike", "scripture_wave", "ward_script", "steady_mind"],
+    scout: ["quick_stab", "scout_sweep", "scout_shadow_step", "scout_weakpoint"],
+    archer: ["aimed_shot", "archer_double_shot", "archer_backstep", "archer_bow_mastery"],
+    royal_duelist: ["royal_flurry", "royal_duelist_ring", "royal_duelist_tempo", "royal_duelist_rhythm"],
+    city_guardian: ["shield_counter", "city_guardian_wave", "city_guardian_vow", "city_guardian_foundation"],
+    lotus_mage: ["lotus_storm", "blossom_mark", "gather_petals", "lotus_mastery"],
+    orb_weaver: ["orb_burst", "orb_chain", "prism_veil", "orb_attunement"],
+    divine_scribe: ["sanctuary", "verdict_seal", "cleansing_script", "mercy_scripture"],
+    garuda_monk: ["garuda_combo", "garuda_pierce", "garuda_step", "garuda_body"],
+    moon_shadow: ["moon_venom", "moon_shadow_finisher", "moon_shadow_veil", "moon_shadow_toxicology"],
+    night_tiger: ["tiger_rend", "night_tiger_sweep", "night_tiger_tempo", "night_tiger_instinct"],
+    naga_ranger: ["naga_trap", "naga_piercing_shot", "naga_forest_veil", "naga_hunt_mastery"],
+    arcane_archer: ["arcane_volley", "arcane_harmonic_arrow", "arcane_arrow_inscription", "arcane_dual_art"],
+  };
+  for (const [id, ids] of Object.entries(classSkillIds)) classes[id].skillIds = Object.freeze(ids);
+  for (const skill of Object.values(skills)) if (!skill.category) skill.category = skill.power ? "attack" : "buff";
+  Object.assign(skills.first_aid, {kind: "heal", category: "heal", range: 0, power: 0, powerPerLevel: 0, magic: false, heal: 20});
   const quests = [
     {
       title: "ดูแลท่าน้ำอรุณ",
@@ -703,7 +778,7 @@
       title: "สยามอรุณ",
       subtitle: "ตำนานผู้กล้าแห่งลุ่มน้ำ",
       currency: "อัฐ",
-      release: "1.16",
+      release: "1.17",
       intro: "ท่าน้ำอรุณเคยมีสายน้ำใสไหลจากป่าหิมพานต์ แต่ยามนี้ประกายแก้วประหลาดปลุกเหล่าภูตให้ปั่นป่วน เริ่มต้นเป็นชาวบ้าน ฝึกวิชากับครูอิน และออกตามหาแก่นแก้วนาคาเพื่อคืนความสงบให้เมืองริมน้ำแห่งสยามแฟนตาซี",
     },
     jobs: {

@@ -2,6 +2,7 @@
   "use strict";
   const D = window.BCData,
     C = window.BCCore,
+    SkillRules = window.BCSkillRules,
     R = window.BCRender,
     Clock = window.BCSimulationClock,
     $ = (id) => document.getElementById(id);
@@ -165,8 +166,8 @@
     if (result.message) toast(result.message);
     updateHUD();
     if (panel) renderPanel();
-    if (panel === "skills" && action === "learn") {
-      const learned = $("side-panel").querySelector(`[data-act="learn"][data-id="${p.id}"]`);
+    if (panel === "skills" && ["learn", "skill"].includes(action)) {
+      const learned = $("side-panel").querySelector(`[data-act="${action}"][data-id="${p.id}"]`);
       const focus = learned && !learned.disabled ? learned : $("side-panel").querySelector(`[data-skills-tab="${skillsTab}"]`);
       focus?.focus({ preventScroll: true });
     }
@@ -329,7 +330,25 @@
     const armor = (color) => `<path d="M10 6l4-3h4l4 3 6 2-3 9-4-2 2 13H9l2-13-4 2-3-9z" fill="${color}"/><path d="M13 4l3 6 3-6M9 11l3 2m8 0l3-2M12 22h8" stroke="#e6d7b1"/><path d="M15 12h3v12h-3z" fill="#fff" opacity=".15"/>`;
     const book = (color) => `<path d="M6 4h20v24H6z" fill="${color}"/><path d="M4 5h4v24H4z" fill="#795d44"/><path d="M9 7h14v18H9z" fill="#eedcbd"/><path d="M12 11h8m-8 4h8m-8 4h5" stroke="#927b67"/><path d="M22 6h3v9l-1.5-2-1.5 2z" fill="#b6515f"/>`;
     let shape;
-    if (['potion', 'ether', 'green_potion'].includes(id)) shape = bottle(D.items[id].color);
+    if (D.skills[id] && id !== "first_aid") {
+      const skill = D.skills[id], type = D.classes[skill.owner]?.weaponType, color = skill.color || "#bdd4c1";
+      const bow = `<path d="M8 3c19 3 19 23 0 26l5-13z" fill="none" stroke="${color}" stroke-width="3"/><path d="M8 3l5 13-5 13M4 16h24m-5-4 5 4-5 4" fill="none" stroke="#f2e5bc" stroke-width="1.4"/>`;
+      const fist = `<path d="M5 15V9l4-2 4 2 4-3 5 3 4 6-4 12H11z" fill="${color}"/><path d="M10 10v7m6-8v8m6-5v7M7 18l6 4h8" fill="none" stroke="#f5e2bc" stroke-width="1.5"/>`;
+      if (["bow", "magic_bow"].includes(type)) shape = bow;
+      else if (["knuckle", "claw"].includes(type)) shape = fist;
+      else if (type === "book") shape = book(color);
+      else if (["staff", "orb"].includes(type)) shape = `<path d="M8 29l10-17" stroke="#d1b377" stroke-width="3"/><circle cx="20" cy="10" r="7" fill="${color}"/><path d="M20 3l3 7-3 7-3-7z" fill="#f2e5c6"/><path d="M12 10c0 10 16 10 16 0" fill="none" stroke="#dac18a" stroke-width="1.5"/>`;
+      else if (type === "dual_sword") shape = `<g transform="translate(-2 -2) scale(.85)">${blade(color)}</g><g transform="translate(34 2) scale(-.8 .8)">${blade(color)}</g>`;
+      else if (type === "sword_shield") shape = `${blade(color)}<path d="M17 17l7-3 7 3-2 10-5 4-5-4z" fill="#76998a"/><path d="M24 17v10m-4-8h8" stroke="#f2d99a" stroke-width="1.5"/>`;
+      else shape = blade(color);
+      const badge = skill.kind === "passive"
+        ? '<path d="M24 18l2 3 4 1-2 3v4l-4-1-3 2-1-4-3-2 4-2z" fill="#e0c176"/><circle cx="24" cy="24" r="2" fill="#557466"/>'
+        : skill.category === "attack"
+          ? '<path d="M24 18l1 4 5-1-3 4 2 5-5-3-4 3 1-5-3-3 5 1z" fill="#f4bf8d"/>'
+          : '<circle cx="24" cy="24" r="7" fill="#d6e6c1"/><path d="M24 20v8m-4-4h8" stroke="#608578" stroke-width="2"/>';
+      shape = `<g>${shape}</g>${badge}`;
+    }
+    else if (['potion', 'ether', 'green_potion'].includes(id)) shape = bottle(D.items[id].color);
     else if (id === 'novice_cap') shape = '<ellipse cx="16" cy="23" rx="14" ry="5" fill="#d6b479"/><path d="M5 23L16 5l11 18z" fill="#d8bd83"/><path d="M9 18h14M11 14h10M13 10h6M5 23h22M16 6v17M12 12l-2 11m10-11l2 11" fill="none" stroke="#9e8455"/><path d="M3 24c7 3 19 3 26 0" fill="none" stroke="#f3e2b7" stroke-width="1.5"/><path d="M12 27l4 3 4-3" fill="none" stroke="#657c6b"/>';
     else if (id === 'cat_ears') shape = '<path d="M5 22L3 3l11 8h4L29 3l-2 19z" fill="#676475"/><path d="M7 15L6 7l7 6m7 0l6-6-1 8" fill="#e7a3b2"/><path d="M5 21c4-8 18-8 22 0v5h-4v-4c-4-5-10-5-14 0v4H5z" fill="#b1a3bf"/><path d="M8 20c4-5 13-5 17 0" fill="none" stroke="#ede1e2"/>';
     else if (id === 'silver_circlet') shape = '<path d="M4 18l3 8h18l3-8-6 2-6-7-6 7z" fill="#d7bd7b"/><path d="M10 21c-7-4-5-10-1-8-4 3 3 4 4 5m6 0c1-1 8-2 4-5 4-2 6 4-1 8" fill="none" stroke="#e6d4a2" stroke-width="2"/><path d="M16 3l5 13-5 7-5-7z" fill="#ddc589"/><path d="M16 9l3 7-3 4-3-4z" fill="#77aaa0"/><path d="M7 25h18" fill="none" stroke="#fff0c8" stroke-width="1.5"/>';
@@ -443,10 +462,10 @@
       ["action:auto", "Auto Battle"],
     ];
     for (const [id, d] of Object.entries(D.skills))
-      if (state.skills[id] && C.skillAvailable(state, id)) opts.push(["skill:" + id, d.name]);
+      if (state.skills[id] && C.skillAvailable(state, id) && !SkillRules.isPassive(id)) opts.push(["skill:" + id, d.name]);
     for (const [id, d] of Object.entries(D.items))
       if (d.type === "use") opts.push(["item:" + id, d.name]);
-    if (selected && !opts.some((o) => o[0] === selected))
+    if (selected && !opts.some((o) => o[0] === selected) && !(selected.startsWith("skill:") && SkillRules.isPassive(selected.split(":")[1])))
       opts.push([
         selected,
         selected.startsWith("skill:") && !C.skillAvailable(state, selected.split(":")[1])
@@ -479,9 +498,33 @@
     }).join("")}</div>` : ""}<p class="panel-note class-equipment-rule">สวมอาวุธได้เฉพาะประเภทประจำอาชีพ · ซื้ออาวุธของอาชีพถัดไปเก็บไว้ได้ · เปลี่ยนอาชีพไม่แจกอาวุธหรืออัฐ · ดาบและโล่ใช้ช่องอาวุธเดียวกัน</p></section>`;
   }
   function skillCard(s, id) {
-    const d = D.skills[id], owner = Object.values(D.classes).find((c) => c.skill === id);
+    const d = D.skills[id], owner = D.classes[d.owner], passive = SkillRules.isPassive(id);
     const reason = C.learnReason(s, id);
-    return `<div class="skill-card" data-skill="${id}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small>${owner ? `${esc(owner.name)} · Class ${owner.tier}` : "ใช้ได้ทุกอาชีพ"} · SP ${d.sp} · รอ ${d.cooldown} วินาที<br>${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${id === "first_aid" ? '<span class="subtle">เริ่มต้น</span>' : button("learn", "เรียน", id, reason ? `disabled title="${esc(reason)}"` : "")}</div>`;
+    return `<article class="skill-card" data-skill="${id}" data-class="${d.owner || "villager"}" data-kind="${passive ? "passive" : "active"}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small class="skill-owner">${owner ? `${esc(owner.name)} · Class ${owner.tier}${d.owner !== s.classId ? " · สืบทอด" : ""}` : "ใช้ได้ทุกอาชีพ"}</small>${skillMeta(s, id)}<small class="skill-description">${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${skillControls(s, id, reason)}</article>`;
+  }
+  function skillMeta(s, id) {
+    const d = D.skills[id], passive = SkillRules.isPassive(id);
+    const roles = { attack: "โจมตี", buff: "เสริมพลัง", utility: "สนับสนุน", heal: "ฟื้นฟู" };
+    const mechanics = { cone: "โจมตีเป็นพัด", radial: "โจมตีรอบตัว", chain: "โจมตีชิ่ง", pierce: "โจมตีทะลุแนว", shield: "สร้างโล่", mark: "วางตราบนเป้าหมาย", empower: "เสริมสกิลครั้งถัดไป", cleanse: "ชำระสถานะ", move: "เคลื่อนที่", debuff: "ลดพลังศัตรู", trap: "วางกับดัก", sanctuary: "ฟื้นฟูและโจมตีรอบตัว" };
+    if (passive) return `<small class="skill-meta"><span class="skill-kind passive">ติดตัว</span> เรียนแล้วทำงานอัตโนมัติ · ไม่ใช้ช่อง Hotbar</small>`;
+    const cost = SkillRules.spCost(s, id), range = SkillRules.rangeFor(s, id);
+    return `<small class="skill-meta"><span class="skill-kind active">กดใช้</span> ${mechanics[d.kind] || roles[d.category] || "สกิลอาชีพ"} · <span data-effective-sp="${cost}">SP ${cost}</span>${cost !== d.sp ? ` (ปกติ ${d.sp})` : ""} · CD ${d.cooldown} วินาที${range > 0 ? ` · ระยะ ${range}` : " · ตนเอง"}</small>`;
+  }
+  function skillControls(s, id, reason) {
+    const d = D.skills[id], passive = SkillRules.isPassive(id);
+    const learn = id === "first_aid"
+      ? '<span class="skill-starting">เริ่มต้น</span>'
+      : button("learn", "เรียน", id, `${reason ? `disabled title="${esc(reason)}"` : ""} aria-label="เรียน ${esc(d.name)}"`);
+    const use = passive ? "" : button("skill", "ใช้", id, `class="skill-use" aria-label="ใช้ ${esc(d.name)}"${s.skills[id] ? "" : ' disabled title="ต้องเรียนสกิลก่อน"'}`);
+    return `<div class="skill-actions">${learn}${use}</div>`;
+  }
+  function updateSkillReadiness() {
+    document.querySelectorAll('.skill-use[data-id]').forEach(el => {
+      const id=el.dataset.id, skill=D.skills[id], remaining=state.cooldowns[id]||0;
+      let reason=!state.skills[id]?"ต้องเรียนสกิลก่อน":remaining>0?`รอ ${remaining.toFixed(1)} วินาที`:state.player.sp<SkillRules.spCost(state,id)?"SP ไม่เพียงพอ":skill.chargeCost>(state.classCombat?.orbCharges||0)?"ประจุมณีไม่เพียงพอ":"";
+      el.disabled=!!reason;el.title=reason||`ใช้ ${skill.name}`;
+      el.textContent=remaining>0?`${remaining.toFixed(1)}s`:"ใช้";
+    });
   }
   function skillTree(s) {
     const accessible = window.BCSkillTree.nodesFor(s.classId);
@@ -490,18 +533,24 @@
       const { classId, classDef: c, skillId, skill: d } = node;
       const relation = classId === s.classId ? "own" : "inherited";
       const relationText = { own: "อาชีพปัจจุบัน", inherited: "สืบทอด" }[relation];
-      const reason = C.learnReason(s, skillId), trial = c.trial;
-      const active = progress?.classId === classId ? progress : null;
-      const trialText = trial ? ` · ทดสอบกำจัด${D.monsters[trial.kind].name} ${trial.count} ตัว${active ? ` (${active.current}/${trial.count}${active.complete ? " · สำเร็จ" : ""})` : " · นับหลังรับทดสอบ"}` : "";
-      return `<article class="skill-tree-node" data-class="${classId}" data-skill="${skillId}" data-state="${relation}"><div class="skill-tree-class"><b>${esc(c.name)}</b><span class="skill-tree-state">${relationText}</span></div><h3>${esc(d.name)} <span>Lv.${s.skills[skillId] || 0} / ${d.max}</span></h3><p class="skill-tree-meta">SP ${d.sp} · CD ${d.cooldown} วินาที · ระยะ ${d.range}${d.range === 0 ? " (ตนเอง)" : ""}</p><p class="skill-tree-description">${esc(d.description)}</p><p class="skill-tree-requirement">Class ${c.tier} · เปลี่ยนอาชีพที่ Job Lv.${c.tier === 1 ? 10 : 40}${esc(trialText)}</p><div class="skill-tree-learn">${button("learn", "เรียน", skillId, `${reason ? `disabled title="${esc(reason)}"` : ""} aria-label="เรียน ${esc(d.name)}"`)}<small>${esc(reason || "ใช้ 1 แต้มสกิลต่อระดับ")}</small></div></article>`;
+      const reason = C.learnReason(s, skillId), passive = SkillRules.isPassive(skillId);
+      return `<article class="skill-tree-node" data-class="${classId}" data-skill="${skillId}" data-state="${relation}" data-kind="${passive ? "passive" : "active"}"><div class="skill-tree-class"><b>${esc(c.name)}</b><span class="skill-tree-state">${relationText}</span></div><div class="skill-tree-heading">${icon(skillId)}<h3>${esc(d.name)} <span>Lv.${s.skills[skillId] || 0} / ${d.max}</span></h3></div>${skillMeta(s, skillId)}<p class="skill-tree-description">${esc(d.description)}</p><small class="skill-tree-requirement">เปิดเมื่อเปลี่ยน ${esc(c.name)} · Job Lv.${c.tier === 1 ? 10 : 40}${c.trial ? " + ผ่านการทดสอบ" : ""}</small><div class="skill-tree-learn">${skillControls(s, skillId, reason)}<small>${esc(reason || "ใช้ 1 แต้มสกิลต่อระดับ")}</small></div></article>`;
     };
-    return `<p class="panel-note skill-tree-help">แสดงเฉพาะสกิลอาชีพปัจจุบันและสกิลที่สืบทอด<br>เปลี่ยนอาชีพและรับทดสอบกับ${esc(npc("guide").name)}ที่เมือง</p>${accessible.ancestry.length ? `<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${accessible.ancestry.map(card).join("")}</section>` : ""}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3 class="shop-title">สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n => skillCard(s, n.skillId)).join("")}</section>`;
+    const classes = [...new Set(accessible.ancestry.map(n => n.classId))];
+    const groups = classes.map(classId => {
+      const c = D.classes[classId], trial = c.trial, active = progress?.classId === classId ? progress : null;
+      const trialText = trial ? ` · ทดสอบกำจัด${D.monsters[trial.kind].name} ${trial.count} ตัว${active ? ` (${active.current}/${trial.count}${active.complete ? " · สำเร็จ" : ""})` : " · นับหลังรับทดสอบ"}` : "";
+      return `<section class="skill-tree-group" data-skill-class="${classId}"><h3 class="shop-title">${esc(c.name)} · Class ${c.tier}</h3><p class="skill-tree-requirement">เปลี่ยนอาชีพที่ Job Lv.${c.tier === 1 ? 10 : 40}${esc(trialText)} · กดใช้ 3 / ติดตัว 1</p><div class="skill-tree-grid">${accessible.ancestry.filter(n => n.classId === classId).map(card).join("")}</div></section>`;
+    }).join("");
+    return `<p class="panel-note skill-tree-help">แสดงครบทั้ง 4 สกิลของแต่ละอาชีพในสายปัจจุบัน<br>เปลี่ยนอาชีพและรับทดสอบกับ${esc(npc("guide").name)}ที่เมือง</p>${groups ? `<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${groups}</section>` : ""}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3 class="shop-title">สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n => skillCard(s, n.skillId)).join("")}</section>`;
   }
   const statNumber = (value) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 1, useGrouping: false });
   function statBuild(s, st) {
     const type = classInfo(s).weaponType;
-    const detail = type === "magic_bow"
-      ? "DEX สำหรับยิงปกติ · INT สำหรับสกิลเวท · AGI ช่วยยิงไว และ VIT ช่วยยืนสู้"
+    let detail = type === "magic_bow"
+      ? s.skills.arcane_dual_art > 0
+        ? "DEX เป็นค่าหลักสำหรับยิงปกติและเสริมสกิลเวทด้วยศรสองศาสตร์ · INT เป็นค่าเสริมเวท · AGI ช่วยยิงไว"
+        : "DEX เพิ่มยิงปกติ · INT เพิ่มสกิลเวท · เรียนศรสองศาสตร์เพื่อให้ DEX เสริมพลังเวท · AGI ช่วยยิงไว"
       : st.basicMagic
         ? "INT เพิ่มพลังเวทและ SP · DEX ช่วยความเร็วโจมตีเล็กน้อย · VIT ช่วยยืนสู้"
         : type === "bow"
@@ -509,6 +558,7 @@
           : type === "sword_shield"
             ? "STR เพิ่มพลังดาบ · VIT เพิ่ม HP และป้องกัน · DEX ช่วยความแม่นยำ"
             : "STR เพิ่มพลังโจมตีประชิด · AGI ช่วยตีไว · DEX ช่วยความแม่นยำ · VIT เพิ่ม HP";
+    if (["acolyte", "divine_scribe", "garuda_monk"].includes(s.classId)) detail += ` · อักขระจู่โจมและคลื่นอาคมใช้ ${type === "knuckle" ? "ATK ของสนับมือ" : "MATK ของหนังสือ"} ตามอาชีพปัจจุบัน`;
     return `<p class="stat-build"><b>${esc(D.weaponTypes[type].name)} · ตีปกติ${st.basicMagic ? "เวท" : "กายภาพ"} ใช้ ${esc(st.primaryStat.toUpperCase())}</b><span>${esc(detail)}</span></p>`;
   }
   function statResetCard(s) {
@@ -582,7 +632,8 @@
     }
     if (panel === "skills") {
       const ids = C.skillsFor(s);
-      html = `<div class="skills-tabs" role="tablist" aria-label="มุมมองสกิล">${[["current", "สกิลปัจจุบัน"], ["tree", "ผังสกิลอาชีพ"]].map(([id, label]) => `<button id="skills-tab-${id}" data-skills-tab="${id}" role="tab" aria-selected="${skillsTab === id}" aria-controls="skills-tabpanel" tabindex="${skillsTab === id ? 0 : -1}">${label}</button>`).join("")}</div><div id="skills-tabpanel" role="tabpanel" aria-labelledby="skills-tab-${skillsTab}"><p class="panel-note">${esc(className(s))} · ${classLabel(s)} · แต้มสกิล <b data-skill-points>${s.skillPoints}</b><br>สกิลของอาชีพปัจจุบันและอาชีพที่สืบทอด · แต่ละสกิลใช้แต้มเรียนตามระดับ</p>`;
+      const passiveCount = ids.filter(id => SkillRules.isPassive(id)).length;
+      html = `<div class="skills-tabs" role="tablist" aria-label="มุมมองสกิล">${[["current", "สกิลปัจจุบัน"], ["tree", "ผังสกิลอาชีพ"]].map(([id, label]) => `<button id="skills-tab-${id}" data-skills-tab="${id}" role="tab" aria-selected="${skillsTab === id}" aria-controls="skills-tabpanel" tabindex="${skillsTab === id ? 0 : -1}">${label}</button>`).join("")}</div><div id="skills-tabpanel" role="tabpanel" aria-labelledby="skills-tab-${skillsTab}"><p class="panel-note">${esc(className(s))} · ${classLabel(s)} · แต้มสกิล <b data-skill-points>${s.skillPoints}</b><br>กดใช้ ${ids.length - passiveCount} · ติดตัว ${passiveCount} · รวมปฐมพยาบาลและสกิลที่สืบทอด<br>สกิลอาชีพใช้ 1 แต้มต่อระดับ · สกิลติดตัวทำงานทันทีเมื่อเรียน</p>`;
       if (skillsTab === "tree") html += skillTree(s);
       else {
         for (const id of ids) html += skillCard(s, id);
@@ -633,7 +684,7 @@
     }
     if (panel === "hotbar") {
       html =
-        '<p class="panel-note">เลือกสกิลหรือไอเทมในแต่ละช่อง แล้วกดปุ่ม 1–9 เพื่อเรียกใช้ การจัดช่องจะบันทึกไปพร้อมเซฟ</p>';
+        '<p class="panel-note">เลือกสกิลที่เรียน ไอเทม หรือการกระทำในช่อง 1–9 การจัดช่องจะบันทึกไปพร้อมเซฟ<br>Class 2 มีสกิลกดใช้รวมปฐมพยาบาล 7 สกิล เหลือ 2 ช่องสำหรับยา · สกิลติดตัวทำงานเองโดยไม่ใช้ช่อง</p>';
       s.hotbar.forEach(
         (v, i) =>
           (html += `<div class="bind-row"><label for="bind-value-${i}">ช่อง <kbd>${i + 1}</kbd></label><select id="bind-value-${i}" data-bind="${i}">${optionsBinding(v)}</select></div>`),
@@ -675,21 +726,22 @@
     if (panel === "help")
       html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ อาวุธต้องตรงกับประเภทของอาชีพ ซื้ออาวุธสำหรับอาชีพถัดไปเก็บได้ ภาพชุดและท่าถือเป็นแบบประจำอาชีพถาวร อาวุธที่สวมเพิ่มค่าสถานะ ถอดแล้วใช้รูปลักษณ์อาวุธฝึกโดยไม่มีโบนัส ดาบและโล่อยู่ในช่องอาวุธเดียวกัน</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ ชาวบ้าน Job Lv.10 เลือก Class 1 ได้ 5 อาชีพ จากนั้น Job Lv.40 รับการทดสอบเพื่อเลือก Class 2 หนึ่งในสองเส้นทาง ต้องอยู่ใกล้ครูอิน การทดสอบนับเฉพาะตัวที่กำจัดหลังรับ เมื่อเปลี่ยนอาชีพ Job Lv.เริ่มที่ 1 และสืบทอดสกิลเดิม โดยไม่แจกอาวุธหรืออัฐ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิด Auto Battle หรือ Auto Quest แล้วฟาร์มต่อได้ระหว่างเปิดเมนู ย่อหน้าต่าง หรือสลับแท็บ หากเบราว์เซอร์พักการทำงาน ระบบจะคำนวณเวลาที่ค้างเมื่อกลับมา ต้องเปิดหน้าเกมไว้ · บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
     if (panel === "help")
-      html += `<div class="help-list stat-guide-note"><p>สเตตัสเริ่มที่ 1 ทั้ง 6 ค่า พร้อม 48 แต้ม ใช้แต้มมากขึ้นทุกช่วง 10 ค่า ดูค่าใช้จ่ายที่ปุ่ม ＋ ในหน้าสเตตัส STR ใช้กับอาวุธประชิด, DEX ใช้กับธนู, INT ใช้กับคทา หนังสือ และแก้วมณี ธนูมนตรายิงปกติใช้ DEX แต่สกิลเวทใช้ INT</p><p>AGI ช่วยความเร็วตีและหลบกายภาพ, VIT เพิ่ม HP ป้องกันและผลยา HP, INT เพิ่ม SP ป้องกันเวทและผลยา SP ส่วน LUK ช่วยคริติคอลกายภาพและหลบสมบูรณ์ คริเฉพาะตีปกติกายภาพ ความเสียหาย ×1.4 ไม่ใช้กับสกิลหรือเวท ความเร็วเดินและคูลดาวน์สกิลคงเดิม</p><p>DEF ป้องกันกายภาพ ส่วน MDEF ป้องกันเวท เช่น ${esc(D.monsters.willow.name)} อุปกรณ์ระบุ ATK / MATK แยกกัน เปิดรายละเอียดในหน้าสเตตัสเพื่อดูส่วนพื้นฐาน ส่วนเกราะ และอัตราฟื้นฟู</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรีสเตตัสฟรี คืนแต้มที่ลงไว้ทั้งหมดและจัดบิลด์ใหม่ได้ โดยคงอาชีพ อุปกรณ์ และความคืบหน้า</p></div>`;
+      html += `<div class="help-list stat-guide-note"><p>สเตตัสเริ่มที่ 1 ทั้ง 6 ค่า พร้อม 48 แต้ม ใช้แต้มมากขึ้นทุกช่วง 10 ค่า ดูค่าใช้จ่ายที่ปุ่ม ＋ ในหน้าสเตตัส STR ใช้กับอาวุธประชิด, DEX ใช้กับธนู, INT ใช้กับคทา หนังสือ และแก้วมณี ธนูมนตรายิงปกติใช้ DEX สกิลเวทใช้ INT และเรียนศรสองศาสตร์เพื่อให้ DEX เสริมเวทได้ อักขระจู่โจมและคลื่นอาคมใช้ MATK เมื่อถือหนังสือ และเปลี่ยนเป็น ATK เมื่อเป็นนักสู้ครุฑาสายสนับมือ</p><p>AGI ช่วยความเร็วตีและหลบกายภาพ, VIT เพิ่ม HP ป้องกันและผลยา HP, INT เพิ่ม SP ป้องกันเวทและผลยา SP ส่วน LUK ช่วยคริติคอลกายภาพและหลบสมบูรณ์ คริเฉพาะตีปกติกายภาพ ความเสียหาย ×1.4 ไม่ใช้กับสกิลหรือเวท ความเร็วเดินและคูลดาวน์สกิลคงเดิม</p><p>แต่ละอาชีพมีสกิลกดใช้ 3 และติดตัว 1 เรียนได้ถึงระดับ 5 เมื่อเปลี่ยน Class 2 จะรับสกิลเพิ่ม 4 และคงสกิล Class 1 ทั้ง 4 สกิล สกิลติดตัวไม่ต้องกดใช้หรือใส่ Hotbar ส่วน Auto Battle ใช้สกิลกดใช้ที่เรียนแล้วตามสถานการณ์</p><p>DEF ป้องกันกายภาพ ส่วน MDEF ป้องกันเวท เช่น ${esc(D.monsters.willow.name)} อุปกรณ์ระบุ ATK / MATK แยกกัน เปิดรายละเอียดในหน้าสเตตัสเพื่อดูส่วนพื้นฐาน ส่วนเกราะ และอัตราฟื้นฟู</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรีสเตตัสฟรี คืนแต้มที่ลงไว้ทั้งหมดและจัดบิลด์ใหม่ได้ โดยคงอาชีพ อุปกรณ์ และความคืบหน้า</p></div>`;
     $("side-panel").innerHTML = html;
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
     if (["status", "equipment", "npc"].includes(panel)) $("side-panel").insertAdjacentHTML("beforeend", classSelector(s));
     if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
+    updateSkillReadiness();
   }
   function bindingInfo(value) {
     if (!value) return { label: "ว่าง", icon: "", color: "#879c7f" };
     const [kind, id] = value.split(":");
     if (kind === "skill") {
       const d = D.skills[id];
-      if (!C.skillAvailable(state, id))
+      if (!d || !C.skillAvailable(state, id) || SkillRules.isPassive(id))
         return { label: "ว่าง · สกิลที่ยังใช้ไม่ได้", icon: "", color: "#879c7f", locked: true };
       return {
-        label: `${d.name} · SP ${d.sp} · รอ ${d.cooldown} วินาที`,
+        label: `${d.name} · SP ${SkillRules.spCost(state, id)} · รอ ${d.cooldown} วินาที`,
         icon: artIcon(id),
         color: d.color,
         locked: !state.skills[id] || !C.skillAvailable(state, id),
@@ -793,6 +845,12 @@
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
     if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
     updateHotbar();
+    updateSkillReadiness();
+    let statusBar=$("active-skill-status");
+    if(!statusBar){statusBar=document.createElement("div");statusBar.id="active-skill-status";statusBar.setAttribute("aria-label","สถานะสกิล");document.querySelector(".card.character").append(statusBar);}
+    const statuses=Object.entries(s.classCombat?.buffs||{}).filter(([,b])=>b.remaining>0&&!("shieldRemaining" in b&&b.shieldRemaining<=0)&&!("empowerRemaining" in b&&b.empowerRemaining<=0)).map(([id,b])=>`${D.skills[id]?.name||"บัฟ"} ${Math.ceil(b.remaining)}s${b.shieldRemaining>0?` · โล่ ${Math.ceil(b.shieldRemaining)}`:""}`);
+    if(s.classCombat?.orbTimer>0&&s.classCombat.orbCharges>0)statuses.push(`มณี ${s.classCombat.orbCharges}/3 · ${Math.ceil(s.classCombat.orbTimer)}s`);
+    const statusKey=statuses.join("|");if(statusBar.dataset.value!==statusKey){statusBar.dataset.value=statusKey;statusBar.innerHTML=statuses.map(text=>`<span>${esc(text)}</span>`).join("");}statusBar.hidden=!statuses.length;
     updateSaveLabel();
   }
   function interact() {
@@ -825,7 +883,7 @@
     }
     const [kind, id] = v.split(":");
     if (kind === "skill") {
-      if (!C.skillAvailable(state, id)) {
+      if (!C.skillAvailable(state, id) || SkillRules.isPassive(id)) {
         toast("ช่องนี้ยังใช้สกิลไม่ได้ · เลือกจัด Hotbar เพื่อใส่สกิลอาชีพที่เรียนแล้ว");
         return;
       }

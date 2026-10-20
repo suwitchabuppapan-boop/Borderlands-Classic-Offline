@@ -265,6 +265,15 @@ h1 { font-size: 12px; margin: 0; }
 .stat-summary b { color: #e1c78f; font-weight: normal; }
 .skill-card { align-items: flex-start; }
 .skill-card .item-info { padding-top: 2px; }
+.skill-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.skill-actions button { min-width: 38px; font-size: 10px; padding: 4px 6px; }
+.skill-meta, .skill-description, .skill-owner, .skill-reason { display: block; margin-top: 3px; line-height: 1.5; }
+.skill-kind { display: inline-block; padding: 0 4px; border: 1px solid #c4d5bc88; border-radius: 3px; color: #e4ecd7; font-size: 9px; white-space: nowrap; }
+.skill-kind.passive { color: #f2d68e; border-color: #d3b67888; }
+.skill-starting { font-size: 9px; color: #c4d4b7; }
+#active-skill-status { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+#active-skill-status[hidden] { display: none; }
+#active-skill-status span { font-size: 9px; line-height: 1.4; padding: 2px 4px; border: 1px solid #bcb28470; border-radius: 3px; color: #e7ddbc; background: #294c47b0; }
 .skills-tabs { display: flex; gap: 5px; margin-bottom: 9px; }
 .skills-tabs button { flex: 1; font-size: 11px; }
 .skills-tabs [aria-selected="true"] { background: #788d73; border-color: #e1c78f; }

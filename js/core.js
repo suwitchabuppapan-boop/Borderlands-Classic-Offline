@@ -2,6 +2,7 @@
   "use strict";
   const D =
     typeof module === "object" ? require("./classic-data.js") : root.BCData;
+  const Skills = typeof module === "object" ? require("./skill-rules.js") : root.BCSkillRules;
   const Rules = typeof module === "object" ? require("./stat-rules.js") : root.BCStatRules;
   const Items = typeof module === "object" ? require("./item-rules.js") : root.BCItemRules;
   const Combat = typeof module === "object" ? require("./class-combat.js") : root.BCClassCombat;
@@ -15,6 +16,7 @@
   function createState() {
     const s = {
       version: 1,
+      skillVersion: 2,
       baseLevel: 1,
       jobLevel: 1,
       exp: 0,
@@ -98,21 +100,8 @@
     }
     return "";
   }
-  function skillAvailable(s, id) {
-    if (typeof id !== "string" || !own(D.skills, id)) return false;
-    if (id === "first_aid") return true;
-    const owner = D.skills[id].owner;
-    if (!owner) return false;
-    let classId = s.classId;
-    while (typeof classId === "string" && own(D.classes, classId)) {
-      if (classId === owner) return true;
-      classId = D.classes[classId].parent;
-    }
-    return false;
-  }
-  function skillsFor(s) {
-    return Object.keys(D.skills).filter(id => skillAvailable(s, id));
-  }
+  function skillAvailable(s, id) { return Skills.accessible(s, id); }
+  function skillsFor(s) { return Skills.skillsFor(s.classId); }
   function learnReason(s, id) {
     if (!skillAvailable(s, id) || id === "first_aid") return "อาชีพนี้เรียนสกิลนี้ไม่ได้";
     if (s.skillPoints < 1) return "ไม่มีแต้มสกิล";
@@ -142,6 +131,7 @@
   function spawn(s) {
     Feedback.clear(s);
     delete s.classCombat;
+    delete s.player.skillDebuffs;
     s.monsters = D.maps[s.zone].mobs.map((kind, i) => ({
       uid: `${s.zone}-${i}`,
       kind,
@@ -238,7 +228,19 @@
       return false;
     }
     const defense = (magic ? d.mdef || 0 : d.def) * (options.defenseScale ?? 1);
-    const amount = Rules.damageTaken((magic ? st.matk : st.atk) * mult * (critical ? 1.4 : 1), 0, defense);
+    const passive = Skills.passives(s), skill = D.skills[options.skillId];
+    let power = magic ? st.matk : st.atk;
+    // Magic-bow dual art replaces the INT coefficient only for its magic arrows.
+    if (magic && skill && classInfo(s).weaponType === "magic_bow" && passive.magicBowDexFactor > 0) {
+      power = 8 + (s.baseLevel || 1) + Math.floor(s.stats.dex * passive.magicBowDexFactor + s.stats.int * passive.magicBowIntFactor) + Math.floor(s.stats.luk / 3) + st.gearMatk;
+    }
+    let multiplier = 1;
+    if (options.normal && magic) multiplier *= passive.normalMagicMultiplier;
+    if (["bow", "magic_bow"].includes(classInfo(s).weaponType)) multiplier *= passive.bowMultiplier;
+    if (["aoe", "sanctuary", "radial", "cone", "pierce", "chain"].includes(skill?.kind)) multiplier *= passive.aoeMultiplier;
+    if (options.phase === "dot" && options.skillId === "moon_venom") multiplier *= passive.poisonMultiplier;
+    if (m.skillMarks?.naga_trap?.remaining > 0) multiplier *= passive.huntMultiplier;
+    const amount = Rules.damageTaken(power * mult * multiplier * (critical ? 1.4 : 1), 0, defense);
     m.hp -= amount;
     effect(s, m.x, m.y - 25, (critical ? "CRIT " : "") + amount, critical ? "#ffdc82" : magic ? "#d6c7ff" : "#fff3cf", { kind: "damage", amount, critical, magic, target: "monster" });
     feedback(s, { kind: "impact", source: options.source || s.player, target: m,
@@ -276,25 +278,27 @@
       if (st.weight >= st.capacity * 0.9)
         return fail("น้ำหนักเกิน 90% • ขายของที่ตลาดท่าน้ำก่อน");
       const id = action === "attack" ? "attack" : p.id;
-      if (id !== "attack" && (!skillAvailable(s, id) || !s.skills[id]))
+      if (id !== "attack" && (!skillAvailable(s, id) || !s.skills[id] || Skills.isPassive(id)))
         return fail("ยังไม่ได้เรียนสกิลนี้");
       if (D.skills[id]?.owner) return Combat.cast(s, id, p, combatHelpers);
       if ((s.cooldowns[id] || 0) > 0)
         return fail("กำลังรอสกิลหรือการโจมตีพร้อมใช้งาน");
       const skill = D.skills[id];
-      if (skill && s.player.sp < skill.sp) return fail("SP ไม่เพียงพอ");
+      if (skill && s.player.sp < Skills.spCost(s, id)) return fail("SP ไม่เพียงพอ");
       const m = s.monsters.find(
         (m) => m.uid === (p.target || s.target) && !m.dead,
       );
       if (id !== "first_aid" && (!m || dist(s.player, m) > attackRange(s)))
         return fail("เลือกศัตรูและเดินเข้าใกล้ก่อน");
-      if (skill) s.player.sp -= skill.sp;
+      if (skill) s.player.sp -= Skills.spCost(s, id);
       s.cooldowns[id] = skill ? skill.cooldown : st.interval;
       if (id === "first_aid")
         feedback(s, { kind: "skill", skillId: id, target: s.player });
       if (id === "first_aid") {
-        s.player.hp = Math.min(st.maxHp, s.player.hp + 20);
-        effect(s, s.player.x, s.player.y - 30, "+20 HP", "#b6edb8");
+        const amount = Math.min(st.maxHp - s.player.hp, Math.round(20 * Skills.passives(s).healMultiplier));
+        s.player.hp += amount;
+        Combat.afterHeal(s,id,amount);
+        effect(s, s.player.x, s.player.y - 30, `+${amount} HP`, "#b6edb8");
       } else {
         const dx = m.x - s.player.x,
           dy = m.y - s.player.y;
@@ -389,6 +393,7 @@
       s.skillPoints++;
       s.classTrial = null;
       delete s.classCombat;
+      delete s.player.skillDebuffs;
       s.auto = false; s.target = null; s.destination = null;
       s.player.hp = stats(s).maxHp; s.player.sp = stats(s).maxSp;
       return ok(`ยินดีด้วย! คุณเป็น${next.name}แล้ว`);
@@ -429,7 +434,8 @@
       for (const key of Object.keys(D.statNames)) s.stats[key] = 1;
       delete s.classCombat;
       s.auto = false; s.target = null; s.destination = null; s.cooldowns = {};
-      for (const m of s.monsters) { delete m.classDots; m.snare = 0; }
+      for (const m of s.monsters) { delete m.classDots; delete m.skillDebuffs; delete m.skillMarks; m.snare = 0; }
+      delete s.player.skillDebuffs;
       const reset = stats(s);
       s.player.hp = Math.min(s.player.hp, reset.maxHp);
       s.player.sp = Math.min(s.player.sp, reset.maxSp);
@@ -560,30 +566,30 @@
     }
     const target = s.monsters.find((m) => m.uid === s.target && !m.dead);
     if (target) {
+      const automatic = s.auto || (s.autoQuest?.active && s.autoQuest.phase === "fighting");
+      const mobility = automatic && s.settings.autoSkill ? Combat.suggestMovement(s,target,combatHelpers) : null;
+      const moved = mobility ? doAction(s,"skill",{id:mobility,target:target.uid}).ok : false;
       const gap = dist(target, s.player);
       if (gap > weaponProfile(s).approachRange)
         s.destination = { x: target.x, y: target.y };
       else {
         s.destination = null;
-        const automatic = s.auto || (s.autoQuest?.active && s.autoQuest.phase === "fighting");
-        let suggested = automatic && s.settings.autoSkill ? Combat.suggestSkill(s, target, combatHelpers) : null;
-        // Automatic main quests never aim an area skill into unrelated foes.
-        if (suggested && s.autoQuest?.active) {
-          const sk = D.skills[suggested];
-          const center = sk.kind === "sanctuary" ? s.player : target;
-          if (sk.radius && s.monsters.some(m => !m.dead && m.kind !== target.kind && dist(m, center) <= sk.radius)) suggested = null;
+        if (!moved) {
+          let suggested = automatic && s.settings.autoSkill ? Combat.suggestSkill(s, target, combatHelpers) : null;
+          // Test the actual cone/line/chain hit list before spending quest resources.
+          if (suggested && !Combat.safeForQuest(s, suggested, target)) suggested = null;
+          if (suggested && skillAvailable(s, suggested)) {
+            const result = doAction(s, "skill", { id: suggested, target: target.uid });
+            if (!result.ok) doAction(s, "attack", { target: target.uid });
+          } else doAction(s, "attack", { target: target.uid });
         }
-        if (suggested && skillAvailable(s, suggested)) {
-          const result = doAction(s, "skill", { id: suggested, target: target.uid });
-          if (!result.ok) doAction(s, "attack", { target: target.uid });
-        } else doAction(s, "attack", { target: target.uid });
       }
     }
     if (s.destination) {
       const dx = s.destination.x - s.player.x,
         dy = s.destination.y - s.player.y,
         d = Math.hypot(dx, dy),
-        step = Math.min(d, 145 * dt);
+        step = Math.min(d, 145 * Combat.modifiers(s).moveMultiplier * Combat.enemyModifiers(s.player).speedMultiplier * dt);
       if (d < 2) s.destination = null;
       else {
         s.player.x = clamp(s.player.x + (dx / d) * step, 30, 930);
@@ -606,7 +612,7 @@
       const gap = dist(m, s.player);
       if (gap < 175 && s.player.x > 310) {
         if (gap > 40) {
-          const movement = m.snare > 0 ? 0 : d.speed * dt;
+          const movement = m.snare > 0 ? 0 : d.speed * Combat.enemyModifiers(m).speedMultiplier * dt;
           m.x += ((s.player.x - m.x) / gap) * movement;
           m.y += ((s.player.y - m.y) / gap) * movement;
         } else if (!m.cd) {
@@ -614,13 +620,14 @@
           const defense = stats(s);
           const magic = !!d.attackMagic;
           const perfect = !magic && random(s) * 100 < defense.perfectDodge;
-          if (!perfect && (magic || random(s) * 100 < Rules.enemyHitChance(d, defense))) {
-            const hit = Rules.damageTaken(
-              d.atk,
+          if (!perfect && (magic || random(s) * 100 < Math.max(5, Rules.enemyHitChance(d, defense) - Combat.enemyModifiers(m).hitPenalty))) {
+            const incoming = Rules.damageTaken(
+              d.atk * Combat.enemyModifiers(m).atkMultiplier,
               magic ? defense.softMdef : defense.softDef,
               magic ? defense.hardMdef : defense.hardDef,
-              Combat.modifiers(s).damageTaken || 1,
+              (Combat.modifiers(s).damageTaken || 1) * Skills.passives(s).damageTakenMultiplier,
             );
+            const hit = Combat.absorbDamage(s, incoming);
             s.player.hp = Math.max(0, s.player.hp - hit);
             effect(s, s.player.x, s.player.y - 35, `${magic ? "เวท " : ""}−${hit}`, magic ? "#cab4ff" : "#ffa7a1", { kind: "damage", amount: hit, critical: false, magic, target: "player" });
           } else effect(s, s.player.x, s.player.y - 35, perfect ? "LUCKY" : "DODGE", "#aee0cd", { kind: perfect ? "lucky" : "miss", target: "player" });
@@ -656,11 +663,12 @@
       : type === "item"
         ? own(D.items, id) && D.items[id].type === "use"
         : type === "skill"
-          ? own(D.skills, id) && (!(learned || D.skills[id].owner) || (s.skills[id] > 0 && skillAvailable(s, id)))
+          ? own(D.skills, id) && !Skills.isPassive(id) && (!(learned || D.skills[id].owner) || (s.skills[id] > 0 && skillAvailable(s, id)))
           : false;
   }
   function serialize(s) {
     const keep = [
+      "skillVersion",
       "baseLevel",
       "jobLevel",
       "exp",
@@ -686,7 +694,7 @@
       "settings",
     ];
     return JSON.stringify(
-      { version: 1, state: Object.fromEntries(keep.map((k) => [k, s[k]])) },
+      { version: 1, state: Object.fromEntries(keep.map((k) => [k, k === "player" ? Object.fromEntries(["x", "y", "hp", "sp", "facing"].map(key => [key, s.player[key]])) : s[k]])) },
       null,
       2,
     );
@@ -751,7 +759,12 @@
     // Unknown catalog IDs are discarded; retained IDs still obey the complete
     // current schema. No historic catalog or class/stat/equipment migration runs.
     const skills = Object.fromEntries(Object.entries(v.skills).filter(([id]) => own(D.skills, id)));
+    const originalSkills = new Set(["first_aid", "arun_slash", "royal_flurry", "shield_counter", "lotus_bolt", "lotus_storm", "orb_burst", "ward_script", "sanctuary", "garuda_combo", "quick_stab", "moon_venom", "tiger_rend", "aimed_shot", "naga_trap", "arcane_volley"]);
+    const upgrading = !own(v, "skillVersion");
+    if (!upgrading && v.skillVersion !== 2) bad();
     for (const k of Object.keys(D.skills)) {
+      // Only new catalog keys may be filled by this one explicit 1.16 upgrade.
+      if (upgrading && !originalSkills.has(k) && !own(skills, k)) skills[k] = 0;
       if (!num(skills[k], k === "first_aid" ? 1 : 0, D.skills[k].max)) bad();
     }
     if (Object.keys(skills).length !== Object.keys(D.skills).length) bad();
@@ -806,6 +819,7 @@
     const s = createState();
     for (const k of Object.keys(JSON.parse(serialize(s)).state)) s[k] = v[k];
     s.statVersion = 2;
+    s.skillVersion = 2;
     s.classId = classId;
     s.classTrial = classTrial;
     s.skills = skills;
@@ -813,6 +827,7 @@
     s.inventory = inventory;
     s.equipment = equipment;
     s.hotbar = hotbar;
+    s.player = Object.fromEntries(["x", "y", "hp", "sp", "facing"].map(k => [k, v.player[k]]));
     const st = stats(s);
     s.player.hp = Math.min(s.player.hp, st.maxHp);
     s.player.sp = Math.min(s.player.sp, st.maxSp);
