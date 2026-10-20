@@ -4,11 +4,9 @@ A single-player Thai fantasy browser RPG. Start as a villager, choose one of fiv
 
 Play: https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/
 
-Version **1.16** adds original outlined pixel combat numbers, a layered critical star and pixel Critical!!/Miss/Lucky!! lettering. Actual damage values and outcomes drive the display; simultaneous hits pack above measured bounds and anchors snap to the screen pixel grid. Obsolete items, skills, UI and ancient save migrations are removed.
+Version **1.17** implements the approved class skill sets: 61 skills (45 class actives, 15 passives and shared First Aid) and 58 reusable Canvas Effect Parts. Each Class 1 has three active skills and one passive; each Class 2 adds its own four skills while retaining its parent skills. The skill tree shows only your current path, marks passives clearly and lets you learn, cast or bind active skills.
 
-The classic VFX redraw covers all 11 weapon families and 15 class skills in an original classic Siam fantasy style: filled blade trails, ivory cores, lotus petals, jade fragments, scripture and Naga snares. Effects have distinct release/impact/dissipation shapes, with readable physical criticals and timer-driven wards, charges and DOT marks.
-
-**สกิล → ผังสกิลอาชีพ** shows only the current class and its inherited skills, with shared First Aid. Auto Battle and Auto Quest keep running through in-game menus and focus changes. Current combat powers, SP costs, cooldowns and loot retain their existing rules.
+The new skills include bounded cones, chains and piercing attacks, shields, timed marks, movement and one-use boosts. Auto Battle uses learned skills and their conditions; Auto Quest keeps its target and reward safeguards. Effects follow successful hits, actual status timers and shield consumption. Outlined pixel damage, critical stars and Critical!!/Miss/Lucky!! lettering remain driven by real combat outcomes.
 
 ## Run and test
 
@@ -34,10 +32,10 @@ Keep the game page open for background farming. A shared fixed-step clock preven
 
 ## Saves, source and artwork
 
-Use the Settings menu to export/import a backup. Storage key: `borderlands-solo-rebuilt-v1`. Current-format saves require the current class, stat version and four equipment slots. Unrecognized item/skill IDs and their bindings are discarded; current progress is preserved. Earlier classless/statless/headless formats are rejected.
+Use the Settings menu to export/import a backup. Storage key: `borderlands-solo-rebuilt-v1`. Current-format saves require the current class, stat version and four equipment slots. Unrecognized item/skill IDs and their bindings are discarded; current progress is preserved. A current 1.16 save upgrades its 45 new skills to level zero while preserving progress and points. New saves include skill schema version 2. Earlier classless/statless/headless formats are rejected.
 
-The catalog contains 59 items: 42 obtainable now and 17 planned. There are 16 skills: 15 class signatures and shared First Aid. Planned bosses and drops shown in the guide are not live encounters. The 11 weapon paths each have three grades.
+The catalog contains 59 items: 42 obtainable now and 17 planned. There are 61 skills: 45 class actives, 15 class passives and shared First Aid. Skills cost points to learn; new skills are not automatically unlocked. Planned bosses and drops shown in the guide are not live encounters. The 11 weapon paths each have three grades.
 
-Current art consists of 27 Siam fantasy atlases/images, preserved from published 1.12. This release adds Canvas geometry and no bitmap artwork. See [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md). Historical pre-rebuild package README files have been removed.
+Current art consists of 27 Siam fantasy atlases/images, preserved from published 1.12. This release adds Canvas geometry and no bitmap artwork. The approved skill and Part recipes are recorded in [the design](docs/superpowers/specs/2026-10-20-class-skills-effect-parts-design.md). See [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md). Historical pre-rebuild package README files have been removed.
 
 The cloud checkout initially contained old `main`; published 1.12 was recovered from `gh-pages` into commit `eefb5c3`. Current source, tests and docs are maintained on `codex/siam-arun-combat-effects`. Do not overwrite this version with historical sprite packages.

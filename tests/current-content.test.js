@@ -15,8 +15,8 @@ function fighter(classId = "swordsman", seed = 1) {
   s.monsters.forEach((m,i)=>Object.assign(m,{x:i?800:280,y:i?100:310,hp:10000,cd:999}));
   return s;
 }
-test("current content exposes 59 items and 16 skills with no old-save entries or availability category",()=>{
-  assert.equal(Object.keys(D.items).length,59); assert.equal(Object.keys(D.skills).length,16);
+test("current content exposes 59 items and 61 skills with no old-save entries or availability category",()=>{
+  assert.equal(Object.keys(D.items).length,59); assert.equal(Object.keys(D.skills).length,61);
   assert.equal("legacy" in D.itemCatalog,false);
   for(const id of removedItems){assert.equal(Object.hasOwn(D.items,id),false);assert.equal(I.availability(id),null);assert.deepEqual(I.sourcesFor(id),[]);}
   for(const id of removedSkills){assert.equal(Object.hasOwn(D.skills,id),false);const s=C.createState();s.skills[id]=5;assert.equal(C.skillAvailable(s,id),false);assert.equal(C.act(s,"skill",{id,target:s.monsters[0].uid}).ok,false);assert.equal(C.act(s,"bind",{slot:1,value:`skill:${id}`}).ok,false);}

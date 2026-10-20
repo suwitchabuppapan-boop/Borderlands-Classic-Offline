@@ -7,7 +7,8 @@ const D = require('../js/classic-data.js');
 const modulePath = path.join(__dirname, '../js/vfx-skills.js');
 const exists = fs.existsSync(modulePath);
 const FX = exists ? require(modulePath) : null;
-const ids = Object.keys(D.skills).filter(id => D.skills[id].owner);
+const ids = [...new Set(Object.values(D.classes).map(c=>c.skill).filter(id=>D.skills[id]?.owner))];
+const activeIds=Object.keys(D.skills).filter(id=>D.skills[id].kind!=='passive');
 const freeze = value => {
   if (value && typeof value === 'object') {
     Object.values(value).forEach(freeze);
@@ -73,10 +74,10 @@ test('skill drawing module exists before the dispatcher loads it',()=>{
   assert.equal(exists,true,'js/vfx-skills.js must exist');
 });
 if(FX) {
-  test('frozen API identifies exactly the fifteen existing class skills with gameplay radii',()=>{
+  test('frozen API identifies all46 active skills with gameplay radii',()=>{
     assert.ok(Object.isFrozen(FX));assert.ok(Object.isFrozen(FX.profiles));
     assert.deepEqual(Object.keys(FX).sort(),['drawFront','drawGround','profiles']);
-    assert.deepEqual(Object.keys(FX.profiles).sort(),ids.sort());assert.equal(ids.length,15);
+    assert.deepEqual(Object.keys(FX.profiles).sort(),activeIds.sort());assert.equal(activeIds.length,46);
     for(const id of ids) {
       assert.ok(Object.isFrozen(FX.profiles[id]));assert.ok(FX.profiles[id].name.length>3);
       assert.equal(FX.profiles[id].radius,D.skills[id].radius||0,id);
@@ -146,10 +147,12 @@ if(FX) {
   test('directional ground marks rotate around the source feet in all four facings',()=>{
     for(const id of ['arun_slash','quick_stab','aimed_shot','shield_counter','garuda_combo','tiger_rend']) {
       const source={x:250,y:280};
-      const right=draw(event(id,.35,{source,target:{x:310,y:280}}),'ground').worldPoints;
+      // Back-layer trails follow the body; only these first vertices form the ground cue.
+      const count={arun_slash:9,quick_stab:6,aimed_shot:9,shield_counter:7,garuda_combo:18,tiger_rend:9}[id];
+      const right=draw(event(id,.35,{source,target:{x:310,y:280}}),'ground').worldPoints.slice(0,count);
       for(let facing=0;facing<4;facing++) {
         const [dx,dy]=[[0,1],[1,0],[0,-1],[-1,0]][facing];
-        const rotated=draw(event(id,.35,{source,facing,target:{x:250+dx*60,y:280+dy*60}}),'ground').worldPoints;
+        const rotated=draw(event(id,.35,{source,facing,target:{x:250+dx*60,y:280+dy*60}}),'ground').worldPoints.slice(0,count);
         assert.equal(rotated.length,right.length);
         right.forEach(([x,y],i)=>{
           const expected=[source.x+(x-source.x)*dx-(y-source.y)*dy,

@@ -39,7 +39,7 @@ async def run_checks(page, artifacts=None):
       const painter=(a,x,y,w,h,title)=>{const c=a.getContext('2d');c.fillStyle='#263b41';c.fillRect(x,y,w-1,h-1);c.fillStyle='#f5e5bd';c.font='13px sans-serif';c.fillText(title,x+10,y+21);return c;};
       const person=(c,source,cls,facing)=>BCRender.person(c,source.x,source.y,{classId:cls,facing,hair:0,pose:{mode:'attack',facing,progress:.45}});
       const paint=(a,x,y,w,h,title,s,cls,facing=1)=>{const c=painter(a,x,y,w,h,title);c.save();c.translate(x,y);FX.drawGround(c,s);if(cls)person(c,s.player,cls,facing);FX.drawFront(c,s);c.restore();};
-      const types=Object.keys(FX.weaponProfiles),skills=Object.keys(FX.skillProfiles);
+      const types=Object.keys(FX.weaponProfiles),skills=Object.values(D.classes).filter(c=>c.tier>0).map(c=>c.skill); // Retain all 15 original signature profiles; class_skills_ui covers the expanded catalog.
       window.__classicFX={FX,D,directions,times,event,state,canvas,pixels,painter,person,paint,types,skills};
     }''')
     image_paths = []

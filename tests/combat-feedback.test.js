@@ -9,6 +9,7 @@ const { execFileSync } = require("node:child_process");
 const Core = require("../js/core.js");
 const ClassCombat = require("../js/class-combat.js");
 const D = require("../js/classic-data.js");
+const originalSkills = new Set(["first_aid",...Object.values(D.classes).map(cls=>cls.skill).filter(Boolean)]);
 const modulePath = path.resolve(__dirname, "../js/combat-feedback.js");
 function feedback() {
   assert.ok(fs.existsSync(modulePath), "combat feedback module must exist");
@@ -22,7 +23,7 @@ function makeState(C = Core, classId = "swordsman", seed = 123456789) {
   const s = C.createState(), cls = D.classes[classId];
   s.classId = classId; s.weaponSchool = cls.weaponType; s.job = cls.tier ? "Swordman" : "Novice";
   s.equipment.weapon = cls.trainingWeapon; s.seed = seed;
-  for (const id of Object.keys(D.skills)) if (C.skillAvailable(s, id)) s.skills[id] = D.skills[id].owner ? 2 : s.skills[id];
+  for (const id of originalSkills) if (C.skillAvailable(s, id)) s.skills[id] = D.skills[id].owner ? 2 : s.skills[id];
   s.player.hp = C.stats(s).maxHp; s.player.sp = 1000;
   s.player.x = 250; s.player.y = 310;
   s.monsters.forEach((m, i) => { m.x = i ? 800 : 280; m.y = i ? 100 : 310; m.hp = 10000; m.cd = 999; });
@@ -32,8 +33,16 @@ const events = (s) => s.combatFeedback?.events || [];
 function advance(C, s, seconds) { for (let i = 0; i < Math.round(seconds * 10); i++) C.tick(s, .1); }
 function canonical(s) {
   const clean = JSON.parse(JSON.stringify(s)); delete clean.combatFeedback;
-  // 1.16 intentionally removes obsolete content and adds typed cosmetic text.
-  // Keep every other gameplay/save value and RNG bit in the comparison.
+  // Normalize only approved schema/cosmetic additions. New skills are unlearned
+  // in these retained-signature fixtures; assert that before projecting them.
+  delete clean.skillVersion;
+  for(const id of Object.keys(clean.skills||{})) if(!originalSkills.has(id) && !['bash','magnum','provoke'].includes(id)) {
+    assert.equal(clean.skills[id],0,id+' must remain unlearned in retained parity');delete clean.skills[id];
+  }
+  if(clean.classCombat) {
+    delete clean.classCombat.signals;delete clean.classCombat.signalSeq;
+    if(JSON.stringify(clean.classCombat)===JSON.stringify({buffs:{},traps:[],orbCharges:0,orbTimer:0}))delete clean.classCombat;
+  }
   for (const id of ['bash','magnum','provoke']) if (clean.skills) delete clean.skills[id];
   for (const id of ['rusty_sword','yak_greatsword']) if (clean.inventory) delete clean.inventory[id];
   for (const m of clean.monsters || []) delete m.provoke;
@@ -120,7 +129,7 @@ for (const [classId, cls] of Object.entries(D.classes)) {
   });
 }
 
-for (const [id, skill] of Object.entries(D.skills).filter(([, sk]) => sk.owner)) {
+for (const [id, skill] of Object.entries(D.skills).filter(([id, sk]) => sk.owner && originalSkills.has(id))) {
   test(`${id} signature emits exactly one committed cast and real direct impacts`, () => {
     const s = makeState(Core, skill.owner), m = s.monsters[0], before = m.hp;
     if (id === "orb_burst") s.classCombat = { buffs: {}, traps: [], orbCharges: 3, orbTimer: 12 };
@@ -208,7 +217,7 @@ test("spawn, actual travel, death and import clear feedback; rejected travel and
   assert.equal(Core.deserialize(JSON.stringify(raw)).combatFeedback, undefined);
 });
 
-test("baseline numerical state, normalized saves and seeded RNG match except explicitly removed content and cosmetic text metadata", (t) => {
+test("retained numerical state, normalized saves and seeded RNG match after explicit schema and cosmetic projections", (t) => {
   // Recovery commit contains the exact published 1.12 runtime. Reconstruct its
   // engine privately so parity also works in a fresh source clone, without a
   // retained /tmp checkout or contamination from current CommonJS dependencies.
@@ -256,7 +265,7 @@ test("baseline numerical state, normalized saves and seeded RNG match except exp
     a.player.hp = b.player.hp = 0; Old.tick(a, .1); Core.tick(b, .1); check("death");
   }
   assert.equal(checkpoints, 15092, "all declared seeded action/tick checkpoints must execute");
-  t.diagnostic(`${checkpoints} normalized state/save/RNG parity checkpoints across 16 classes and 4 seeds; only deleted content and cosmetic text metadata excluded`);
+  t.diagnostic(`${checkpoints} normalized state/save/RNG parity checkpoints across 16 classes and 4 seeds; excludes deleted content, asserted zero-level new keys, skill schema metadata and cosmetic feedback only`);
 });
 
 

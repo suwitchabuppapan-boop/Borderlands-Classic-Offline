@@ -18,11 +18,20 @@ test("retained catalog, class, skill, combat and drop data matches published 1.1
   vm.runInNewContext(source, context);
   const baseline = JSON.parse(JSON.stringify(context.module.exports));
   const actual = JSON.parse(JSON.stringify(D));
-  assert.equal(actual.world.release, '1.16');
+  assert.equal(actual.world.release, '1.17');
   delete actual.world.release; delete baseline.world.release;
   for(const id of ["rusty_sword","yak_greatsword"]) delete baseline.items[id];
   for(const id of ["bash","magnum","provoke"]) delete baseline.skills[id];
   delete baseline.itemCatalog.legacy;
+  // New skills and descriptive metadata are covered by skill-catalog.test.js.
+  // Every original catalog value, primary skill and combat formula stays exact.
+  for(const id of Object.keys(actual.skills)) if(!Object.hasOwn(baseline.skills,id)) delete actual.skills[id];
+  for(const [id,skill] of Object.entries(actual.skills)) {
+    for(const key of Object.keys(skill)) if(!Object.hasOwn(baseline.skills[id],key)) delete skill[key];
+  }
+  for(const classes of [actual.classes,actual.weaponSchools]) {
+    for(const cls of Object.values(classes)) delete cls.skillIds;
+  }
   assert.deepEqual(actual, baseline);
 });
 

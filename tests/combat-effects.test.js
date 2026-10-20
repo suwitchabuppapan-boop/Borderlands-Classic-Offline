@@ -4,14 +4,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const modulePath = path.join(__dirname, '../js/combat-effects.js');
-const pureModulePaths = ['combat-effects.js','vfx-painter.js','vfx-weapons.js','vfx-skills.js'].map(name=>path.join(__dirname,'../js',name));
+const pureModulePaths = ['combat-effects.js','vfx-painter.js','vfx-weapons.js','vfx-skills.js','effect-parts.js'].map(name=>path.join(__dirname,'../js',name));
 const D = require('../js/classic-data.js');
 const Core = require('../js/core.js');
 const Feedback = require('../js/combat-feedback.js');
 const exists = fs.existsSync(modulePath);
 const FX = exists ? require(modulePath) : null;
 const types = Object.keys(D.weaponTypes);
-const signatures = Object.keys(D.skills).filter(id => D.skills[id].owner);
+const signatures=[...new Set(Object.values(D.classes).map(c=>c.skill).filter(id=>D.skills[id]?.owner))];
+const activeSkills=Object.keys(D.skills).filter(id=>D.skills[id].kind!=='passive');
 const frozen = obj => { if (obj && typeof obj === 'object') { Object.values(obj).forEach(frozen); Object.freeze(obj); } return obj; };
 function context() {
   const calls = []; let depth = 0;
@@ -54,9 +55,9 @@ function footprint(calls) {
 
 test('Canvas effects module is available in CommonJS', () => { assert.equal(exists,true, 'combat-effects module must exist'); assert.equal(typeof FX.drawGround,'function'); assert.equal(typeof FX.drawFront,'function'); });
 if (FX) {
-  test('metadata covers all eleven combat profiles, neutral training and fifteen existing signatures', () => {
+  test('metadata covers all eleven combat profiles, neutral training and46 active skill profiles', () => {
     assert.deepEqual(Object.keys(FX.weaponProfiles).sort(), types.sort());
-    assert.deepEqual(Object.keys(FX.skillProfiles).sort(), signatures.sort());
+    assert.deepEqual(Object.keys(FX.skillProfiles).sort(), activeSkills.sort());
     assert.equal(Object.keys(FX.weaponProfiles).length,12);
     for (const id of signatures) assert.equal(FX.skillProfiles[id].radius || 0,D.skills[id].radius || 0);
   });

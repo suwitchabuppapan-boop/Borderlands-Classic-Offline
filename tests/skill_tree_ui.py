@@ -18,7 +18,7 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
         const st = BCCore.stats(s); s.player.hp = st.maxHp; s.player.sp = st.maxSp;
         const save = JSON.parse(BCCore.serialize(s));
         if (obsolete) {
-          // A real 1.15-format import keeps current progress and prunes obsolete
+          // A current-format import keeps progress and prunes obsolete
           // definitions rather than keeping hidden cast/equip/hotbar support.
           Object.assign(save.state.skills, {bash: 5, magnum: 1, provoke: 1});
           Object.assign(save.state.inventory, {rusty_sword: 2, yak_greatsword: 1});
@@ -50,19 +50,19 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
         ancestry = page.evaluate("""() => {
           const ids = [];
           for (let id = BCGame.state.classId; BCData.classes[id]?.tier > 0; id = BCData.classes[id].parent) ids.unshift(id);
-          return ids.map(id => ({classId: id, skillId: BCData.classes[id].skill}));
+          return ids.flatMap(id => BCData.classes[id].skillIds.map(skillId => ({classId: id, skillId})));
         }""")
         actual = page.locator('.skill-tree-node').evaluate_all("els => els.map(el => ({classId: el.dataset.class, skillId: el.dataset.skill}))")
         assert actual == ancestry, (class_id, "Skills tree must contain only current/inherited classes", actual, ancestry)
         assert page.locator('.skill-tree-node[data-state="locked"]').count() == 0
         assert page.locator('.skill-tree-shared [data-skill="first_aid"]').count() == 1
-        own = page.evaluate("BCData.classes[BCGame.state.classId].skill")
+        own = page.evaluate("BCGame.state.classId")
         for node in page.locator('.skill-tree-node').all():
             skill = node.get_attribute("data-skill")
             state = node.get_attribute("data-state")
-            assert state == ("own" if skill == own else "inherited"), (class_id, skill, state)
+            assert state == ("own" if node.get_attribute("data-class") == own else "inherited"), (class_id, skill, state)
             assert not node.locator('[data-act="learn"]').is_disabled()
-            assert ("10" if state == "inherited" or len(ancestry) == 1 else "40") in node.locator('.skill-tree-requirement').inner_text()
+            assert ("10" if state == "inherited" or len(ancestry) == 4 else "40") in node.locator('.skill-tree-requirement').inner_text()
         assert page.evaluate("skillTreeUserState()") == before_browse
         checked.append(class_id)
 
@@ -108,7 +108,7 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
         assert own.locator('[data-act="learn"]').evaluate("el => el === document.activeElement") or level == 5
     assert own.locator('[data-act="learn"]').is_disabled()
     points = page.evaluate("BCGame.state.skillPoints")
-    own.locator('button').dispatch_event("click")
+    own.locator('[data-act="learn"]').dispatch_event("click")
     assert page.evaluate("BCGame.state.skillPoints") == points
     assert page.evaluate("BCGame.state.skills.royal_flurry") == 5
     inherited.locator('[data-act="learn"]').click()
@@ -152,7 +152,7 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
         assert geometry["x"] >= 0 and geometry["right"] <= width
         assert geometry["top"] >= 0 and geometry["bottom"] <= height
         assert geometry["scroll"] <= geometry["client"], geometry
-        assert page.locator('.skill-tree-node').count() == 2
+        assert page.locator('.skill-tree-node').count() == 8
         page.locator('.skill-tree-node[data-skill="royal_flurry"]').scroll_into_view_if_needed()
         assert page.locator('.skill-tree-node[data-skill="royal_flurry"]').is_visible()
         assert page.locator('.skill-tree-node[data-skill="arcane_volley"]').count() == 0
@@ -167,9 +167,9 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
       BCGame.openPanel('skills');
     }""")
     page.locator('[data-skills-tab="tree"]').click()
-    assert page.locator('.skill-tree-node[data-skill="arun_slash"] button').is_disabled()
-    result = {"classes": len(checked), "class_signatures": 15, "catalog_skills": 16, "tree_node_counts": {"villager": 0, "class_1": 1, "class_2": 2}, "learning_max": 5,
-              "checks": ["current compatibility", "exact current/inherited ancestry", "no sibling/foreign/future class cards", "SP/CD/range", "Job 10/40 trial requirements", "learn points/max", "forged foreign action rejected", "1.15-format import preserves current progress and prunes obsolete skills/items/equipment/bindings", "no obsolete hotbar options", "hotbar", "save/reload", "tabs/arrows/focus/trap", "1440/390 layout"], "migration": migration, "screenshots": screenshots}
+    assert page.locator('.skill-tree-node[data-skill="arun_slash"] [data-act="learn"]').is_disabled()
+    result = {"classes": len(checked), "class_skills": 60, "catalog_skills": 61, "tree_node_counts": {"villager": 0, "class_1": 4, "class_2": 8}, "learning_max": 5,
+              "checks": ["current compatibility", "exact current/inherited ancestry", "no sibling/foreign/future class cards", "SP/CD/range", "Job 10/40 trial requirements", "learn points/max", "forged foreign action rejected", "current-format import preserves progress and prunes obsolete skills/items/equipment/bindings", "no obsolete hotbar options", "hotbar", "save/reload", "tabs/arrows/focus/trap", "1440/390 layout"], "migration": migration, "screenshots": screenshots}
     (output / "skill-tree-browser.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
     return result
 

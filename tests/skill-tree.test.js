@@ -35,12 +35,34 @@ test("five families contain all fifteen existing class signatures exactly once",
     for (const child of parent.children) assert.equal(child.classDef.parent, parent.classId);
   }
 });
+test("every native skill is exposed in catalog order while class signatures stay stable", () => {
+  const classes = Object.fromEntries(Object.entries(D.classes).map(([id, c]) => [id, { ...c }]));
+  const skills = { ...D.skills };
+  for (const [id, c] of Object.entries(classes)) {
+    if (!c.tier) continue;
+    c.skillIds = [c.skill, `${id}_attack`, `${id}_utility`, `${id}_passive`];
+    for (const skillId of c.skillIds.slice(1)) skills[skillId] = { owner: id, kind: skillId.endsWith("passive") ? "passive" : "active" };
+  }
+  const browser = { BCData: { ...D, classes, skills } };
+  vm.runInNewContext(fs.readFileSync(treeFile, "utf8"), { window: browser });
+  const expanded = browser.BCSkillTree;
+  const route = expanded.paths().find(n => n.classId === "swordsman");
+  assert.equal(route.skillId, classes.swordsman.skill, "catalog signature stays compatible");
+  assert.deepEqual(Array.from(route.skills, n => n.skillId), classes.swordsman.skillIds);
+  const current = expanded.nodesFor("royal_duelist");
+  assert.deepEqual(Array.from(current.ancestry, n => n.skillId), [...classes.swordsman.skillIds, ...classes.royal_duelist.skillIds]);
+  assert.equal(current.ancestry.length, 8);
+  assert.equal(current.ancestry.filter(n => n.skill.kind === "passive").length, 2);
+  assert.equal(expanded.nodesFor("swordsman").ancestry.length, 4);
+  assert.equal(expanded.nodesFor("villager").ancestry.length, 0);
+});
 for (const [classId, def] of Object.entries(D.classes)) {
   test(`${classId} exposes only its own ancestry and shared First Aid`, () => {
     const result = T.nodesFor(classId), expected = [];
     for (let id = classId; D.classes[id]?.tier > 0; id = D.classes[id].parent) expected.unshift(id);
     assert.equal(result.classId, classId);
-    assert.deepEqual(result.ancestry.map(n => n.classId), expected);
+    assert.deepEqual(result.ancestry.map(n => n.classId), expected.flatMap(id => (D.classes[id].skillIds || [D.classes[id].skill]).map(() => id)));
+    assert.deepEqual(result.ancestry.map(n => n.skillId), expected.flatMap(id => D.classes[id].skillIds || [D.classes[id].skill]));
     assert.deepEqual(result.shared.map(n => n.skillId), ["first_aid"]);
     assert.equal(result.shared[0].skill, D.skills.first_aid);
     const s = C.createState();
@@ -87,13 +109,15 @@ test("filtered current-class views retain every future and foreign catalog path"
 test("callers can change node collections without affecting another view or canonical data", () => {
   const a = T.paths(), b = T.paths();
   assert.notEqual(a, b); assert.notEqual(a[0], b[0]); assert.notEqual(a[0].children, b[0].children);
+  assert.notEqual(a[0].skills, b[0].skills); assert.notEqual(a[0].skills[0], b[0].skills[0]);
+  a[0].skills.pop();
   a[0].children.pop(); a.pop();
   assert.equal(T.paths().length, 5); assert.equal(T.paths()[0].children.length, 2);
   const first = T.nodesFor("royal_duelist"), second = T.nodesFor("royal_duelist");
   assert.notEqual(first.ancestry[0], second.ancestry[0]);
   assert.notEqual(first.shared[0], second.shared[0]);
   first.ancestry.reverse(); first.shared.pop();
-  assert.deepEqual(T.nodesFor("royal_duelist").ancestry.map(n => n.classId), ["swordsman", "royal_duelist"]);
+  assert.deepEqual(T.nodesFor("royal_duelist").ancestry.map(n => n.skillId), ["swordsman", "royal_duelist"].flatMap(id => D.classes[id].skillIds || [D.classes[id].skill]));
 });
 test("the tree reads the catalog instead of duplicating its labels or family list", () => {
   const classes = Object.fromEntries(Object.entries(D.classes).map(([id, c]) => [id, { ...c }]));
@@ -119,5 +143,5 @@ test("only current ancestral skills can be learned, bound and round tripped", ()
   const restored = C.deserialize(C.serialize(s));
   assert.deepEqual(restored.skills, s.skills); assert.deepEqual(restored.hotbar, s.hotbar);
   const nodes = T.nodesFor(s.classId);
-  assert.deepEqual(nodes.ancestry.map(n=>n.skillId),["arun_slash","royal_flurry"]);
+  assert.deepEqual(nodes.ancestry.map(n=>n.skillId),["swordsman", "royal_duelist"].flatMap(id => D.classes[id].skillIds || [D.classes[id].skill]));
 });

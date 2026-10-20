@@ -14,9 +14,9 @@ async def run_checks(page, artifacts=None):
     await page.evaluate("localStorage.clear()")
     await page.reload()
     await page.wait_for_function("window.BCGame && BCRender.assets.ready")
-    assert await page.locator("#release-label").inner_text() == "รุ่น 1.16"
+    assert await page.locator("#release-label").inner_text() == "รุ่น 1.17"
     assert await page.evaluate("Object.keys(BCData.items).length") == 59
-    assert await page.evaluate("Object.keys(BCData.skills).length===16 && !['bash','magnum','provoke'].some(id=>id in BCData.skills) && !['rusty_sword','yak_greatsword'].some(id=>id in BCData.items)")
+    assert await page.evaluate("Object.keys(BCData.skills).length===61 && !['bash','magnum','provoke'].some(id=>id in BCData.skills) && !['rusty_sword','yak_greatsword'].some(id=>id in BCData.items)")
     assert await page.locator(".menu-grid [data-panel]").count() == 9
     menus = await page.locator(".menu-grid [data-panel]").evaluate_all("els=>els.map(e=>e.dataset.panel)")
     for name in menus:
