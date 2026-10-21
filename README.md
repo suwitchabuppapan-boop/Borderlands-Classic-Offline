@@ -4,9 +4,11 @@ A single-player Thai fantasy browser RPG. Start as a villager, choose one of fiv
 
 Play: https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/
 
-Version **1.17** implements the approved class skill sets: 61 skills (45 class actives, 15 passives and shared First Aid) and 58 reusable Canvas Effect Parts. Each Class 1 has three active skills and one passive; each Class 2 adds its own four skills while retaining its parent skills. The skill tree shows only your current path, marks passives clearly and lets you learn, cast or bind active skills.
+Version **1.18** gives the skill tree compact icon boards grouped by Class 1, Class 2 and shared skills. Select an icon for its description, SP cost and requirements. Desktop shows four skills per row; mobile shows two, with the selected details kept nearby.
 
-The new skills include bounded cones, chains and piercing attacks, shields, timed marks, movement and one-use boosts. Auto Battle uses learned skills and their conditions; Auto Quest keeps its target and reward safeguards. Effects follow successful hits, actual status timers and shield consumption. Outlined pixel damage, critical stars and Critical!!/Miss/Lucky!! lettering remain driven by real combat outcomes.
+Use **− / +** to prepare an allocation, then **ยืนยันเรียน** to spend its points together. Previewing changes neither combat nor saved progress. Minus removes only unconfirmed additions; learned skills cannot be refunded. Closing the window discards the draft. The current-skills tab still supports immediate single-level learning.
+
+All 61 skills, 58 reusable Effect Parts, current-class inheritance, passive mechanics and background farming remain available. Auto Battle and Auto Quest continue while the tree is open. Existing version 1.16/1.17 progress imports retain their current rules.
 
 ## Run and test
 

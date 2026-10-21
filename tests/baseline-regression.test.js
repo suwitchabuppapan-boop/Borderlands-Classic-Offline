@@ -18,7 +18,7 @@ test("retained catalog, class, skill, combat and drop data matches published 1.1
   vm.runInNewContext(source, context);
   const baseline = JSON.parse(JSON.stringify(context.module.exports));
   const actual = JSON.parse(JSON.stringify(D));
-  assert.equal(actual.world.release, '1.17');
+  assert.equal(actual.world.release, '1.18');
   delete actual.world.release; delete baseline.world.release;
   for(const id of ["rusty_sword","yak_greatsword"]) delete baseline.items[id];
   for(const id of ["bash","magnum","provoke"]) delete baseline.skills[id];

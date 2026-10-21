@@ -33,6 +33,8 @@
     inventoryCategory = "all",
     shopWeaponType = "",
     skillsTab = "current",
+    skillAllocation = null,
+    selectedTreeSkill = null,
     codexTab = "world",
     catalogCollection = "regular",
     catalogType = "all",
@@ -146,6 +148,8 @@
     shopVisit = false;
     guideVisit = false;
     questBlockNotice = "";
+    skillAllocation = null;
+    selectedTreeSkill = null;
     state = next;
     simulation.reset(Date.now());
     clearManualMovement();
@@ -263,7 +267,7 @@
     guideVisit = false;
     lastFocus = document.activeElement;
     panel = name;
-    if (name === "skills") skillsTab = "current";
+    if (name === "skills") { skillsTab = "current"; skillAllocation = null; selectedTreeSkill = null; }
     clearManualMovement();
     $("panel-window").hidden = false;
     $("panel-backdrop").hidden = false;
@@ -275,6 +279,8 @@
     shopVisit = false;
     guideVisit = false;
     panel = null;
+    skillAllocation = null;
+    selectedTreeSkill = null;
     $("panel-window").hidden = true;
     $("panel-backdrop").hidden = true;
     if (lastFocus && lastFocus.isConnected)
@@ -527,22 +533,55 @@
     });
   }
   function skillTree(s) {
-    const accessible = window.BCSkillTree.nodesFor(s.classId);
+    const tree = window.BCSkillTree, accessible = tree.nodesFor(s.classId);
+    if (!tree.validateAllocation(s,skillAllocation).ok) skillAllocation=tree.createAllocation(s);
+    const plan=tree.validateAllocation(s,skillAllocation), nodes=[...accessible.ancestry,...accessible.shared];
+    if(!nodes.some(n=>n.skillId===selectedTreeSkill))selectedTreeSkill=nodes[0]?.skillId;
     const progress = C.trialProgress(s);
-    const card = (node) => {
+    const tile = (node,shared=false) => {
       const { classId, classDef: c, skillId, skill: d } = node;
       const relation = classId === s.classId ? "own" : "inherited";
-      const relationText = { own: "อาชีพปัจจุบัน", inherited: "สืบทอด" }[relation];
-      const reason = C.learnReason(s, skillId), passive = SkillRules.isPassive(skillId);
-      return `<article class="skill-tree-node" data-class="${classId}" data-skill="${skillId}" data-state="${relation}" data-kind="${passive ? "passive" : "active"}"><div class="skill-tree-class"><b>${esc(c.name)}</b><span class="skill-tree-state">${relationText}</span></div><div class="skill-tree-heading">${icon(skillId)}<h3>${esc(d.name)} <span>Lv.${s.skills[skillId] || 0} / ${d.max}</span></h3></div>${skillMeta(s, skillId)}<p class="skill-tree-description">${esc(d.description)}</p><small class="skill-tree-requirement">เปิดเมื่อเปลี่ยน ${esc(c.name)} · Job Lv.${c.tier === 1 ? 10 : 40}${c.trial ? " + ผ่านการทดสอบ" : ""}</small><div class="skill-tree-learn">${skillControls(s, skillId, reason)}<small>${esc(reason || "ใช้ 1 แต้มสกิลต่อระดับ")}</small></div></article>`;
+      const passive=SkillRules.isPassive(skillId),level=plan.levels[skillId]??s.skills[skillId],pending=skillAllocation?.increments[skillId]||0;
+      const disabled=plan.remaining<1||level>=d.max;
+      return `<article class="${shared?'skill-shared-node':'skill-tree-node'}" data-class="${classId}" data-skill="${skillId}" data-state="${relation}" data-kind="${passive?'passive':'active'}" data-selected="${selectedTreeSkill===skillId}" data-learned="${s.skills[skillId]>0}" data-pending="${pending>0}"><button class="skill-node-select" data-skill-select="${skillId}" aria-label="ดู ${esc(d.name)} · ระดับ ${level} จาก ${d.max}" aria-pressed="${selectedTreeSkill===skillId}" aria-controls="skill-tree-detail">${artIcon(skillId)}</button><h3 class="skill-node-name">${esc(d.name)}</h3><small class="skill-node-kind">${passive?'ติดตัว':'กดใช้'}${pending?' · แต้มร่าง +'+pending:''}</small>${shared?'<span class="skill-starting">เริ่มต้น · 1 / 1</span>':`<div class="skill-level-controls"><button data-skill-adjust="${skillId}" data-delta="-1" aria-label="ลดแต้มร่าง ${esc(d.name)}"${pending?'':' disabled'}>−</button><output class="skill-node-level" aria-label="ระดับในแผน ${esc(d.name)}">${level} / ${d.max}</output><button data-skill-adjust="${skillId}" data-delta="1" aria-label="เพิ่มแต้มร่าง ${esc(d.name)}"${disabled?' disabled':''}>+</button></div>`}</article>`;
     };
     const classes = [...new Set(accessible.ancestry.map(n => n.classId))];
     const groups = classes.map(classId => {
       const c = D.classes[classId], trial = c.trial, active = progress?.classId === classId ? progress : null;
       const trialText = trial ? ` · ทดสอบกำจัด${D.monsters[trial.kind].name} ${trial.count} ตัว${active ? ` (${active.current}/${trial.count}${active.complete ? " · สำเร็จ" : ""})` : " · นับหลังรับทดสอบ"}` : "";
-      return `<section class="skill-tree-group" data-skill-class="${classId}"><h3 class="shop-title">${esc(c.name)} · Class ${c.tier}</h3><p class="skill-tree-requirement">เปลี่ยนอาชีพที่ Job Lv.${c.tier === 1 ? 10 : 40}${esc(trialText)} · กดใช้ 3 / ติดตัว 1</p><div class="skill-tree-grid">${accessible.ancestry.filter(n => n.classId === classId).map(card).join("")}</div></section>`;
+      return `<section class="skill-tree-group" data-skill-class="${classId}"><header class="skill-tree-group-heading"><h3>Class ${c.tier} · ${esc(c.name)}</h3><small>4 สกิล · ${classId===s.classId?'อาชีพปัจจุบัน':'สืบทอด'}</small></header><div class="skill-tree-grid">${accessible.ancestry.filter(n => n.classId === classId).map(n=>tile(n)).join("")}</div><small class="skill-tree-requirement">Job Lv.${c.tier===1?10:40}${esc(trialText)}</small></section>`;
     }).join("");
-    return `<p class="panel-note skill-tree-help">แสดงครบทั้ง 4 สกิลของแต่ละอาชีพในสายปัจจุบัน<br>เปลี่ยนอาชีพและรับทดสอบกับ${esc(npc("guide").name)}ที่เมือง</p>${groups ? `<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${groups}</section>` : ""}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3 class="shop-title">สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n => skillCard(s, n.skillId)).join("")}</section>`;
+    const selected=nodes.find(n=>n.skillId===selectedTreeSkill),id=selected?.skillId,d=selected?.skill,c=selected?.classDef;
+    const pending=skillAllocation?.increments[id]||0,reason=id?C.learnReason(s,id):"";
+    const detail=selected?`<aside class="skill-tree-detail" id="skill-tree-detail" aria-labelledby="skill-tree-detail-title"><header><span class="item-icon">${artIcon(id)}</span><div><h3 id="skill-tree-detail-title">${esc(d.name)}</h3><small>ปัจจุบัน Lv.${s.skills[id]} / ${d.max}${pending?` · แผน Lv.${plan.levels[id]}`:''}</small></div></header>${skillMeta(s,id)}<p class="skill-tree-description">${esc(d.description)}</p><small class="skill-tree-requirement">${d.owner?`เปิดเมื่อเปลี่ยน ${esc(c.name)} · Job Lv.${c.tier===1?10:40}${c.trial?' + ผ่านการทดสอบ':''}`:'สกิลเริ่มต้นทุกอาชีพ'}</small>${id!=='first_aid'&&reason?`<small class="skill-reason">${esc(reason)}</small>`:''}${pending?'<small class="skill-tree-draftnote">แต้มร่างยังไม่ส่งผลในเกม · ค่า SP แสดงระดับที่เรียนจริง</small>':''}${SkillRules.isPassive(id)?'<small class="skill-tree-draftnote">ทำงานอัตโนมัติเมื่อยืนยันเรียน · ไม่ใช้ช่อง Hotbar</small>':`<div class="skill-actions">${button('skill','ใช้สกิล',id,`class="skill-use" aria-label="ใช้ ${esc(d.name)}"${s.skills[id]?'':' disabled'}`)}</div>`}</aside>`:'';
+    return `<div class="skill-atlas-layout"><div class="skill-atlas-boards">${groups?`<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${groups}</section>`:'<p class="panel-note">ชาวบ้าน Job Lv.10 เลือก Class 1 กับครูอินเพื่อเปิดผังอาชีพ</p>'}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3>สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n=>tile(n,true)).join('')}</section></div>${detail}</div><div class="skill-plan-bar"><div>ใช้ในแผน <b data-plan-spent>${plan.spent}</b> · เหลือ <b data-plan-remaining>${plan.remaining}</b> แต้ม</div><div class="skill-plan-actions"><button data-plan-reset${plan.spent?'':' disabled'}>ล้างแผน</button><button data-plan-apply class="primary"${plan.spent?'':' disabled'}>ยืนยันเรียน</button></div><small class="skill-plan-hint">− ลดได้เฉพาะแต้มร่าง · ปิดหน้าต่างจะยกเลิกแต้มที่ยังไม่ยืนยัน</small></div>`;
+  }
+  function rerenderSkillTree(selector) {
+    const scroll=$("panel-window").scrollTop;
+    renderPanel();
+    const el=$("side-panel").querySelector(selector);
+    (el&&!el.disabled?el:$("side-panel").querySelector(`[data-skill-select="${selectedTreeSkill}"]`))?.focus({preventScroll:true});
+    $("panel-window").scrollTop=scroll;
+  }
+  function updateSkillAllocation() {
+    if(panel!=="skills"||skillsTab!=="tree")return;
+    const tree=window.BCSkillTree,plan=tree.validateAllocation(state,skillAllocation);
+    if(!plan.ok){skillAllocation=tree.createAllocation(state);renderPanel();return;}
+    for(const [selector,value]of [['[data-skill-points]',state.skillPoints],['[data-plan-spent]',plan.spent],['[data-plan-remaining]',plan.remaining]]) {
+      const el=$("side-panel").querySelector(selector);if(el&&el.textContent!==String(value))el.textContent=value;
+    }
+    const reason=$("side-panel").querySelector('.skill-tree-detail .skill-reason');
+    if(reason){const text=C.learnReason(state,selectedTreeSkill);if(reason.textContent!==text)reason.textContent=text;reason.hidden=!text;}
+    $("side-panel").querySelectorAll('[data-skill-adjust]').forEach(el=>{const id=el.dataset.skillAdjust;el.disabled=el.dataset.delta==='1'?plan.remaining<1||plan.levels[id]>=D.skills[id].max:!(skillAllocation.increments[id]>0);});
+  }
+  function applySkillAllocation() {
+    if(!readyForAction())return;
+    const plan=window.BCSkillTree.validateAllocation(state,skillAllocation);
+    if(!plan.ok||!plan.spent){toast(plan.message||"เพิ่มแต้มในแผนก่อนยืนยัน");renderPanel();return;}
+    const result=C.act(state,"learn-plan",skillAllocation);
+    if(result.ok){skillAllocation=window.BCSkillTree.createAllocation(state);save();}
+    if(result.message)toast(result.message);
+    updateHUD();rerenderSkillTree(`[data-skill-select="${selectedTreeSkill}"]`);
   }
   const statNumber = (value) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 1, useGrouping: false });
   function statBuild(s, st) {
@@ -582,6 +621,7 @@
     return `<div class="stat-summary" aria-label="พลังต่อสู้">${cells.map(([id, label, value, help]) => `<div title="${esc(help)}"><span>${label}</span><b data-derived="${id}">${typeof value === "number" ? statNumber(value) : value}</b></div>`).join("")}</div><details class="stat-details"><summary>รายละเอียดพลังป้องกันและฟื้นฟู</summary><dl class="stat-detail-grid"><div><dt>ATK พื้นฐาน + อุปกรณ์</dt><dd>${contribution(st.baseAtk, st.gearAtk)}</dd></div><div><dt>MATK พื้นฐาน + อุปกรณ์</dt><dd>${contribution(st.baseMatk, st.gearMatk)}</dd></div><div><dt>DEF พื้นฐาน + เกราะ</dt><dd>${contribution(st.softDef, st.hardDef)}</dd></div><div><dt>MDEF พื้นฐาน + เกราะเวท</dt><dd>${contribution(st.softMdef, st.hardMdef)}</dd></div><div><dt>HP / SP สูงสุด</dt><dd>${st.maxHp} / ${st.maxSp}</dd></div><div><dt>ฟื้น HP / SP ทุก 4 วินาที</dt><dd><span data-derived="hpRegen">${st.hpRegen}</span> / <span data-derived="spRegen">${st.spRegen}</span></dd></div><div><dt>หลบสมบูรณ์ (ตีปกติกายภาพ)</dt><dd>${statNumber(st.perfectDodge)}%</dd></div><div><dt>ความจุน้ำหนัก</dt><dd>${st.capacity}</dd></div></dl><p class="panel-note">เกราะลดความเสียหายด้วย 100 / (100 + เกราะ) แล้วหักป้องกันพื้นฐาน ×0.25 แยก DEF / MDEF ตามชนิดโจมตี ค่าคริติคอลใช้กับตีปกติกายภาพเท่านั้น</p><p class="panel-note">ฟื้นฟูทุก 4 วินาทีเมื่อน้ำหนักต่ำกว่า 50% · VIT เพิ่มผลยา HP, INT เพิ่มผลยา SP · AGI ไม่เพิ่มความเร็วเดินหรือทำให้คูลดาวน์สกิลสั้นลง</p></details>`;
   }
   function renderPanel() {
+    $("panel-window").classList.toggle("skill-tree-window",panel==="skills"&&skillsTab==="tree");
     $("panel-title").textContent = titleNames[panel] + (["status", "equipment"].includes(panel) ? ` · ${className(state)}` : "");
     const s = state,
       st = C.stats(s);
@@ -633,7 +673,7 @@
     if (panel === "skills") {
       const ids = C.skillsFor(s);
       const passiveCount = ids.filter(id => SkillRules.isPassive(id)).length;
-      html = `<div class="skills-tabs" role="tablist" aria-label="มุมมองสกิล">${[["current", "สกิลปัจจุบัน"], ["tree", "ผังสกิลอาชีพ"]].map(([id, label]) => `<button id="skills-tab-${id}" data-skills-tab="${id}" role="tab" aria-selected="${skillsTab === id}" aria-controls="skills-tabpanel" tabindex="${skillsTab === id ? 0 : -1}">${label}</button>`).join("")}</div><div id="skills-tabpanel" role="tabpanel" aria-labelledby="skills-tab-${skillsTab}"><p class="panel-note">${esc(className(s))} · ${classLabel(s)} · แต้มสกิล <b data-skill-points>${s.skillPoints}</b><br>กดใช้ ${ids.length - passiveCount} · ติดตัว ${passiveCount} · รวมปฐมพยาบาลและสกิลที่สืบทอด<br>สกิลอาชีพใช้ 1 แต้มต่อระดับ · สกิลติดตัวทำงานทันทีเมื่อเรียน</p>`;
+      html = `<div class="skills-tabs" role="tablist" aria-label="มุมมองสกิล">${[["current", "สกิลปัจจุบัน"], ["tree", "ผังสกิลอาชีพ"]].map(([id, label]) => `<button id="skills-tab-${id}" data-skills-tab="${id}" role="tab" aria-selected="${skillsTab === id}" aria-controls="skills-tabpanel" tabindex="${skillsTab === id ? 0 : -1}">${label}</button>`).join("")}</div><div id="skills-tabpanel" role="tabpanel" aria-labelledby="skills-tab-${skillsTab}"><div class="${skillsTab==='tree'?'skill-tree-summary':'panel-note'}"><span>${esc(className(s))} · ${classLabel(s)}</span><span>แต้มสกิล <b data-skill-points>${s.skillPoints}</b> · กดใช้ ${ids.length-passiveCount} / ติดตัว ${passiveCount}</span></div>`;
       if (skillsTab === "tree") html += skillTree(s);
       else {
         for (const id of ids) html += skillCard(s, id);
@@ -846,6 +886,7 @@
     if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
     updateHotbar();
     updateSkillReadiness();
+    updateSkillAllocation();
     let statusBar=$("active-skill-status");
     if(!statusBar){statusBar=document.createElement("div");statusBar.id="active-skill-status";statusBar.setAttribute("aria-label","สถานะสกิล");document.querySelector(".card.character").append(statusBar);}
     const statuses=Object.entries(s.classCombat?.buffs||{}).filter(([,b])=>b.remaining>0&&!("shieldRemaining" in b&&b.shieldRemaining<=0)&&!("empowerRemaining" in b&&b.empowerRemaining<=0)).map(([id,b])=>`${D.skills[id]?.name||"บัฟ"} ${Math.ceil(b.remaining)}s${b.shieldRemaining>0?` · โล่ ${Math.ceil(b.shieldRemaining)}`:""}`);
@@ -968,6 +1009,32 @@
   document.addEventListener("click", (event) => {
     const b = event.target.closest("button");
     if (!b) return;
+    if (b.dataset.skillSelect) {
+      const id=b.dataset.skillSelect;
+      if(panel!=="skills"||skillsTab!=="tree"||!C.skillAvailable(state,id))return;
+      selectedTreeSkill=id;
+      rerenderSkillTree(`[data-skill-select="${id}"]`);
+      return;
+    }
+    if (b.dataset.skillAdjust) {
+      if(panel!=="skills"||skillsTab!=="tree")return;
+      const id=b.dataset.skillAdjust,delta=Number(b.dataset.delta);
+      const result=window.BCSkillTree.adjustAllocation(state,skillAllocation,id,delta);
+      if(!result.ok){toast(result.message);return;}
+      skillAllocation=result.draft;selectedTreeSkill=id;
+      rerenderSkillTree(`[data-skill-adjust="${id}"][data-delta="${delta}"]`);
+      return;
+    }
+    if (b.hasAttribute("data-plan-apply")) {
+      if(panel==="skills"&&skillsTab==="tree")applySkillAllocation();
+      return;
+    }
+    if (b.hasAttribute("data-plan-reset")) {
+      if(panel!=="skills"||skillsTab!=="tree")return;
+      skillAllocation=window.BCSkillTree.createAllocation(state);
+      rerenderSkillTree(`[data-skill-select="${selectedTreeSkill}"]`);
+      return;
+    }
     if (b.dataset.skillsTab) {
       skillsTab = b.dataset.skillsTab === "tree" ? "tree" : "current";
       renderPanel();

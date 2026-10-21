@@ -441,6 +441,23 @@
       s.player.sp = Math.min(s.player.sp, reset.maxSp);
       return ok(`รีสเตตัสฟรี • คืน ${refund} แต้ม`);
     }
+    if (action === "learn-plan") {
+      const record = value => value && typeof value === "object" && !Array.isArray(value);
+      if (p.classId !== s.classId || !record(p.baseline) || !record(p.increments)) return fail("แผนสกิลไม่ตรงกับตัวละครปัจจุบัน");
+      const accessible = skillsFor(s).filter(id => D.skills[id].owner);
+      if (Object.keys(p.baseline).length !== accessible.length || accessible.some(id => !own(p.baseline,id) || p.baseline[id] !== s.skills[id])) return fail("ระดับสกิลเปลี่ยนไปแล้ว • จัดแผนใหม่อีกครั้ง");
+      const entries = Object.entries(p.increments);
+      if (!entries.length || entries.length > accessible.length) return fail("ยังไม่ได้เพิ่มแต้มในแผน");
+      let cost = 0;
+      for (const [id,count] of entries) {
+        if (!accessible.includes(id) || !Number.isInteger(count) || count < 1 || count > D.skills[id].max || learnReason(s,id) || s.skills[id]+count>D.skills[id].max) return fail("แผนสกิลไม่ถูกต้องหรือระดับเกินกำหนด");
+        cost += count;
+      }
+      if (!Number.isInteger(s.skillPoints) || s.skillPoints < cost) return fail("แต้มสกิลไม่พอสำหรับแผนนี้");
+      for (const [id,count] of entries) s.skills[id] += count;
+      s.skillPoints -= cost;
+      return ok(`ยืนยันเรียนสกิลแล้ว • ใช้ ${cost} แต้ม`);
+    }
     if (action === "learn") {
       const reason = learnReason(s, p.id);
       if (reason) return fail(reason);

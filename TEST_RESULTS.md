@@ -1,4 +1,16 @@
-# 1.17 verification — 2026-10-20
+# 1.18 verification — 2026-10-21
+
+User scope: change the skill-tree page to compact icon boards resembling the supplied planner layout. The user selected staged allocation: minus/plus edits an unconfirmed draft, then one confirmation learns the complete plan.
+
+- `node --test tests/*.test.js` — **256 passed, 0 failed, 0 skipped** on the final runtime. New coverage includes 15 pure allocation tests and three atomic plan-commit tests. All 61 skills, 58 Effect Parts, 59 items and original combat values remain unchanged; retained state/save/RNG parity still covers 15,092 checkpoints.
+- The tree groups current/inherited Class 1 and Class 2 skills into four-column desktop/two-column mobile icon boards, with a compact shared First Aid row. Selecting an icon exposes the actual description, SP/CD/range, passive type and Job/trial requirement. Only the tree tab uses the wider modal; current-skill cards retain their existing immediate single-level learning.
+- The pure draft records class and learned-level baseline. Previewing changes no learned skills, stats, combat, RNG or save. Minus removes only pending additions, never learned levels. Closing/importing invalidates the draft; class or learned-level changes invalidate stale plans. New Job points may increase the available budget while farming continues.
+- `learn-plan` validates every requested skill, baseline, count, max level, class access and total cost before mutating anything. Confirmation spends exactly the planned cost once; stale/double/foreign/unaffordable requests apply no partial entries. No refund/respec or additional skill points are introduced. Successful confirmation persists through the existing save path; skill schema version 2 and storage key remain unchanged.
+- `python scripts/test_browser.py --base-url http://127.0.0.1:8772/ --artifacts /workspace/skillgrid118/browser-local-final` — **6 suites passed, 0 failed**, with zero page errors, failed requests, HTTP errors or cache errors. The exact release-label assertion was updated to 1.18; all gameplay assertions remain.
+- Native Chromium checks at **1440×900, 390×844 and 700×390** click all nine Class 2/shared icons and exercise real plus/minus controls without forced clicks. Preview/cancel/confirm, max/point limits, disabled committed-minus, exact saved progress, reload/import/close, keyboard Enter/Tab/Escape and live Auto combat are covered. An independent review reproduced the short-landscape sticky-detail interception before the CSS fix; the corrected layout scrolls normally and all icon/control clicks pass. Live point growth also clears stale insufficient-point text.
+- Python compilation and `git diff --check` pass. Packaging retains **52 runtime / 21 JS / 51 public content / 27 unchanged image files**, and now **89 source files**. Existing original SVG icons are reused; no reference-site artwork, extra runtime module, bitmap or dependency is added.
+
+# Historical 1.17 verification — 2026-10-20
 
 User scope: implement the approved complete skill sets for five Class 1 paths and ten Class 2 branches, together with their composable Effect Parts, then update the playable game.
 
