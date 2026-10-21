@@ -55,7 +55,9 @@
       interval, aspd: 200 - 50 * interval, primaryStat: profile.primaryStat, basicMagic: profile.basicMagic,
       hpRegen: 2 + Math.floor(a.vit / 5) + Math.floor(hp / 200), spRegen: 2 + Math.floor(a.int / 6) + Math.floor(sp / 100),
       hpItemMultiplier: 1 + a.vit * 0.02, spItemMultiplier: 1 + a.int * 0.01,
-      weight, capacity: 2000 + a.str * 30,
+      // Level growth gives every weapon path room for a long farming trip;
+      // STR retains its carrying bonus without burdening INT/DEX builds.
+      weight, capacity: 6000 + (s.baseLevel || 1) * 800 + a.str * 30,
     };
   }
   const damageTaken = (power, soft, hard, multiplier = 1) => Math.max(1, Math.round((power * 100 / (100 + Math.max(0, hard)) - Math.max(0, soft) * 0.25) * multiplier));

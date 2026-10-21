@@ -5,13 +5,13 @@ The browser runner additionally uses Python Playwright and Chromium (this cloud
 environment has `/usr/bin/chromium`). Commands run from the repository root.
 
 ```sh
-python scripts/release_site.py stage --out /workspace/skillgrid118/release-1.18
-python scripts/release_site.py verify-stage --stage /workspace/skillgrid118/release-1.18
+python scripts/release_site.py stage --out /workspace/trade119/release-1.19
+python scripts/release_site.py verify-stage --stage /workspace/trade119/release-1.19
 ```
 
 The output contains `site/` with exactly 52 runtime files (21 JavaScript modules,
 27 WebP images, index, CSS, license and `.nojekyll`), `Borderlands-Site.zip`
-with those same files, and `Siam-Arun-1.18.zip` with allowlisted authored source,
+with those same files, and `Siam-Arun-1.19.zip` with allowlisted authored source,
 tests, documentation and scripts from Git's tracked/untracked file inventory.
 The runtime loads `skill-rules.js` immediately after `classic-data.js`, before
 `item-rules.js` and `stat-rules.js`. The effect modules load in the order
@@ -33,8 +33,8 @@ build finishes, verify every public content file:
 
 ```sh
 python scripts/release_site.py verify-public \
-  --stage /workspace/skillgrid118/release-1.18 \
-  --out /workspace/skillgrid118/public-1.18
+  --stage /workspace/trade119/release-1.19 \
+  --out /workspace/trade119/public-1.19
 ```
 
 This fetches 51 content files (`.nojekyll` is a deployment marker), with normal
@@ -48,10 +48,10 @@ the checkout or the staged `site/` directory, then run:
 
 ```sh
 python scripts/test_browser.py --url http://127.0.0.1:8765/ \
-  --artifacts /workspace/skillgrid118/browser-local
+  --artifacts /workspace/trade119/browser-local
 python scripts/test_browser.py \
-  --public-cache /workspace/skillgrid118/public-1.18 \
-  --artifacts /workspace/skillgrid118/browser-public
+  --public-cache /workspace/trade119/public-1.19 \
+  --artifacts /workspace/trade119/browser-public
 ```
 
 The runner imports `run_checks(page)` from every `tests/*_ui.py` and, when

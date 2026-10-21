@@ -57,14 +57,15 @@ test('approved catalog has exactly 61 matching Thai names, four native skills an
   }
   assert.equal(Object.values(D.skills).filter(skill => skill.kind === 'passive').length, 15);
   assert.equal(Object.values(D.skills).filter(skill => skill.owner && skill.kind !== 'passive').length, 45);
-  assert.equal(D.world.release, '1.18');
+  assert.equal(D.world.release, '1.19');
 });
 
-test('all original signatures and item bytes retain their exact balance and descriptions', () => {
+test('original signatures and non-weight item properties retain exact balance and descriptions', () => {
   const originals = Object.fromEntries(Object.entries(originalExtras).map(([id, extras]) => [id, Object.fromEntries([...baseKeys, ...extras].map(key => [key, D.skills[id][key]]))]));
   originals.first_aid = Object.fromEntries(['name','thai','max','sp','cooldown','icon','description','color'].map(key => [key, D.skills.first_aid[key]]));
   assert.equal(digest(originals), 'a6e1360ab3d4af6a2ecbdc96eb1ad158d52a601ba00a8bf6bf0d102424a863e4');
-  assert.equal(digest(D.items), '7f21e88241ecc7ecffd92ed65e724a173029be3d4da07804d04c920260fcacc3');
+  const itemsWithoutWeights=Object.fromEntries(Object.entries(D.items).map(([id,{weight,...item}])=>[id,item]));
+  assert.equal(digest(itemsWithoutWeights), 'c76ddb1c7806958caa7339af26314a31047a65056e9ac99fc576b8c6551083fc');
   assert.equal(Object.keys(D.items).length, 59);
   for (const [classId, info] of Object.entries(D.classes)) assert.equal(info.skill, classId === 'acolyte' ? 'ward_script' : native[classId][0]);
 });

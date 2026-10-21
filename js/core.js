@@ -337,30 +337,16 @@
       return ok(`ใช้ ${i.name}`);
     }
     if (action === "buy" || action === "sell") {
-      if (!nearby(s, "merchant"))
-        return fail(`เดินเข้าใกล้${npcName("merchant")}ที่${D.maps[0].name}`);
-      const qty = p.qty === undefined ? 1 : p.qty;
-      if (!Number.isInteger(qty) || qty < 1 || qty > 999)
-        return fail("จำนวนไม่ถูกต้อง");
-      if (typeof p.id !== "string" || !own(D.items, p.id)) return fail("ไม่พบไอเทม");
-      const i = D.items[p.id];
-      if (action === "buy") {
-        const price = Items.buyPrice(p.id);
-        if (price === null) return fail("ร้านไม่ขายไอเทมนี้");
-        if (s.silver < price * qty) return fail(`${D.world.currency}ไม่เพียงพอ`);
-        if ((s.inventory[p.id] || 0) + qty > 100000) return fail("ไอเทมชนิดนี้เต็มกระเป๋าแล้ว");
-        if (st.weight + i.weight * qty > st.capacity)
-          return fail("น้ำหนักเกินความจุ");
-        s.silver -= price * qty;
-        s.inventory[p.id] = (s.inventory[p.id] || 0) + qty;
+      const quote=Items.tradeQuote(s,p.id,action,p.qty===undefined?1:p.qty,st);
+      if(!quote.ok)return fail(quote.message);
+      const i=D.items[p.id],qty=quote.quantity;
+      if(action==="buy") {
+        s.silver-=quote.total;
+        s.inventory[p.id]=quote.owned+qty;
       } else {
-        const price = Items.sellPrice(p.id);
-        if (!price) return fail("ขายไอเทมนี้ไม่ได้");
-        if ((s.inventory[p.id] || 0) < qty) return fail("จำนวนไอเทมไม่เพียงพอ");
-        if (s.silver + price * qty > 100000000) return fail("จำนวนอัฐเต็มแล้ว");
-        s.inventory[p.id] -= qty;
-        if (!s.inventory[p.id]) delete s.inventory[p.id];
-        s.silver += price * qty;
+        s.inventory[p.id]-=qty;
+        if(!s.inventory[p.id])delete s.inventory[p.id];
+        s.silver+=quote.total;
       }
       return ok(`${action === "buy" ? "ซื้อ" : "ขาย"} ${i.name} ×${qty}`);
     }

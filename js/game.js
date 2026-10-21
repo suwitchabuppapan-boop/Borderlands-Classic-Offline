@@ -50,6 +50,9 @@
     protectStorage = false,
     storageError = "";
   const keys = new Set();
+  const tradeQuantities = new Map();
+  const numberText = value => Number(value).toLocaleString("en-US",{maximumFractionDigits:1});
+  const tradeQuantity = value => /^\d+$/.test(String(value).trim()) ? Number(value) : NaN;
   try {
     const saved = localStorage.getItem(D.saveKey);
     if (saved) {
@@ -150,6 +153,7 @@
     questBlockNotice = "";
     skillAllocation = null;
     selectedTreeSkill = null;
+    tradeQuantities.clear();
     state = next;
     simulation.reset(Date.now());
     clearManualMovement();
@@ -429,6 +433,42 @@
   const itemSources = (id) => `<details class="item-source-help"><summary>แหล่งที่ได้และโอกาสดรอป</summary>${sourceRows(id)}</details>`;
   const itemRow = (id, count, actions) =>
     `<div class="item-row" data-item="${id}"${D.items[id].weaponType ? ` data-weapon-type="${D.items[id].weaponType}"` : ""}>${icon(id)}<div class="item-info"><b>${esc(D.items[id].name)}${count === null ? "" : ` <span class="subtle">×${count}</span>`}</b><small class="item-availability availability-${window.BCItemRules.availability(id)}">${availabilityNames[window.BCItemRules.availability(id)] || ""}</small><small>${esc(itemMeta(D.items[id]))}</small><small class="item-prices">${esc(itemPrices(id))}</small>${itemSources(id)}</div><div class="item-actions">${actions}</div></div>`;
+  function tradeControls(s,id,mode) {
+    const raw=tradeQuantities.get(`${mode}:${id}`)??"1",q=window.BCItemRules.tradeQuote(s,id,mode,tradeQuantity(raw),C.stats(s));
+    const name=mode==="buy"?"ซื้อ":"ขาย",inputId=`trade-${mode}-${id}`;
+    return `<div class="trade-controls" data-trade-mode="${mode}" data-trade-id="${id}"><label for="${inputId}">จำนวน${name}</label><div class="trade-amount"><button data-trade-adjust="-1" aria-label="ลดจำนวน${name} ${esc(D.items[id].name)}">−</button><input id="${inputId}" data-trade-qty type="number" inputmode="numeric" min="1" max="${q.limit}" step="1" value="${esc(raw)}" aria-label="จำนวน${name} ${esc(D.items[id].name)}"><button data-trade-adjust="1" aria-label="เพิ่มจำนวน${name} ${esc(D.items[id].name)}">+</button><button data-trade-max title="สูงสุดตามของ เงิน และน้ำหนักขณะนี้"${q.maxQuantity?'':' disabled'}>สูงสุด</button></div><small data-trade-owned></small><small class="trade-total" data-trade-total></small><small class="trade-weight" data-trade-weight></small><small class="shop-reason" data-trade-reason></small>${button(mode,name,id,`${q.ok?'':'disabled '}class="trade-submit"`)}</div>`;
+  }
+  function weightSummary(s,st) {
+    const percent=st.weight/st.capacity*100,status=percent>=90?"over":percent>=50?"heavy":"normal";
+    return `<div class="inventory-weight-summary" data-weight-status="${status}"><b>น้ำหนัก <span data-bag-weight>${numberText(st.weight)}</span> / <span data-bag-capacity>${numberText(st.capacity)}</span> · <span data-bag-percent>${percent.toFixed(1)}%</span></b><progress max="${st.capacity}" value="${Math.min(st.weight,st.capacity)}" aria-label="น้ำหนักกระเป๋า"></progress><small>เหลือ ${numberText(Math.max(0,st.capacity-st.weight))} · เงิน <span data-trade-money>${numberText(s.silver)}</span> ${esc(world.currency)}</small><small>50% หยุดฟื้น HP/SP · 90% หยุดโจมตี</small></div>`;
+  }
+  function heavyItems(s) {
+    const rows=Object.entries(D.items).map(([id,item])=>{const count=s.inventory[id]||0,worn=Object.values(s.equipment).filter(value=>value===id).length;return{id,count,worn,total:(count+worn)*item.weight};}).filter(row=>row.total>0).sort((a,b)=>b.total-a.total||a.id.localeCompare(b.id)).slice(0,3);
+    return `<b>ของที่หนักที่สุด</b><ul>${rows.map(row=>`<li>${esc(D.items[row.id].name)} · ${row.count?`กระเป๋า ${numberText(row.count)}`:''}${row.count&&row.worn?' + ':''}${row.worn?`สวม ${row.worn}`:''} × ${D.items[row.id].weight} = <b>${numberText(row.total)}</b></li>`).join('')}</ul><small>นับของสวมใส่ครั้งเดียว · ช่องเพิ่มตามชนิดไอเทม จำกัดด้วยน้ำหนัก</small>`;
+  }
+  function updateTrades() {
+    if(!["inventory","shop"].includes(panel))return;
+    const st=C.stats(state),root=$("side-panel");
+    const set=(el,text)=>{if(el&&el.textContent!==text)el.textContent=text;};
+    root.querySelectorAll('.trade-controls').forEach(box=>{
+      const id=box.dataset.tradeId,mode=box.dataset.tradeMode,input=box.querySelector('[data-trade-qty]');
+      const q=window.BCItemRules.tradeQuote(state,id,mode,tradeQuantity(input.value),st);
+      const valid=q.quantity>0&&Number.isFinite(q.total),weight=valid&&Number.isFinite(q.weightAfter)&&q.weightAfter>=0;
+      set(box.querySelector('[data-trade-owned]'),`มีในกระเป๋า ${numberText(q.owned)} · ต่อชิ้น ${numberText(q.unitPrice??0)} ${world.currency}`);
+      set(box.querySelector('[data-trade-total]'),valid?`รวม ${numberText(q.total)} ${world.currency}`:'ระบุจำนวนเต็มตั้งแต่ 1');
+      set(box.querySelector('[data-trade-weight]'),weight?`น้ำหนักหลัง${mode==='buy'?'ซื้อ':'ขาย'} ${numberText(q.weightAfter)} / ${numberText(st.capacity)} (${(q.weightAfter/st.capacity*100).toFixed(1)}%)`:'น้ำหนักหลังรายการ —');
+      set(box.querySelector('[data-trade-reason]'),q.ok?'':q.message);
+      box.querySelector('.trade-submit').disabled=!q.ok;box.querySelector('[data-trade-max]').disabled=q.maxQuantity<1;
+      box.querySelector('[data-trade-adjust="-1"]').disabled=!(q.quantity>1);
+      box.querySelector('[data-trade-adjust="1"]').disabled=q.quantity>=q.limit;
+      input.setAttribute('aria-invalid',String(!Number.isSafeInteger(tradeQuantity(input.value))||tradeQuantity(input.value)<1||tradeQuantity(input.value)>q.limit));
+    });
+    const summary=root.querySelector('.inventory-weight-summary');
+    if(summary){const signature=JSON.stringify([st.weight,st.capacity,state.silver]);if(summary.dataset.signature!==signature){summary.dataset.signature=signature;const replacement=document.createElement('div');replacement.innerHTML=weightSummary(state,st);summary.replaceWith(replacement.firstElementChild);root.querySelector('.inventory-weight-summary').dataset.signature=signature;}}
+    const heavy=root.querySelector('.inventory-heavy-list');if(heavy){const html=heavyItems(state);if(heavy.innerHTML!==html)heavy.innerHTML=html;}
+    set(root.querySelector('[data-bag-footer-weight]'),`Wt. ${numberText(st.weight)} / ${numberText(st.capacity)}`);
+    set(root.querySelector('[data-bag-footer-money]'),`◈ ${numberText(state.silver)} ${world.currency}`);
+  }
   function itemCatalog() {
     const ids = catalogCollection === "all" ? Object.keys(D.items) : D.itemCatalog[catalogCollection];
     const query = catalogSearch.trim().toLocaleLowerCase("th");
@@ -639,16 +679,14 @@
       const allItems = Object.entries(s.inventory).filter(([, count]) => count > 0);
       const items = allItems.filter(([id]) => inventoryCategory === "all" || (inventoryCategory === "equip" ? equipmentTypes.includes(D.items[id].type) : D.items[id].type === inventoryCategory));
       if (!items.some(([id]) => id === selectedInventoryItem)) selectedInventoryItem = items[0]?.[0] || null;
-      html = `<div class="inventory-tabs">${[["all","ทั้งหมด"],["use","ยา"],["equip","อุปกรณ์"],["loot","ของดรอป"]].map(([category,name]) => `<button data-item-category="${category}" aria-pressed="${inventoryCategory === category}">${name}</button>`).join("")}<span class="inventory-count">${allItems.length} ชนิด</span></div><div class="inventory-grid">`;
+      html = weightSummary(s,st)+`<div class="inventory-heavy-list">${heavyItems(s)}</div><div class="inventory-tabs">${[["all","ทั้งหมด"],["use","ยา"],["equip","อุปกรณ์"],["loot","ของดรอป"]].map(([category,name]) => `<button data-item-category="${category}" aria-pressed="${inventoryCategory === category}">${name}</button>`).join("")}<span class="inventory-count">${allItems.length} ชนิด</span></div><div class="inventory-grid">`;
       for (const [id, count] of items) html += `<button class="inventory-tile" data-choose-item="${id}" aria-pressed="${id === selectedInventoryItem}" aria-label="${D.items[id].name} ×${count}" title="${D.items[id].name}">${icon(id)}<span class="quantity">${count}</span></button>`;
       for (let i = items.length; i < Math.max(24, Math.ceil(items.length / 8) * 8); i++) html += '<div class="inventory-empty-slot" aria-hidden="true"></div>';
-      html += `</div><div class="inventory-footer"><span>Wt. ${st.weight} / ${st.capacity}</span><span>◈ ${s.silver.toLocaleString()} ${esc(world.currency)}</span></div>`;
+      html += `</div><div class="inventory-footer"><span data-bag-footer-weight>Wt. ${numberText(st.weight)} / ${numberText(st.capacity)}</span><span data-bag-footer-money>◈ ${s.silver.toLocaleString()} ${esc(world.currency)}</span></div>`;
       if (selectedInventoryItem) {
         const id = selectedInventoryItem, i = D.items[id];
         let actions = i.type === "use" ? button("use", "ใช้", id) : equipmentTypes.includes(i.type) ? button("equip", "สวมใส่", id, C.equipReason(s, id) ? `disabled title="${esc(C.equipReason(s, id))}"` : "") : "";
-        const sale = window.BCItemRules.sellPrice(id);
-        const sellReason = sale ? "" : "ไอเทมนี้ขายไม่ได้";
-        actions += button("sell", sellReason || `ขาย ${sale} ${esc(world.currency)}`, id, sellReason ? `disabled title="${esc(sellReason)}"` : "");
+        actions += tradeControls(s,id,"sell");
         html += `<div class="inventory-detail">${itemRow(id, s.inventory[id], "")}<div class="item-actions">${actions}</div>${equipmentTypes.includes(i.type) && C.equipReason(s,id) ? `<small class="shop-reason">${esc(C.equipReason(s,id))}</small>` : ""}</div>`;
       } else html += '<p class="empty">ไม่มีไอเทมในหมวดนี้</p>';
       html += `<p class="panel-note" style="margin-top:7px">เลือกไอเทมเพื่อใช้หรือสวมใส่ · ขายได้ใกล้${esc(npc("merchant").name)}<br>น้ำหนัก 50% หยุดฟื้น HP/SP · 90% ห้ามโจมตี</p>`;
@@ -700,7 +738,7 @@
         : s.zone === 0
           ? `ยังอยู่ไกล · ต้องเดินเข้าใกล้${npc("merchant").name}ก่อนซื้อขาย`
           : `กลับ${D.maps[0].name}ผ่านประตูแผนที่ แล้วไปหา${npc("merchant").name}เพื่อซื้อขาย`;
-      html = `<p class="panel-note">${esc(npc("merchant").dialogue)}<br>เงิน ${s.silver} ${esc(world.currency)}<br>${esc(location)}</p>`;
+      html = weightSummary(s,st)+`<p class="panel-note">${esc(npc("merchant").dialogue)}<br>${esc(location)}</p>`;
       if (!near && s.zone === 0)
         html += `<div class="settings-actions">${button("walk-shop", `เดินไปหา${esc(npc("merchant").name)}`, "", 'class="primary"')}</div>`;
       const groups = [["weapon", "อาวุธ"], ["use", "ยาและเสบียง"], ["head", "เครื่องศีรษะ"], ["armor", "เกราะ"], ["accessory", "เครื่องประดับ"]];
@@ -710,12 +748,7 @@
         for (const [id, d] of Object.entries(D.items)) {
           const price = window.BCItemRules.buyPrice(id);
           if (price === null || d.type !== type || (type === "weapon" && shopWeaponType && d.weaponType !== shopWeaponType)) continue;
-          const reason = !near ? location : s.silver < price
-            ? `${world.currency}ไม่เพียงพอ`
-            : st.weight + d.weight > st.capacity ? "น้ำหนักเกินความจุ" : "";
-          const unavailable = reason ? `disabled title="${esc(reason)}"` : "";
-          const explanation = near && reason ? `<small class="shop-reason">${esc(reason)}</small>` : "";
-          html += itemRow(id, null, button("buy", `ซื้อ · ${price} ${esc(world.currency)}`, id, unavailable) + explanation);
+          html += itemRow(id, null, tradeControls(s,id,"buy"));
         }
         html += "</section>";
       }
@@ -772,6 +805,7 @@
     if (["status", "equipment", "npc"].includes(panel)) $("side-panel").insertAdjacentHTML("beforeend", classSelector(s));
     if ($("equipment-portrait")) R.portrait($("equipment-portrait"), s);
     updateSkillReadiness();
+    updateTrades();
   }
   function bindingInfo(value) {
     if (!value) return { label: "ว่าง", icon: "", color: "#879c7f" };
@@ -841,7 +875,8 @@
     $("jexp-val").textContent = `${s.jexp} / ${C.jobNeed(s)}`;
     $("jexp-bar").style.width =
       Math.min(100, (s.jexp / C.jobNeed(s)) * 100) + "%";
-    $("weight-val").textContent = `${st.weight} / ${st.capacity}`;
+    $("weight-val").textContent = `${numberText(st.weight)} / ${numberText(st.capacity)}`;
+    $("weight-val").title = `น้ำหนัก ${(st.weight/st.capacity*100).toFixed(1)}% · 50% หยุดฟื้น HP/SP · 90% หยุดโจมตี`;
     $("weight-val").style.color =
       st.weight >= st.capacity * 0.5 ? "#e1ab84" : "";
     $("zone-number").textContent = "0" + (s.zone + 1);
@@ -887,6 +922,7 @@
     updateHotbar();
     updateSkillReadiness();
     updateSkillAllocation();
+    updateTrades();
     let statusBar=$("active-skill-status");
     if(!statusBar){statusBar=document.createElement("div");statusBar.id="active-skill-status";statusBar.setAttribute("aria-label","สถานะสกิล");document.querySelector(".card.character").append(statusBar);}
     const statuses=Object.entries(s.classCombat?.buffs||{}).filter(([,b])=>b.remaining>0&&!("shieldRemaining" in b&&b.shieldRemaining<=0)&&!("empowerRemaining" in b&&b.empowerRemaining<=0)).map(([id,b])=>`${D.skills[id]?.name||"บัฟ"} ${Math.ceil(b.remaining)}s${b.shieldRemaining>0?` · โล่ ${Math.ceil(b.shieldRemaining)}`:""}`);
@@ -1008,7 +1044,19 @@
   });
   document.addEventListener("click", (event) => {
     const b = event.target.closest("button");
-    if (!b) return;
+    if (!b || b.disabled) return;
+    if (b.hasAttribute("data-trade-adjust") || b.hasAttribute("data-trade-max")) {
+      const box=b.closest('.trade-controls');
+      if(!box)return;
+      const id=box.dataset.tradeId,mode=box.dataset.tradeMode,input=box.querySelector('[data-trade-qty]');
+      const q=window.BCItemRules.tradeQuote(state,id,mode,tradeQuantity(input.value),C.stats(state));
+      const current=tradeQuantity(input.value);
+      const amount=b.hasAttribute('data-trade-max')?q.maxQuantity:Math.max(1,Math.min(q.limit,(Number.isSafeInteger(current)?current:0)+Number(b.dataset.tradeAdjust)));
+      if(amount<1)return;
+      input.value=String(amount);tradeQuantities.set(`${mode}:${id}`,input.value);
+      updateTrades();input.focus({preventScroll:true});
+      return;
+    }
     if (b.dataset.skillSelect) {
       const id=b.dataset.skillSelect;
       if(panel!=="skills"||skillsTab!=="tree"||!C.skillAvailable(state,id))return;
@@ -1083,6 +1131,16 @@
     const a = b.dataset.act;
     if (!a) return;
     if (!readyForAction()) return;
+    if (a === "buy" || a === "sell") {
+      const box=b.closest('.trade-controls');
+      if(!box)return;
+      const id=box.dataset.tradeId,input=box.querySelector('[data-trade-qty]'),scroll=$("panel-window").scrollTop;
+      tradeQuantities.set(`${a}:${id}`,input.value);
+      run(a,{id,qty:tradeQuantity(input.value)});
+      $("panel-window").scrollTop=scroll;
+      $("side-panel").querySelector(`[data-trade-mode="${a}"][data-trade-id="${id}"] [data-trade-qty]`)?.focus({preventScroll:true});
+      return;
+    }
     if (a === "auto-quest" || a === "auto-quest-stop") {
       toggleQuestAuto(a);
       return;
@@ -1113,6 +1171,7 @@
           "เริ่มเกมใหม่และแทนที่เซฟปัจจุบัน? หากต้องการเก็บความคืบหน้า ให้ยกเลิกแล้ว Export ก่อน",
         )
       ) {
+        tradeQuantities.clear();
         state = C.createState();
         simulation.reset(Date.now());
         clearManualMovement();
@@ -1174,6 +1233,11 @@
   }, true);
   document.addEventListener("input", (event) => {
     const el = event.target;
+    if (el.matches('[data-trade-qty]')) {
+      const box=el.closest('.trade-controls');
+      tradeQuantities.set(`${box.dataset.tradeMode}:${box.dataset.tradeId}`,el.value);
+      updateTrades();return;
+    }
     if (el.id !== "catalog-search") return;
     catalogSearch = el.value;
     const position = el.selectionStart;

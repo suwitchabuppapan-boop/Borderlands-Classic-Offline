@@ -10,7 +10,7 @@ const at = (s, id) => Object.assign(s.player, D.npcs.find(n => n.id === id));
 const saved = s => JSON.parse(C.serialize(s)).state;
 const economic = s => JSON.stringify({ silver:s.silver, inventory:s.inventory, equipment:s.equipment });
 
-test("retained catalog, class, skill, combat and drop data matches published 1.12", t => {
+test("retained catalog, class, skill, combat and drop data matches 1.12 except approved unit weights", t => {
   const context = { module: { exports: {} } };
   let source;
   try { source=execFileSync("git", ["show", "eefb5c3:js/classic-data.js"], {encoding:"utf8",stdio:["ignore","pipe","pipe"]}); }
@@ -18,13 +18,15 @@ test("retained catalog, class, skill, combat and drop data matches published 1.1
   vm.runInNewContext(source, context);
   const baseline = JSON.parse(JSON.stringify(context.module.exports));
   const actual = JSON.parse(JSON.stringify(D));
-  assert.equal(actual.world.release, '1.18');
+  assert.equal(actual.world.release, '1.19');
   delete actual.world.release; delete baseline.world.release;
   for(const id of ["rusty_sword","yak_greatsword"]) delete baseline.items[id];
+  // Only the approved 1.19 unit weights change; preserve all other item data.
+  for(const item of Object.values(baseline.items)) item.weight=Math.max(1,Math.ceil(item.weight/10));
   for(const id of ["bash","magnum","provoke"]) delete baseline.skills[id];
   delete baseline.itemCatalog.legacy;
   // New skills and descriptive metadata are covered by skill-catalog.test.js.
-  // Every original catalog value, primary skill and combat formula stays exact.
+  // Every other original catalog value and primary skill stays exact.
   for(const id of Object.keys(actual.skills)) if(!Object.hasOwn(baseline.skills,id)) delete actual.skills[id];
   for(const [id,skill] of Object.entries(actual.skills)) {
     for(const key of Object.keys(skill)) if(!Object.hasOwn(baseline.skills[id],key)) delete skill[key];

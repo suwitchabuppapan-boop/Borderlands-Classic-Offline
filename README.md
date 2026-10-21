@@ -4,11 +4,11 @@ A single-player Thai fantasy browser RPG. Start as a villager, choose one of fiv
 
 Play: https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/
 
-Version **1.18** gives the skill tree compact icon boards grouped by Class 1, Class 2 and shared skills. Select an icon for its description, SP cost and requirements. Desktop shows four skills per row; mobile shows two, with the selected details kept nearby.
+Version **1.19** adds quantity controls to merchant purchases and inventory sales. Type a whole number, use **− / +**, or choose **สูงสุด** for the current funds, available stock and carrying room. Check the total price and projected weight before trading. Purchases allow 1–999 items per transaction; sales allow a whole stack up to 100,000. Only items in the inventory can be sold, and trading requires proximity to the merchant.
 
-Use **− / +** to prepare an allocation, then **ยืนยันเรียน** to spend its points together. Previewing changes neither combat nor saved progress. Minus removes only unconfirmed additions; learned skills cannot be refunded. Closing the window discards the draft. The current-skills tab still supports immediate single-level learning.
+Item weights now use smaller units, with weapons weighing 4–13 and most supplies/drops weighing 1–2. Capacity is **6,000 + Base Lv. × 800 + STR × 30**; it grows with level for every class. The bag shows its live weight, percent used, free room and three heaviest item stacks. Equipped items count once. Natural recovery still stops at 50% weight and attacking at 90%. This balance targets 2–3 hours between selling trips; the actual duration depends on build, map and supplies.
 
-All 61 skills, 58 reusable Effect Parts, current-class inheritance, passive mechanics and background farming remain available. Auto Battle and Auto Quest continue while the tree is open. Existing version 1.16/1.17 progress imports retain their current rules.
+The skill tree retains compact Class 1, Class 2 and shared icon boards. Use **− / +** to prepare skill points, then **ยืนยันเรียน** to learn the complete allocation. Minus removes only unconfirmed additions. All 61 skills, 58 Effect Parts, current-class inheritance and background farming remain available. Item prices and drop chances are unchanged. Existing current-format 1.16/1.17/1.18 progress imports retain their progress and quantities; weights are recalculated from the current catalog.
 
 ## Run and test
 

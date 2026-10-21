@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build deterministic 1.18 release archives and verify deployed bytes (stdlib only)."""
+"""Build deterministic 1.19 release archives and verify deployed bytes (stdlib only)."""
 from __future__ import annotations
 
 import argparse
@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 import zipfile
 
 
-RELEASE = "1.18"
+RELEASE = "1.19"
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_BASE = "https://suwitchabuppapan-boop.github.io/Borderlands-Classic-Offline/"
 SCRIPTS = tuple("js/" + name + ".js" for name in (
@@ -90,8 +90,8 @@ def validate_runtime(files):
             url = urlsplit(reference)
             require(not url.scheme and not url.netloc and not url.fragment and url.path == name
                     and parse_qs(url.query) == {"v": [RELEASE]}, f"Wrong release/order reference: {reference}; expected {name}?v={RELEASE}")
-    require(re.search(r'id=[\"\']release-label[\"\'][^>]*>[^<]*\b1\.18\b', html), "HTML release label must be 1.18")
-    require(re.search(r'\brelease\s*:\s*[\"\']1\.18[\"\']', files["js/classic-data.js"].decode("utf-8")), "BCData release must be 1.18")
+    require(re.search(r'id=[\"\']release-label[\"\'][^>]*>[^<]*\b1\.19\b', html), "HTML release label must be 1.19")
+    require(re.search(r'\brelease\s*:\s*[\"\']1\.19[\"\']', files["js/classic-data.js"].decode("utf-8")), "BCData release must be 1.19")
     require(files[".nojekyll"] == b"", ".nojekyll must be empty")
     for name in ART:
         data = files[name]
@@ -186,13 +186,13 @@ def stage_release(args):
     (out / "runtime-manifest.json").write_bytes(json_bytes(runtime_manifest))
     (out / "source-manifest.json").write_bytes(json_bytes({"release": RELEASE, "file_count": len(source), "files": inventory(source)}))
     zip_files(out / "Borderlands-Site.zip", files)
-    zip_files(out / "Siam-Arun-1.18.zip", source)
+    zip_files(out / "Siam-Arun-1.19.zip", source)
     sums = {name: sha((out / name).read_bytes()) for name in (
-        "Borderlands-Site.zip", "Siam-Arun-1.18.zip", "runtime-manifest.json", "source-manifest.json")}
+        "Borderlands-Site.zip", "Siam-Arun-1.19.zip", "runtime-manifest.json", "source-manifest.json")}
     sums.update({"site/" + name: sha(data) for name, data in files.items()})
     (out / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in sorted(sums.items())), encoding="utf-8")
     load_stage(out)
-    print(json.dumps({"release": RELEASE, "runtime_files": len(files), "source_files": len(source), "stage": str(out / "site"), "archives": {name: sums[name] for name in ("Borderlands-Site.zip", "Siam-Arun-1.18.zip")}}, indent=2))
+    print(json.dumps({"release": RELEASE, "runtime_files": len(files), "source_files": len(source), "stage": str(out / "site"), "archives": {name: sums[name] for name in ("Borderlands-Site.zip", "Siam-Arun-1.19.zip")}}, indent=2))
 
 
 def normalize_base(base):
@@ -206,7 +206,7 @@ def fetch_file(base, name, expected, timeout):
     url = urljoin(base, quote(name))
     for attempt in range(4):
         try:
-            request = Request(url, headers={"User-Agent": "Siam-Arun-release-verifier/1.18", "Cache-Control": "no-cache", "Accept-Encoding": "identity"})
+            request = Request(url, headers={"User-Agent": "Siam-Arun-release-verifier/1.19", "Cache-Control": "no-cache", "Accept-Encoding": "identity"})
             # urlopen's default context verifies HTTPS certificates and hostnames.
             with urlopen(request, timeout=timeout) as response:
                 require(response.status == 200, f"Unexpected HTTP status for {url}: {response.status}")
