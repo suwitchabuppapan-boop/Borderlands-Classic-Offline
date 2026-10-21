@@ -10,6 +10,14 @@ User scope: change the skill-tree page to compact icon boards resembling the sup
 - Native Chromium checks at **1440×900, 390×844 and 700×390** click all nine Class 2/shared icons and exercise real plus/minus controls without forced clicks. Preview/cancel/confirm, max/point limits, disabled committed-minus, exact saved progress, reload/import/close, keyboard Enter/Tab/Escape and live Auto combat are covered. An independent review reproduced the short-landscape sticky-detail interception before the CSS fix; the corrected layout scrolls normally and all icon/control clicks pass. Live point growth also clears stale insufficient-point text.
 - Python compilation and `git diff --check` pass. Packaging retains **52 runtime / 21 JS / 51 public content / 27 unchanged image files**, and now **89 source files**. Existing original SVG icons are reused; no reference-site artwork, extra runtime module, bitmap or dependency is added.
 
+## Published 1.18
+
+- Pages commit `9876f394fe7b7000effb0a845d0f040b938393e9` completed with **built** status. Six runtime text files changed from 1.17; all 27 original image files are unchanged.
+- `python scripts/release_site.py verify-public --stage /workspace/skillgrid118/release-1.18 --out /workspace/skillgrid118/public-1.18` — **51/51 public content files match staged bytes**, fetched with normal TLS certificate/hostname verification. Index SHA-256: `1dc92ee5b04758b9e0ea009b01375ab2dc10ba9b27dbab776e6451f64fd4593b`.
+
+- `python scripts/test_browser.py --public-cache /workspace/skillgrid118/public-1.18 --artifacts /workspace/skillgrid118/browser-public` — **6 suites passed, 0 failed**, with zero page errors, failed requests, HTTP errors or unknown cache requests. All bytes are the exact TLS-fetched public files replayed at their original Pages origin, with no local runtime substitution or disabled HTTPS checking. Fresh pending-allocation screenshots at 1440/390 show planned cost 5 / remaining 3 while actual points remain 8; state/save equality is checked.
+- Runtime/source archives contain **52/89 files**. Final packaging checks exact source HEAD membership, ZIP CRC/extracted bytes, SHA manifests, all 27 baseline image bytes and equality with the verified public cache. Versioned archives are kept separately under `/workspace/shared/downloads/1.18/`; earlier archives are preserved. Source is pushed on `codex/siam-arun-combat-effects` in draft PR #2; main remains unmerged.
+
 # Historical 1.17 verification — 2026-10-20
 
 User scope: implement the approved complete skill sets for five Class 1 paths and ten Class 2 branches, together with their composable Effect Parts, then update the playable game.
