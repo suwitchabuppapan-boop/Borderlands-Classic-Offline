@@ -11,6 +11,13 @@ User scope: allow specified purchase/sale quantities and rebalance carried weigh
 - Python compilation, JavaScript syntax and `git diff --check` pass. Packaging verifies **52 runtime / 21 JS / 51 public content / 27 unchanged original image files / 92 source files**. Save storage key and skill schema version 2 remain unchanged; current-format existing progress and quantities are preserved, with catalog weights recalculated. No artwork, runtime module or dependency is added.
 - Saved cloud `start_skill` instructions describe current 1.19 source, startup, seven browser suites and 299 Node tests. Installation, networking and credentials are unchanged. This saves the reusable draft; it does not publish an environment snapshot or establish a fresh restore.
 
+## Published 1.19
+
+- Implementation source commit `6c1c5473f0622ef8f2e915f4563c1e7ddabbe7d5` is pushed on `codex/siam-arun-combat-effects`. Pages commit `2f2eb724b7bf2afc5718ddce7f798cfcd9cd142c` completed with **built** status. Seven runtime text files changed from 1.18; all 27 image files remain byte-identical to original recovery artwork.
+- `python scripts/release_site.py verify-public --stage /workspace/trade119/release-1.19 --out /workspace/trade119/public-1.19` — **51/51 public content files match staged bytes**, fetched with normal HTTPS certificate/hostname verification. Index SHA-256: `265736024528508289f9a9811c3d57f36831892acf4d568c1b49b02e177b146a`.
+- `python scripts/test_browser.py --public-cache /workspace/trade119/public-1.19 --artifacts /workspace/trade119/browser-public` — **7 suites passed, 0 failed**, with zero page errors, failed requests, HTTP errors or cache errors. The runner verifies and replays exactly the TLS-fetched public bytes at the original Pages origin, without local runtime substitution or disabled TLS checking. Final quantity controls, live farming totals, save/reload, staged skills and retained quest/combat behavior pass.
+- Deterministic runtime/source archives contain **52/92 files** with ZIP CRC, extracted-byte, SHA manifests, exact source HEAD membership, original image identity and public-cache equality checks. Archives are preserved under `/workspace/shared/downloads/1.19`, separately from prior versions. Source remains in draft PR #2; historical main is unmerged.
+
 # Historical 1.18 verification — 2026-10-21
 
 User scope: change the skill-tree page to compact icon boards resembling the supplied planner layout. The user selected staged allocation: minus/plus edits an unconfirmed draft, then one confirmation learns the complete plan.
