@@ -14,6 +14,63 @@
     if (own(i, "sellPrice")) return Number.isSafeInteger(i.sellPrice) && i.sellPrice >= 0 ? i.sellPrice : 0;
     return Number.isSafeInteger(i.price) && i.price >= 0 ? Math.max(1, Math.floor(i.price / 2)) : 0;
   }
+  function tradeQuote(s, id, mode, qty, carrying) {
+    const limit = mode === "buy" ? 999 : mode === "sell" ? 100000 : 0;
+    const record = value => value && typeof value === "object" && !Array.isArray(value);
+    const weightValue = value => Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER;
+    const result = {
+      ok: false, message: "", unitPrice: 0, quantity: 0, total: 0,
+      weightDelta: 0, weightAfter: weightValue(carrying?.weight) ? carrying.weight : 0,
+      maxQuantity: 0, owned: 0, near: false, limit,
+    };
+    const reject = message => { result.message = message; return result; };
+    if (!limit) return reject("ประเภทรายการไม่ถูกต้อง");
+    const i = item(id);
+    if (!i) return reject("ไม่พบไอเทม");
+    if (!record(s) || !own(s, "zone") || !own(s, "player") || !record(s.player) ||
+        !own(s.player, "x") || !own(s.player, "y") || !Number.isFinite(s.player.x) || !Number.isFinite(s.player.y) ||
+        !own(s, "silver") || !Number.isSafeInteger(s.silver) || s.silver < 0 ||
+        !own(s, "inventory") || !record(s.inventory) || !record(carrying) ||
+        !weightValue(carrying.weight) || !weightValue(carrying.capacity) || !weightValue(i.weight))
+      return reject("ข้อมูลเงินหรือกระเป๋าไม่ถูกต้อง");
+    const owned = own(s.inventory, id) ? s.inventory[id] : 0;
+    if (!Number.isSafeInteger(owned) || owned < 0 || owned * i.weight > carrying.weight + 1e-9)
+      return reject("ข้อมูลจำนวนไอเทมหรือน้ำหนักไม่ถูกต้อง");
+    result.owned = owned;
+    const merchant = D.npcs.find(n => n.id === "merchant");
+    result.near = !!merchant && s.zone === 0 && Math.hypot(s.player.x - merchant.x, s.player.y - merchant.y) < 85;
+    const price = mode === "buy" ? buyPrice(id) : sellPrice(id);
+    if (price === null || mode === "sell" && !price)
+      return reject(mode === "buy" ? "ร้านไม่ขายไอเทมนี้" : "ขายไอเทมนี้ไม่ได้");
+    result.unitPrice = price;
+    if (result.near) {
+      if (mode === "buy") {
+        const room = carrying.capacity - carrying.weight;
+        const weightLimit = room < 0 ? 0 : i.weight ? Math.floor(room / i.weight) : limit;
+        result.maxQuantity = Math.max(0, Math.min(limit, price ? Math.floor(s.silver / price) : limit, 100000 - owned, weightLimit));
+      } else result.maxQuantity = Math.max(0, Math.min(limit, owned, Math.floor((100000000 - s.silver) / price)));
+    }
+    const validQuantity = Number.isSafeInteger(qty) && qty >= 1 && qty <= limit;
+    if (validQuantity) {
+      const total = price * qty, delta = i.weight * qty * (mode === "buy" ? 1 : -1);
+      const after = carrying.weight + delta;
+      if (!Number.isSafeInteger(total) || !Number.isFinite(delta) || Math.abs(delta) > Number.MAX_SAFE_INTEGER ||
+          !Number.isFinite(after) || Math.abs(after) > Number.MAX_SAFE_INTEGER) return reject("จำนวนไม่ถูกต้อง");
+      result.quantity = qty; result.total = total; result.weightDelta = delta; result.weightAfter = Math.max(0, after);
+    }
+    if (!result.near) return reject(`เดินเข้าใกล้${merchant?.name || "แม่ค้า"}ที่${D.maps[0].name}`);
+    if (!validQuantity) return reject("จำนวนไม่ถูกต้อง");
+    if (mode === "buy") {
+      if (s.silver < result.total) return reject(`${D.world.currency}ไม่เพียงพอ`);
+      if (owned + qty > 100000) return reject("ไอเทมชนิดนี้เต็มกระเป๋าแล้ว");
+      if (result.weightAfter > carrying.capacity) return reject("น้ำหนักเกินความจุ");
+    } else {
+      if (owned < qty) return reject("จำนวนไอเทมไม่เพียงพอ");
+      if (s.silver + result.total > 100000000) return reject("จำนวนอัฐเต็มแล้ว");
+    }
+    result.ok = true;
+    return result;
+  }
   function rollDrops(kind, rng = Math.random) {
     if (typeof kind !== "string" || !own(D.dropTables, kind)) return [];
     const draw = () => {
@@ -49,7 +106,7 @@
     if (!i) return null;
     return sourcesFor(id).some(source => source.available) ? "available" : "planned";
   }
-  const api = { buyPrice, sellPrice, rollDrops, sourcesFor, availability };
+  const api = { buyPrice, sellPrice, tradeQuote, rollDrops, sourcesFor, availability };
   if (typeof module === "object") module.exports = api;
   else root.BCItemRules = api;
 })(typeof window === "undefined" ? globalThis : window);
