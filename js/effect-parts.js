@@ -30,12 +30,15 @@
   }
   function arrow(c,x,y,length,color,light,width=2){
     P.ribbon(c,[[x-length,y],[x-7,y],[x+3,y]],width,color,light);
-    P.ribbon(c,[[x-length,y],[x-7,y],[x+3,y]],width*.8,light,light);
-    P.polygon(c,[[x+9,y],[x-2,y-4],[x,y],[x-2,y+4]],light);
-    for(const side of [-1,1])P.polygon(c,[[x-length+3,y],[x-length-2,y+side*4],[x-length+10,y+side]],color);
+    shard(c,x+3,y,6,0,color,light);
+    for(const side of [-1,1])P.ribbon(c,[[x-length+1,y+side*3],[x-length+8,y+side],[x-length+12,y]],width*.65,color,light);
   }
   function slash(c,x,y,r,a,color,light,width=5){
-    P.withSaved(c,1,()=>{c.translate(x,y);c.rotate(a);c.fillStyle=color;c.beginPath();c.moveTo(-r*.7,r*.5);c.bezierCurveTo(r*.45,r*.44,r*1.04,-r*.22,r*.35,-r);c.bezierCurveTo(r*.7,-r*.17,r*.1,r*.23,-r*.7,r*.5);c.closePath();c.fill();P.ribbon(c,[[-r*.55,r*.43],[r*.11,r*.15],[r*.45,-r*.37],[r*.35,-r*.88]],width*.55,light,IVORY);P.ribbon(c,[[-r*.55,r*.43],[r*.11,r*.15],[r*.45,-r*.37],[r*.35,-r*.88]],width*.5,light,IVORY);});
+    P.withSaved(c,1,()=>{
+      c.translate(x,y);c.rotate(a);
+      P.withSaved(c,.24,()=>{c.fillStyle=color;c.beginPath();c.moveTo(-r*.7,r*.5);c.bezierCurveTo(r*.45,r*.44,r*1.04,-r*.22,r*.35,-r);c.bezierCurveTo(r*.7,-r*.17,r*.1,r*.23,-r*.7,r*.5);c.closePath();c.fill();});
+      P.ribbon(c,[[-r*.7,r*.5],[-r*.3,r*.4],[r*.09,r*.2],[r*.35,-r*.12],[r*.46,-r*.48],[r*.35,-r*.95]],width,color,light);
+    });
   }
   function fan(c,r,p,color,light,blades=4){
     for(let i=0;i<blades;i++){const a=-.65+i*1.3/Math.max(1,blades-1),v=r*(.55+p*.45);P.polygon(c,[[4,0],[Math.cos(a-.08)*v,Math.sin(a-.08)*v],[Math.cos(a)*r,Math.sin(a)*r],[Math.cos(a+.08)*v,Math.sin(a+.08)*v]],color);P.stroke(c,[[9,0],[Math.cos(a)*(r-3),Math.sin(a)*(r-3)]],light,.6);}
@@ -52,16 +55,22 @@
     const [x,y]=points[0];P.polygon(c,[[x-5,y+3],[x-3,y-5],[x+5,y-9],[x+8,y-2],[x+3,y+4]],"#77b49b");P.polygon(c,[[x-3,y-5],[x-1,y-13],[x+2,y-7],[x+5,y-14],[x+6,y-6]],"#d5a24e");P.glowDot(c,x+4,y-4,1,IVORY,"#fff8da");
   }
   function paint(c,id,o,p,r,color,light){
-    const q=P.clamp((p-.03)/.56,0,1),crest=Math.sin(Math.PI*p),swell=.65+crest*.35,d=P.clamp(o.distance||60,0,260),seed=finite(o.seed)?o.seed:1;
+    const q=P.clamp((p-.03)/.56,0,1),crest=Math.sin(Math.PI*p),swell=.3+crest*.7,tail=.2+.8*(1-p),d=P.clamp(o.distance||60,0,260),seed=finite(o.seed)?o.seed:1;
+    // Presentation hues stay separate from the immutable part catalogue.
+    if(!own(o,"color")){
+      if(/^(swordsman|royal_duelist)\./.test(id))color="#8dbbc9";
+      else if(/^(acolyte|divine_scribe)\./.test(id))color="#83b9a2";
+      else if(id.startsWith("archer."))color="#79bbc4";
+    }
     switch(id){
       case "common.cast_pulse":
-        P.withSaved(c,.5,()=>P.halo(c,0,1,15+11*q,5+4*q,color,1.2));for(let i=0;i<4;i++){const a=i*TAU/4;shard(c,Math.cos(a)*(12+9*q),Math.sin(a)*(4+3*q),3.3*swell,a,color,light);}break;
+        P.withSaved(c,.42*tail,()=>P.arcRibbon(c,0,1,15+11*q,5+4*q,.3+p*.3,5.6-p*.3,1.4*swell,color,light));for(let i=0;i<3;i++){const a=i*TAU/3+.4;shard(c,Math.cos(a)*(12+9*q),Math.sin(a)*(4+3*q),2.5*swell,a,color,light);}break;
       case "common.power_glint":
-        P.spark(c,0,0,8+5*crest,color,light,p*.35);shard(c,0,0,5+3*q,-.3,color,light);P.glowDot(c,0,0,2.4,light,IVORY);break;
+        P.spark(c,0,0,8+5*crest,color,light,p*.35);shard(c,0,0,5.8+3*q,-.3,color,light);P.glowDot(c,0,0,5.6,light,IVORY);break;
       case "common.hit_spark":
         P.spark(c,0,0,11+7*q,color,light,-.3+p*.3);for(let i=0;i<3;i++){const a=i*2.13-.8;P.ribbon(c,[[Math.cos(a)*5,Math.sin(a)*5],[Math.cos(a)*(16+9*q),Math.sin(a)*(16+9*q)]],2.8*(1-p*.6),color,light);}break;
       case "common.hit_bloom":
-        P.lotus(c,0,4,11+12*q,color,light,.2+.8*q);for(let i=0;i<4;i++){const a=i*TAU/4+p;P.petal(c,Math.cos(a)*(8+12*q),Math.sin(a)*(6+7*q),4+3*crest,a,color,light);}break;
+        P.glowDot(c,0,0,3+5*crest,color,light);for(let i=0;i<4;i++){const a=i*TAU/4+p*.4;P.petal(c,Math.cos(a)*(4+15*q),Math.sin(a)*(4+10*q),9*swell,a+Math.PI/2,color,light);}break;
       case "common.shock_ring":
         P.withSaved(c,.6,()=>P.halo(c,0,2,10+19*q,4+8*q,color,1.5*(1-p*.5)));for(let i=0;i<5;i++){const a=i*TAU/5;shard(c,Math.cos(a)*(10+19*q),Math.sin(a)*(4+8*q),3.5*swell,a,color,light);}break;
       case "common.heal_wisp":
@@ -69,17 +78,17 @@
       case "common.status_tick":
         P.petal(c,0,4-7*q,5+2*crest,-.25+p*.4,color,light);for(const side of [-1,1])shard(c,side*(6+5*q),3-8*q,3,side*.3,color,light);break;
       case "common.fade_motes":
-        for(let i=0;i<5;i++){const a=i*TAU/5+seed*.13;P.petal(c,Math.cos(a)*(7+18*p),Math.sin(a)*(6+12*p)-9*p,2.5+(i%2),a+p,color,light);}break;
+        for(let i=0;i<3;i++){const a=i*TAU/3+seed*.13;P.glowDot(c,Math.cos(a)*(7+18*p),Math.sin(a)*(6+12*p)-9*p,(1.1+i*.2)*tail,color,light);}break;
       case "swordsman.edge_glint":
         P.ribbon(c,[[-8-7*q,2],[0,0],[12+7*q,-3]],2.2,color,light);P.spark(c,2+3*q,-1,4+3*crest,color,light,.2);break;
       case "swordsman.arc_ribbon":
-        slash(c,11+11*q,4-9*q,25+12*crest,-.2-p*.55,color,light);for(let i=0;i<4;i++){const a=-1.2+i*.35;shard(c,16+Math.cos(a)*(26+9*q),Math.sin(a)*(26+9*q),3+i%2,a,color,light);}break;
+        slash(c,11+11*q,4-9*q,20+17*crest,-.2-p*.55,color,light,5*swell);for(let i=0;i<2;i++){const a=-1.1+i*.7;shard(c,16+Math.cos(a)*(26+9*q),Math.sin(a)*(26+9*q),(3+i)*tail,a,"#d5a24e",light);}break;
       case "swordsman.ground_fan":
-        P.withSaved(c,.4,()=>{for(let i=0;i<4;i++){const a=(i-1.5)*.25;P.polygon(c,[[3,0],[Math.cos(a)*(r*(.7+.3*q)),Math.sin(a)*r*.65],[Math.cos(a+.06)*r*.7,Math.sin(a+.06)*r*.65]],color);}});break;
+        P.withSaved(c,.32*tail,()=>{for(let i=0;i<3;i++){const a=(i-1)*.3,rr=r*(.5+.5*q);P.ribbon(c,[[3,0],[Math.cos(a-.07)*rr*.6,Math.sin(a-.07)*rr*.6],[Math.cos(a)*rr,Math.sin(a)*rr*.7]],2.4*swell,color,light);}});break;
       case "swordsman.stance_seal":
         P.halo(c,0,2,17+crest,6,color,1);for(const x of [-12,0,12]){P.polygon(c,[[x-2,3],[x,0-4*crest],[x+2,3],[x,6]],light);P.stroke(c,[[x,4],[x,8]],color,1);}break;
       case "royal_duelist.cross_cut":
-        slash(c,19+6*q,-6,24+7*crest,-.9+q*.2,color,light,4);slash(c,18+8*q,7,23+8*crest,.85-q*.3,"#b46b53",light,4);shard(c,25+5*q,0,6+p*3,.1,light,color);break;
+        slash(c,19+6*q,-6,18+13*crest,-.9+q*.2,color,light,4*swell);P.withSaved(c,.7,()=>slash(c,18+8*q,7,18+13*crest,.85-q*.3,"#d5a24e",light,3*swell));shard(c,25+5*q,0,4*swell,.1,light,color);break;
       case "royal_duelist.blade_ring":
         P.arcRibbon(c,0,-7,Math.min(65,r)*(.7+.3*q),Math.min(25,r*.35),-.6+p*.5,4.4+p*.5,4.7,color,light);for(let i=0;i<3;i++){const a=i*TAU/3+p;shard(c,Math.cos(a)*r*.65,-7+Math.sin(a)*r*.25,5,a,color,light);}break;
       case "royal_duelist.tempo_streak":
@@ -87,19 +96,19 @@
       case "city_guardian.shield_face":
         shield(c,(o.facing===3?-1:1)*(17+crest),1,11,color,light);P.spark(c,(o.facing===3?-1:1)*24,-6,3.5+2*crest,light,IVORY,p*.3);break;
       case "city_guardian.shield_wave":
-        for(let i=0;i<3;i++)P.arcRibbon(c,6+i*10+12*q,0,14+i*6,10+i*3,-1.1,1.1,3.7-i*.5,i%2?light:color,IVORY);for(const y of [-13,13])shard(c,35+10*q,y,4,.1,color,light);break;
+        P.arcRibbon(c,15+20*q,0,22+6*crest,17,-1.12,1.12,4*swell,"#8fcbd0",light);P.withSaved(c,.3*tail,()=>P.arcRibbon(c,7+16*q,0,17,12,-.95,.95,2,color,light));for(const y of [-13,13])shard(c,35+10*q,y,3*tail,.1,color,light);break;
       case "city_guardian.vow_shell":
         P.arcRibbon(c,0,2,25+crest,18,-Math.PI*.95,-Math.PI*.05,2,color,light);for(const side of [-1,1]){P.polygon(c,[[side*21,-9],[side*27,-4],[side*24,11],[side*19,6]],color);shard(c,side*24,11,4,p*.2,color,light);}break;
       case "mage.lotus_seed":
         for(let i=0;i<3;i++)P.petal(c,(i-1)*3,-i%2*2,7+5*crest,-Math.PI/2+(i-1)*.45,color,light);P.glowDot(c,0,1,2.5,light,IVORY);break;
       case "mage.petal_bolt":{
-        const x=8+(d-8)*q;P.ribbon(c,[[Math.max(0,x-35),3],[x-12,1],[x,0]],5.5,color,light);for(let i=0;i<3;i++)P.petal(c,x-i*6,(i-1)*4,7-i,Math.PI+(i-1)*.18,color,light);break;}
+        const x=8+(d-8)*q;P.ribbon(c,[[Math.max(0,x-38),4],[x-24,2],[x-10,-1],[x+2,0]],5*swell,color,light);P.petal(c,x+5,0,12*swell,Math.PI/2,color,light);for(const side of [-1,1])P.petal(c,x-7,side*5,6*tail,Math.PI/2+side*.4,color,light);break;}
       case "mage.petal_fan":
-        for(let i=0;i<5;i++){const a=(i-2)*.26,rr=r*(.5+.4*q);P.petal(c,Math.cos(a)*rr,Math.sin(a)*rr,10+5*crest,a,color,light);P.stroke(c,[[4,0],[Math.cos(a)*rr*.65,Math.sin(a)*rr*.65]],light,.7);}break;
+        for(let i=0;i<3;i++){const a=(i-1)*.4,rr=r*(.35+.5*q);P.withSaved(c,i===1?1:.65,()=>{P.ribbon(c,[[6,0],[Math.cos(a-.08)*rr*.65,Math.sin(a-.08)*rr*.65],[Math.cos(a)*rr,Math.sin(a)*rr]],2*swell,color,light);P.petal(c,Math.cos(a)*rr,Math.sin(a)*rr,(i===1?16:11)*swell,a+Math.PI/2,color,light);});}break;
       case "mage.lotus_veil":
         for(const side of [-1,1])for(let i=0;i<2;i++)P.petal(c,side*(16+i*4+crest),4-i*7,14-i*3,side*(.4+i*.4),color,light);P.arcRibbon(c,0,5,22,10,.2,2.8,1.3,color,light);break;
       case "lotus_mage.lotus_field":
-        for(let i=0;i<8;i++){const a=i*TAU/8+p*.1;P.withSaved(c,.38,()=>P.petal(c,Math.cos(a)*r*.57,Math.sin(a)*r*.57,13+5*crest,a-p*.3,color,light));}P.withSaved(c,.48,()=>P.lotus(c,0,2,22+6*crest,color,light,.3+.7*q));break;
+        for(let i=0;i<5;i++){const a=i*TAU/5+p*.2;P.withSaved(c,.35*tail,()=>P.petal(c,Math.cos(a)*r*(.35+.2*q),Math.sin(a)*r*(.35+.2*q),18*swell,a+Math.PI/2-p*.3,color,light));}P.withSaved(c,.6,()=>P.lotus(c,0,2,13+16*crest,color,light,.3+.7*q));break;
       case "lotus_mage.blossom_mark":
         for(let i=0;i<3;i++)P.petal(c,(i-1)*3,4-2*crest,5+2*crest,-Math.PI/2+(i-1)*.4,color,light);P.stroke(c,[[-5,9],[0,11],[5,9]],light,.8);break;
       case "lotus_mage.gathering_petals":
@@ -115,31 +124,31 @@
       case "orb_weaver.prism_shell":
         for(const side of [-1,1]){P.polygon(c,[[side*14,-11],[side*24,-4],[side*23,9],[side*13,15],[side*18,1]],color);P.stroke(c,[[side*14,-11],[side*18,1],[side*13,15]],light,1);}P.stroke(c,[[-13,15],[0,19+crest],[13,15]],light,1);break;
       case "acolyte.glyph_stamp":
-        P.glyph(c,0,1,11+4*crest,color,light,p);for(const side of [-1,1])shard(c,side*(14+3*q),1,3,0,color,light);break;
+        P.glyph(c,0,1,7+7*crest,color,light,p);for(const side of [-1,1])P.ribbon(c,[[side*7,7],[side*(13+3*q),1],[side*9,-5]],1.4*tail,color,light);break;
       case "acolyte.scripture_strip":
-        for(let i=0;i<3;i++){const x=7+i*7+10*q,y=-Math.sin(i*.8+p)*5;P.polygon(c,[[x-3,y-7],[x+4,y-5],[x+3,y+7],[x-4,y+5]],color);for(let k=0;k<3;k++)P.stroke(c,[[x-1,y-4+k*3],[x+2,y-3+k*3]],light,.8);}break;
+        P.ribbon(c,[[2,5],[11+8*q,2],[23+12*q,-3],[34+14*q,-2]],4.2*swell,color,light);for(let i=0;i<3;i++){const x=12+i*8+10*q,y=-Math.sin(i*.8+p)*3;P.ribbon(c,[[x-2,y-4],[x,y-1],[x+3,y-3]],1.2*tail,light,IVORY);}break;
       case "acolyte.scripture_wave":
-        P.arcRibbon(c,2,0,r*.7,r*.52,-.9,.9,2.2,color,light);for(let i=0;i<5;i++){const a=(i-2)*.37;P.glyph(c,Math.cos(a)*r*(.6+.3*q),Math.sin(a)*r*.8,5+2*crest,color,light,p+i*.1);}break;
+        P.arcRibbon(c,2+8*q,0,r*(.48+.28*q),r*.52,-1.03,1.03,3.6*swell,color,light);P.glyph(c,r*(.48+.3*q),0,6*swell,color,light,p);for(const side of [-1,1]){const x=r*.6,y=side*r*.35;P.ribbon(c,[[x-8,y+side*4],[x,y],[x+5,y-side*2]],1.5*tail,color,light);}break;
       case "acolyte.ward_cage":
-        for(const side of [-1,1]){P.glyph(c,side*(18+crest),0,5.5,color,light,p+side*.1);P.arcRibbon(c,side*4,6,18,12,side<0?1.6:-1.55,side<0?4.7:1.55,1.2,color,light);}P.lotus(c,0,14,15, color,light,.3+.2*crest);break;
+        for(const side of [-1,1]){P.arcRibbon(c,side*4,6,18+crest,14,side<0?1.6:-1.55,side<0?4.7:1.55,1.5,color,light);shard(c,side*(19+crest),-1,4,Math.PI/2,color,light);}P.glyph(c,0,12,5+2*crest,color,light,p);break;
       case "divine_scribe.sanctuary_floor":
-        for(let i=0;i<8;i++){const a=i*TAU/8;P.withSaved(c,.32,()=>P.petal(c,Math.cos(a)*r*.46,Math.sin(a)*r*.46,24*swell,a+Math.PI/2,color,light));}P.withSaved(c,.45,()=>P.lotus(c,0,0,29+7*crest,color,light,.3+.7*q));for(let i=0;i<4;i++){const a=i*TAU/4+.8;P.glyph(c,Math.cos(a)*r*.7,Math.sin(a)*r*.7,5+2*q,color,light,p);}break;
+        P.withSaved(c,.38*tail,()=>P.arcRibbon(c,0,0,r*.62,r*.62,.2+p*.2,5.8-p*.2,1.6*swell,color,light));for(let i=0;i<4;i++){const a=i*TAU/4+.8;P.petal(c,Math.cos(a)*r*(.35+.2*q),Math.sin(a)*r*(.35+.2*q),15*swell,a+Math.PI/2,color,light);}P.withSaved(c,.58,()=>P.glyph(c,0,0,10+9*crest,color,light,p));break;
       case "divine_scribe.verdict_column":
-        for(const side of [-1,1]){const x=side*(14+2*crest);P.ribbon(c,[[x,15],[x,-10-13*q],[x,-29-8*q]],2.2,color,light);for(let i=0;i<3;i++)P.glyph(c,x,7-i*12-9*q,4.5+crest,color,light,p+i*.15);}break;
+        P.ribbon(c,[[0,14],[2,-5-10*q],[0,-31-12*q]],5*swell,color,light);P.glyph(c,0,-8-12*q,7*swell,color,light,p);for(const side of [-1,1]){P.ribbon(c,[[side*10,12],[side*(14+3*crest),-4],[side*9,-28-9*q]],1.6*tail,color,light);shard(c,side*(14+7*q),-7-9*q,4*tail,Math.PI/2,color,light);}break;
       case "divine_scribe.cleansing_seal":
-        P.arcRibbon(c,0,7,21,13,-.4+p*.6,4+p*.6,1.7,"#b9d5d1",IVORY);for(let i=0;i<4;i++){const a=i*TAU/4+p*.5;P.glyph(c,Math.cos(a)*19,7+Math.sin(a)*11,4.5,color,light,p);}break;
+        P.arcRibbon(c,0,7-5*q,21+4*q,13,-.4+p*.6,4+p*.6,2*swell,"#b9d5d1",IVORY);P.glyph(c,0,-3-9*q,6+4*crest,color,light,p);for(const side of [-1,1])P.petal(c,side*(12+9*q),4-13*q,7*tail,-side*.5,color,light);break;
       case "garuda_monk.fist_burst":{
-        const x=12+Math.min(d,42)*q;P.ribbon(c,[[1,3],[x-11,0],[x+2,0]],7,color,light);P.polygon(c,[[x-7,-7],[x+3,-10],[x+12,-4],[x+14,5],[x+6,10],[x-7,6]],color);for(let i=0;i<3;i++)P.polygon(c,[[x+i*5-3,-7],[x+i*5+1,-10],[x+i*5+5,-5],[x+i*5+1,-2]],light);P.stroke(c,[[x+1,-3],[x+7,-2],[x+8,4]],IVORY,1.1);break;}
+        const x=12+Math.min(d,42)*q;P.ribbon(c,[[1,5],[x-24,3],[x-10,-2],[x+3,0]],5.2*swell,color,light);slash(c,x+2,1,12+9*crest,.62+p*.25,color,light,4*swell);for(const side of [-1,1])P.ribbon(c,[[x-17,side*6],[x-3,side*(10+4*crest)],[x+7,side*7]],1.6*tail,color,light);P.glowDot(c,x+4,0,2.7*swell,light,IVORY);break;}
       case "garuda_monk.garuda_feather":
         for(const side of [-1,1])for(let i=0;i<3;i++){const x=side*(12+i*4),y=6+i*2;P.petal(c,x,y,11-i*2+crest,side*(.5+i*.28),i%2?light:color,IVORY);}break;
       case "garuda_monk.approach_trail":
-        for(let i=0;i<5;i++){const x=d*(i/5),y=(i%2?1:-1)*(3+3*p);P.petal(c,x,y,6-i*.5,.15,color,light);P.ribbon(c,[[x-13,y+2],[x-4,y],[x+1,y]],2,color,light);}break;
+        for(let i=0;i<3;i++){const x=d*(i/3)+8*q,y=(i%2?1:-1)*(3+3*p);P.petal(c,x,y,(5-i*.5)*tail,Math.PI/2-.2,color,light);P.ribbon(c,[[x-18,y+3],[x-9,y],[x+1,y]],2*swell,color,light);}break;
       case "scout.tip_glint":
-        shard(c,5+7*q,-1,10+4*crest,-.1,color,light);P.spark(c,10+7*q,-1,3.5,color,light,.5+p);break;
+        shard(c,5+7*q,-1,10+4*crest,-.1,color,light);P.glowDot(c,10+7*q,-1,3.6,color,light);break;
       case "scout.needle_thrust":{
-        const tip=Math.min(75,d+10)*(.4+.6*q);P.polygon(c,[[1,1],[tip-12,-3],[tip+7,0],[tip-12,3]],color);P.polygon(c,[[8,.6],[tip-9,-1.8],[tip+7,0],[tip-9,1.8]],light);P.polygon(c,[[8,.6],[tip-9,-1.8],[tip+7,0],[tip-9,1.8]],light);for(let i=0;i<3;i++)shard(c,tip-16-i*8,6+i*2,4-i*.5,-.2,color,light);break;}
+        const tip=Math.min(75,d+10)*(.4+.6*q);P.ribbon(c,[[1,1],[tip*.5,0],[tip+7,0]],4*swell,color,light);shard(c,tip+3,0,6*swell,0,color,light);for(let i=0;i<2;i++)shard(c,tip-16-i*10,6+i*2,(3-i*.4)*tail,-.2,color,light);break;}
       case "scout.short_fan":
-        for(let i=0;i<3;i++)slash(c,15+i*4, (i-1)*4,19+8*crest,-.8+i*.55+p*.2,color,light,3);break;
+        slash(c,19,0,16+14*crest,-.3+p*.2,color,light,4*swell);P.withSaved(c,.4*tail,()=>slash(c,13,5,15+7*crest,.35+p*.25,color,light,2));break;
       case "scout.shadow_step":
         for(let i=0;i<3;i++){P.polygon(c,[[-15-i*4,4+i*2],[-3-i*3,2+i*2],[-7-i*4,5+i*2]],color);P.petal(c,-13+i*9,4+Math.sin(p*3+i)*2,4.5,.2,color,light);}break;
       case "moon_shadow.crescent_cut":
@@ -147,9 +156,9 @@
       case "moon_shadow.poison_cloud":
         for(let i=0;i<3;i++){const x=(i-1)*7,y=5-Math.sin(p*TAU+i)*2;P.withSaved(c,.35,()=>P.glowDot(c,x,y,5.5+i%2,"#a58cba","#afc28e"));P.petal(c,x,y-2,4.5,-.3+p*.5,"#a3bc82",light);}break;
       case "moon_shadow.veil_mist":
-        for(let i=0;i<5;i++){const x=(i-2)*9;P.withSaved(c,.35,()=>P.halo(c,x,3+Math.sin(i+p)*2,10+3*crest,3,color,2.5));P.petal(c,x,1-4*q,3.5,-.2+p,color,light);}break;
-      case "night_tiger.claw_rake":
-        for(let i=0;i<3;i++){const x=18+(i-1)*6+5*q,y=(i-1)*7;P.withSaved(c,1,()=>{c.translate(x,y);c.rotate(-.7+p*.2);const rr=25+9*q;P.polygon(c,[[-rr*.7,-rr*.7],[-rr*.2,-rr*.45],[rr*.6,rr*.45],[rr*.85,rr*.9],[rr*.3,rr*.62],[-rr*.5,-rr*.2]],color);P.polygon(c,[[-rr*.52,-rr*.5],[rr*.45,rr*.35],[rr*.68,rr*.7],[rr*.24,rr*.43]],light);});}break;
+        for(let i=0;i<3;i++){const x=(i-1)*13;P.withSaved(c,.25*tail,()=>P.glowDot(c,x,3+Math.sin(i+p)*2,8+3*crest,color,light));P.ribbon(c,[[x-9,5],[x,3-3*q],[x+9,4-5*q]],1.8*swell,color,light);}break;
+      case "night_tiger.claw_rake":{
+        const rake=.55+crest*.45;for(let i=0;i<3;i++){const x=18+(i-1)*6+5*q,y=(i-1)*7;P.withSaved(c,i===1?1:.65,()=>slash(c,x,y,(i===1?28:23)*rake,-1.55+p*.3,color,light,(i===1?4:2.8)*rake));}break;}
       case "night_tiger.bleed_mark":
         for(let i=0;i<3;i++){const x=(i-1)*5;P.ribbon(c,[[x+2,-3-3*q],[x,2],[x-2,8+3*q]],2.3,color,light);}P.petal(c,4,11+3*q,3.2,Math.PI/2,color,light);break;
       case "night_tiger.hunt_trail":
@@ -159,7 +168,7 @@
       case "archer.arrow_flight":{
         const x=8+(d-8)*q,n=o.variant==="double"?2:1;for(let i=0;i<n;i++)arrow(c,x-(i*4),n===2?(i-.5)*9:0,36+8*crest,color,light,2);break;}
       case "archer.fletching_trail":
-        for(let i=0;i<4;i++){P.petal(c,-6-i*7-5*p,(i%2?1:-1)*(4+2*p),6-i*.5,Math.PI+(i%2?.4:-.4),color,light);P.stroke(c,[[-10-i*7,0],[-20-i*7-5*p,0]],light,.6);}break;
+        for(let i=0;i<3;i++){P.petal(c,-6-i*9-5*p,(i%2?1:-1)*(4+2*p),(5-i*.7)*tail,-Math.PI/2+(i%2?.4:-.4),"#8aaf89",light);P.ribbon(c,[[-8-i*9,0],[-16-i*9-5*p,1],[-24-i*9-6*p,0]],1.3*tail,color,light);}break;
       case "archer.step_dust":
         for(let i=0;i<4;i++){const x=d*i/4;P.petal(c,x,3+(i%2)*3,4+i%2,-.2+p*.3,color,light);P.polygon(c,[[x-5,6],[x+4,6],[x+8+5*q,7],[x-4,8]],color);}break;
       case "naga_ranger.waiting_coil":
@@ -169,11 +178,11 @@
       case "naga_ranger.hunt_sigil":
         P.polygon(c,[[0,-7],[7,0],[0,7],[-7,0]],color);P.stroke(c,[[0,-5],[0,5],[-4,0],[4,0]],light,1);for(const side of [-1,1])P.arcRibbon(c,side*9,1,4+crest,6,side<0?1:4,side<0?4:7,1.3,color,light);break;
       case "arcane_archer.rune_arrow":{
-        const x=7+(d-7)*q;arrow(c,x,0,o.variant==="thick"?50:42,color,light,3.1);P.glyph(c,x-9,0,5+2*crest,color,light,p);for(const side of [-1,1])shard(c,x-20,side*6,3.5,.15,color,light);break;}
+        const x=7+(d-7)*q;arrow(c,x,0,o.variant==="thick"?50:42,"#83bbc8",light,3.1*swell);P.arcRibbon(c,x-9,0,7+3*crest,6,-1.15-p*.2,1.15+p*.2,1.5*tail,color,light);for(const side of [-1,1])shard(c,x-20,side*6,3*tail,.15,color,light);break;}
       case "arcane_archer.rune_seal":
         P.glyph(c,0,3,9+2*crest,color,light,p);P.arcRibbon(c,0,3,13,10,p*.5,4.9+p*.5,1,color,light);for(const side of [-1,1])shard(c,side*12,3,3.5,0,color,light);break;
       case "arcane_archer.shard_rain":
-        for(let i=0;i<5;i++){const x=(i-2)*r*.26,y=(i%2?1:-1)*r*.17,drop=46*(1-q)+i%2*8;P.ribbon(c,[[x-9,y-drop-25],[x-3,y-drop-8],[x,y-drop]],2.5,color,light);P.polygon(c,[[x+2,y-drop+7],[x-4,y-drop-3],[x,y-drop-1],[x+4,y-drop-5]],light);shard(c,x-7,y-drop-17,3,-.8,color,light);}break;
+        for(let i=0;i<5;i++){const x=(i-2)*r*.26,y=(i%2?1:-1)*r*.17,drop=46*(1-q)+i%2*8;P.ribbon(c,[[x-9,y-drop-25],[x-3,y-drop-8],[x,y-drop]],3.2,color,light);P.polygon(c,[[x+2,y-drop+7],[x-4,y-drop-3],[x,y-drop-1],[x+4,y-drop-5]],light);P.glowDot(c,x,y-drop,3,color,light);shard(c,x-7,y-drop-17,3,-.8,color,light);}break;
     }
   }
   function draw(c,partId,options={}){

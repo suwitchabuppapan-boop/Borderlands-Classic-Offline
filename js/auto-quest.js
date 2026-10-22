@@ -78,6 +78,9 @@
       }
     }
     if (percent < 60 && s.settings.autoSkill && s.skills.first_aid > 0 && s.player.sp >= D.skills.first_aid.sp && !(s.cooldowns.first_aid > 0)) {
+      const readiness = h.actionReadiness?.(s, "first_aid");
+      // A finishing combat animation is temporary, not missing recovery supplies.
+      if (readiness?.source === "action") return false;
       if (!action(s, h, "skill", { id: "first_aid" })) return true;
       return false;
     }

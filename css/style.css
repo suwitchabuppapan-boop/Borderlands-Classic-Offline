@@ -106,6 +106,10 @@ h1 { font-size: 12px; margin: 0; }
 .hot-slot .stock { right: 1px; top: 0; }
 .hot-slot.locked { opacity: .45; }
 .cooldown { position: absolute; inset: auto 0 0; background: #193e37aa; pointer-events: none; transition: height .1s; }
+.hot-slot:disabled { cursor: default; }
+.hot-slot.action-busy { border-color: #a6c5d5; }
+.hot-slot .cooldown { display: grid; place-items: center; color: #fff8e8; font: bold 9px Tahoma, sans-serif; text-shadow: 0 1px 2px #16333e; }
+.hot-slot.action-busy .cooldown { background: repeating-linear-gradient(135deg, #213b50b8 0 4px, #38596bba 4px 7px); }
 .world-footer { position: fixed; bottom: 23px; left: 8px; max-width: 260px; font-size: 8px; color: white; text-shadow: 0 1px 2px #263c31; z-index: 3; pointer-events: none; }
 .world-footer span:last-child { display: none; }
 .side-right { position: fixed; top: 8px; right: 8px; width: 140px; z-index: 3; }

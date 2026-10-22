@@ -129,6 +129,7 @@
     return s.seed / 4294967296;
   }
   function spawn(s) {
+    Combat.clearAction(s);
     Feedback.clear(s);
     delete s.classCombat;
     delete s.player.skillDebuffs;
@@ -249,6 +250,26 @@
     return true;
   }
   const combatHelpers = { damage, effect, stats, dist, kill, feedback };
+  function actionReadiness(s, id, p = {}) {
+    const denied = check => ({ ready: false, reason: check.error, remaining: check.remaining || 0, source: check.source || null });
+    const st = stats(s);
+    if (st.weight >= st.capacity * 0.9)
+      return denied({ error: "น้ำหนักเกิน 90% • ขายของที่ตลาดท่าน้ำก่อน" });
+    if (id !== "attack" && (!skillAvailable(s, id) || !s.skills[id] || Skills.isPassive(id)))
+      return denied({ error: "ยังไม่ได้เรียนสกิลนี้" });
+    if (D.skills[id]?.owner) {
+      const check = Combat.inspect(s, id, p, combatHelpers);
+      if (check.error) return denied(check);
+    } else {
+      const timing = Combat.actionTiming(s, id);
+      if (timing) return denied(timing);
+      if (D.skills[id] && s.player.sp < Skills.spCost(s, id)) return denied({ error: "SP ไม่เพียงพอ" });
+      const m = s.monsters.find(m => m.uid === (p.target || s.target) && !m.dead);
+      if (id !== "first_aid" && (!m || dist(s.player, m) > attackRange(s)))
+        return denied({ error: "เลือกศัตรูและเดินเข้าใกล้ก่อน" });
+    }
+    return { ready: true, reason: "", remaining: 0, source: null };
+  }
   function doAction(s, action, p = {}) {
     const st = stats(s),
       fail = (message) => ({ ok: false, message }),
@@ -275,21 +296,15 @@
       return ok(s.auto ? "เปิดต่อสู้อัตโนมัติ" : "หยุดต่อสู้อัตโนมัติ");
     }
     if (action === "attack" || action === "skill") {
-      if (st.weight >= st.capacity * 0.9)
-        return fail("น้ำหนักเกิน 90% • ขายของที่ตลาดท่าน้ำก่อน");
       const id = action === "attack" ? "attack" : p.id;
-      if (id !== "attack" && (!skillAvailable(s, id) || !s.skills[id] || Skills.isPassive(id)))
-        return fail("ยังไม่ได้เรียนสกิลนี้");
+      const readiness = actionReadiness(s, id, p);
+      if (!readiness.ready) return fail(readiness.reason);
       if (D.skills[id]?.owner) return Combat.cast(s, id, p, combatHelpers);
-      if ((s.cooldowns[id] || 0) > 0)
-        return fail("กำลังรอสกิลหรือการโจมตีพร้อมใช้งาน");
       const skill = D.skills[id];
-      if (skill && s.player.sp < Skills.spCost(s, id)) return fail("SP ไม่เพียงพอ");
       const m = s.monsters.find(
         (m) => m.uid === (p.target || s.target) && !m.dead,
       );
-      if (id !== "first_aid" && (!m || dist(s.player, m) > attackRange(s)))
-        return fail("เลือกศัตรูและเดินเข้าใกล้ก่อน");
+      Combat.beginAction(s, id);
       if (skill) s.player.sp -= Skills.spCost(s, id);
       s.cooldowns[id] = skill ? skill.cooldown : st.interval;
       if (id === "first_aid")
@@ -419,6 +434,7 @@
       s.statPoints += refund;
       for (const key of Object.keys(D.statNames)) s.stats[key] = 1;
       delete s.classCombat;
+      Combat.clearAction(s);
       s.auto = false; s.target = null; s.destination = null; s.cooldowns = {};
       for (const m of s.monsters) { delete m.classDots; delete m.skillDebuffs; delete m.skillMarks; m.snare = 0; }
       delete s.player.skillDebuffs;
@@ -553,7 +569,7 @@
       return;
     }
     Combat.tick(s, dt, combatHelpers);
-    AutoQuest.tick(s, dt, { act: doAction, stats, dist });
+    AutoQuest.tick(s, dt, { act: doAction, stats, dist, actionReadiness });
     const st = stats(s);
     if (s.auto) {
       if ((s.player.hp / st.maxHp) * 100 < s.settings.autoPotion) {
@@ -849,6 +865,7 @@
     availableClasses,
     classChangeReason,
     skillAvailable,
+    actionReadiness,
     learnReason,
     skillsFor,
     trialProgress,

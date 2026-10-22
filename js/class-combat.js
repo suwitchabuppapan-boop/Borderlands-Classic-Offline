@@ -13,6 +13,21 @@
   const selfKinds = new Set(['self','sanctuary','radial','shield','cleanse','empower','debuff']);
   const areaKinds = new Set(['aoe','sanctuary','radial','cone','pierce','chain']);
   const point = p => Object.freeze({x:p.x,y:p.y});
+  // Character actions recover for their existing feedback animation duration.
+  // Keep this runtime-only: new/imported states cannot inherit a stale lock.
+  const actionRecovery = new WeakMap();
+  function beginAction(s,id) { actionRecovery.set(s,id==='attack'?.28:.45); }
+  function clearAction(s) { actionRecovery.delete(s); }
+  function tickAction(s,dt) {
+    const remaining=(actionRecovery.get(s)||0)-dt;
+    if(remaining>1e-9)actionRecovery.set(s,remaining);else clearAction(s);
+  }
+  function actionTiming(s,id) {
+    const recovery=actionRecovery.get(s)||0,cooldown=s.cooldowns?.[id]||0;
+    if(cooldown>0&&cooldown>=recovery)return{error:D.skills[id]?.owner?'กำลังรอสกิลพร้อมใช้งาน':'กำลังรอสกิลหรือการโจมตีพร้อมใช้งาน',remaining:cooldown,source:'cooldown'};
+    if(recovery>0)return{error:'กำลังใช้ท่าก่อนหน้า • รอให้จบท่าก่อน',remaining:recovery,source:'action'};
+    return null;
+  }
   function state(s) {
     if(!s.classCombat) s.classCombat={buffs:{},traps:[],orbCharges:0,orbTimer:0};
     return s.classCombat;
@@ -65,7 +80,7 @@
   function inspect(s,id,p={},h) {
     if(!accessible(s,id))return{error:'ยังไม่ได้เรียนสกิลใช้งานของอาชีพนี้'};
     const skill=D.skills[id],level=s.skills[id],cost=Skills.spCost(s,id);
-    if((s.cooldowns?.[id]||0)>0)return{error:'กำลังรอสกิลพร้อมใช้งาน'};
+    const timing=actionTiming(s,id);if(timing)return timing;
     if(!(s.player.sp>=cost))return{error:'SP ไม่เพียงพอ'};
     if(skill.chargeCost&&(s.classCombat?.orbCharges||0)<skill.chargeCost)return{error:'ประจุมณีไม่เพียงพอ'};
     let target=null;
@@ -120,7 +135,7 @@
     const check=inspect(s,id,p,h);if(check.error)return{ok:false,message:check.error};
     const{skill:sk,target,level,cost,affected,next}=check;let power=scaled(sk,'power','powerPerLevel',level);
     // No mutations (including feedback/transient allocation) occur before validation.
-    s.player.sp-=cost;if(!s.cooldowns)s.cooldowns={};s.cooldowns[id]=sk.cooldown;s.cooldowns.swing=.22;face(s,target);
+    beginAction(s,id);s.player.sp-=cost;if(!s.cooldowns)s.cooldowns={};s.cooldowns[id]=sk.cooldown;s.cooldowns.swing=.22;face(s,target);
     if(h?.feedback)h.feedback(s,{kind:'skill',source:s.player,target:target||s.player,facing:s.player.facing,weaponType:D.classes[s.classId].weaponType,skillId:id,result:null,phase:'direct',amount:null,magic:Skills.magicFor(s,id)});
     if(sk.chargeCost) {const cs=state(s);cs.orbCharges-=sk.chargeCost;if(!cs.orbCharges)cs.orbTimer=0;signal(s,id,'consume',s.player,s.player,sk.chargeCost);}
     if(['self','shield','cleanse','empower'].includes(sk.kind)) {
@@ -206,6 +221,7 @@
   function tickRecords(records,dt,s,target=s.player) {if(!records)return;for(const[id,b]of Object.entries(records)){b.remaining=Math.max(0,b.remaining-dt);if(!b.remaining){delete records[id];if(own(D.skills,id))signal(s,id,'expire',target,target);}}}
   function tick(s,seconds,h) {
     const dt=Number.isFinite(seconds)?clamp(seconds,0,60):0;if(!dt)return;const cs=s.classCombat;
+    tickAction(s,dt);
     if(cs){if(cs.signals)cs.signals=cs.signals.filter(e=>(e.age+=dt)<e.duration);tickRecords(cs.buffs,dt,s);cs.orbTimer=Math.max(0,cs.orbTimer-dt);if(!cs.orbTimer)cs.orbCharges=0;}
     tickRecords(s.player.skillDebuffs,dt,s);
     for(const m of s.monsters||[]) {
@@ -264,6 +280,6 @@
       return id;
     }return null;
   }
-  const api={cast,tick,modifiers,afterAttack,afterHeal,suggestSkill,suggestMovement,enemyModifiers,absorbDamage,targets,safeForQuest};
+  const api={cast,tick,inspect,actionTiming,beginAction,clearAction,modifiers,afterAttack,afterHeal,suggestSkill,suggestMovement,enemyModifiers,absorbDamage,targets,safeForQuest};
   if(typeof module==='object')module.exports=api;else root.BCClassCombat=api;
 })(typeof window==='object'?window:globalThis);
