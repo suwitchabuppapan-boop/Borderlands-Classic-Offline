@@ -18,7 +18,7 @@ test("retained catalog, class, skill, combat and drop data matches 1.12 except a
   vm.runInNewContext(source, context);
   const baseline = JSON.parse(JSON.stringify(context.module.exports));
   const actual = JSON.parse(JSON.stringify(D));
-  assert.equal(actual.world.release, '1.19');
+  assert.equal(actual.world.release, '1.20');
   delete actual.world.release; delete baseline.world.release;
   for(const id of ["rusty_sword","yak_greatsword"]) delete baseline.items[id];
   // Only the approved 1.19 unit weights change; preserve all other item data.

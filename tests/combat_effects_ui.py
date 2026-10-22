@@ -26,15 +26,15 @@ async def run_checks(page, artifacts=None):
       const freeze=o=>{if(o&&typeof o==='object'){Object.values(o).forEach(freeze);Object.freeze(o);}return o;};
       const geometryMethods=new Set(['moveTo','lineTo','bezierCurveTo','quadraticCurveTo','arc','ellipse','translate','rotate','scale','fillRect']);
       const pixels=s=>{
-        const a=canvas(360,320),real=a.getContext('2d',{willReadFrequently:true}),geometry=[];
-        const c=new Proxy(real,{get(target,key){const value=Reflect.get(target,key,target);if(typeof value!=='function')return value;return (...args)=>{if(geometryMethods.has(key))geometry.push([key,...args]);return Reflect.apply(value,target,args);};},set(target,key,value){return Reflect.set(target,key,value,target);}});
+        const a=canvas(360,320),real=a.getContext('2d',{willReadFrequently:true}),geometry=[],gradients={linear:0,radial:0};
+        const c=new Proxy(real,{get(target,key){const value=Reflect.get(target,key,target);if(typeof value!=='function')return value;return (...args)=>{if(geometryMethods.has(key))geometry.push([key,...args]);if(key==='createLinearGradient')gradients.linear++;if(key==='createRadialGradient')gradients.radial++;return Reflect.apply(value,target,args);};},set(target,key,value){return Reflect.set(target,key,value,target);}});
         const before=JSON.stringify(s);freeze(s);FX.drawGround(c,s);FX.drawFront(c,s);
         if(before!==JSON.stringify(s))throw Error('Canvas draw mutated state');
-        const data=real.getImageData(0,0,a.width,a.height).data;let count=0,opaque=0,alphaMass=0,maxAlpha=0,hash=2166136261;
-        for(let i=0;i<data.length;i++){if(i%4===3){if(data[i])count++;if(data[i]>=96)opaque++;alphaMass+=data[i];maxAlpha=Math.max(maxAlpha,data[i]);}hash=Math.imul(hash^data[i],16777619)>>>0;}
+        const data=real.getImageData(0,0,a.width,a.height).data,alphaValues=new Set();let count=0,opaque=0,alphaMass=0,maxAlpha=0,hash=2166136261;
+        for(let i=0;i<data.length;i++){if(i%4===3){if(data[i]){count++;alphaValues.add(data[i]);}if(data[i]>=96)opaque++;alphaMass+=data[i];maxAlpha=Math.max(maxAlpha,data[i]);}hash=Math.imul(hash^data[i],16777619)>>>0;}
         let corePixels=0;for(let i=3;i<data.length;i+=4)if(data[i]>=Math.max(1,maxAlpha*.7))corePixels++;
         let geometryHash=2166136261;for(const ch of JSON.stringify(geometry))geometryHash=Math.imul(geometryHash^ch.charCodeAt(0),16777619)>>>0;
-        return {count,opaque,corePixels,maxAlpha,alphaMass,hash,geometryHash};
+        return {count,opaque,corePixels,maxAlpha,alphaMass,alphaDiversity:alphaValues.size,gradients,hash,geometryHash};
       };
       const painter=(a,x,y,w,h,title)=>{const c=a.getContext('2d');c.fillStyle='#263b41';c.fillRect(x,y,w-1,h-1);c.fillStyle='#f5e5bd';c.font='13px sans-serif';c.fillText(title,x+10,y+21);return c;};
       const person=(c,source,cls,facing)=>BCRender.person(c,source.x,source.y,{classId:cls,facing,hair:0,pose:{mode:'attack',facing,progress:.45}});
@@ -79,6 +79,12 @@ async def run_checks(page, artifacts=None):
         record = await save_sheet(f'classic-weapons-directions-{start // 6 + 1}.png', record)
         weapon_checks.extend(record['checks'])
     assert len(weapon_checks) == 192
+    for check in (frame for frame in weapon_checks if frame['progress'] == .5):
+        assert check['alphaDiversity'] >= 16, check
+        # Steel crescents use nested translucent curves; projectile, magic and
+        # impact profiles use the painter's native Canvas light gradients.
+        if check['weaponType'] not in ('training', 'sword', 'dual_sword'):
+            assert sum(check['gradients'].values()) > 0, check
     for progress in (0, .25, .5, .8):
         at_time = [c for c in weapon_checks if c['progress'] == progress and c['facing'] == 1]
         assert len({c['hash'] for c in at_time}) == 12, f'Weapon profiles share pixels at {progress}'
@@ -113,6 +119,8 @@ async def run_checks(page, artifacts=None):
         record = await save_sheet(f'classic-skills-motion-{start // 5 + 1}.png', record)
         skill_checks.extend(record['checks'])
     assert len(skill_checks) == 60
+    for check in (frame for frame in skill_checks if frame['progress'] == .5):
+        assert sum(check['gradients'].values()) > 0 and check['alphaDiversity'] >= 16, check
     for progress in (0, .25, .5, .8):
         assert len({c['hash'] for c in skill_checks if c['progress'] == progress}) == 15
 
@@ -210,16 +218,26 @@ async def run_checks(page, artifacts=None):
         if(critical&&!record.criticalFrame){record.criticalFrame=canvas.toDataURL();record.criticalEvent={...critical};}
       };
       window.__combatSetup=classId=>{
-        const target=BCGame.state,next=BCCore.createState(),job=BCData.classes[classId];
+        const next=BCCore.createState(),job=BCData.classes[classId];
         next.classId=classId;next.job=job.tier?'Swordman':'Novice';next.weaponSchool=job.weaponType;next.equipment.weapon=job.trainingWeapon;
         next.player.x=470;next.player.y=280;
         next.stats.dex=60;next.stats.int=60;next.stats.luk=1;const stats=BCCore.stats(next);next.player.sp=stats.maxSp;next.player.hp=stats.maxHp;
         next.monsters=[{uid:'fx-target',kind:'guardian',x:510,y:280,hp:BCData.monsters.guardian.hp,cd:9999,dead:0,provoke:0}];next.target='fx-target';
         next.auto=false;next.settings.autoSkill=false;next.settings.autoPotion=0;next.skills[job.skill]=1;next.hotbar[0]='skill:'+job.skill;
+        // A genuine import starts a new runtime identity. Reusing the previous
+        // scene object would carry its WeakMap action recovery into this fixture.
+        BCGame.loadSave(BCCore.serialize(next));const target=BCGame.state;
         for(const key of Object.keys(target))delete target[key];Object.assign(target,next);return target;
       };
       __combatSetup('swordsman');
     }''')
+
+    async def wait_skill_ready():
+        # A selected nearby target starts ordinary combat on the first native
+        # tick. Let that genuine attack recover before sending the Hotbar key.
+        await page.wait_for_function('''BCGame.state.clock>0 &&
+            BCCore.actionReadiness(BCGame.state,BCData.classes[BCGame.state.classId].skill).ready''')
+
     await page.locator('#game').focus()
     await page.keyboard.press('Space')
     await page.wait_for_function('__combatRaf.draws>0 && BCGame.state.combatFeedback.events.some(e=>e.kind==="attack" && e.age>0)')
@@ -261,6 +279,7 @@ async def run_checks(page, artifacts=None):
 
     # Hotbar keyboard cast follows real validation/SP/CD and is seen in actual RAF drawing.
     await page.evaluate("__combatSetup('mage');__combatRaf.draws=0")
+    await wait_skill_ready()
     cast_sp = await page.evaluate('BCGame.state.player.sp')
     await page.locator('#game').focus()
     await page.keyboard.press('1')
@@ -277,6 +296,7 @@ async def run_checks(page, artifacts=None):
     for width, height in [(1440, 1000), (390, 844)]:
         await page.set_viewport_size({'width': width, 'height': height})
         await page.evaluate("__combatSetup('lotus_mage');__combatRaf.draws=0")
+        await wait_skill_ready()
         await page.locator('#game').focus()
         await page.keyboard.press('1')
         await page.wait_for_function('__combatRaf.draws>0 && __combatRaf.seen.some(e=>e.kind==="skill" && e.skillId==="lotus_storm")')
@@ -312,6 +332,7 @@ async def run_checks(page, artifacts=None):
 
     # Real skill state remains visible after the cast gesture and expires via real RAF tick.
     await page.evaluate("__combatSetup('acolyte')")
+    await wait_skill_ready()
     await page.locator('#game').focus()
     await page.keyboard.press('1')
     await page.wait_for_function('BCGame.state.classCombat?.buffs.ward_script?.remaining>0')
@@ -334,6 +355,7 @@ async def run_checks(page, artifacts=None):
     await page.wait_for_function('BCGame.state.classCombat.orbCharges===0')
 
     await page.evaluate("__combatSetup('moon_shadow')")
+    await wait_skill_ready()
     await page.locator('#game').focus()
     await page.keyboard.press('1')
     await page.wait_for_function('BCGame.state.monsters[0].classDots?.length===1')

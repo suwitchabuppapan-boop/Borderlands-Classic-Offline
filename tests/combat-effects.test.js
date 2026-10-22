@@ -25,7 +25,8 @@ function context() {
     calls.push([key,...args]);
     return {addColorStop(offset,color){assert.ok(Number.isFinite(offset));calls.push(['addColorStop',offset,color]);}};
   };
-  for (const key of ['strokeStyle', 'fillStyle', 'lineWidth', 'globalAlpha', 'lineCap', 'lineJoin', 'globalCompositeOperation', 'shadowColor', 'shadowBlur', 'shadowOffsetX', 'shadowOffsetY']) Object.defineProperty(c, key, { set(value) { if (typeof value === 'number') assert.ok(Number.isFinite(value)); calls.push([key, value]); } });
+  // Gradient coordinates/stops above are traced exactly; ignore per-instance method identity.
+  for (const key of ['strokeStyle', 'fillStyle', 'lineWidth', 'globalAlpha', 'lineCap', 'lineJoin', 'globalCompositeOperation', 'shadowColor', 'shadowBlur', 'shadowOffsetX', 'shadowOffsetY']) Object.defineProperty(c, key, { set(value) { if (typeof value === 'number') assert.ok(Number.isFinite(value)); calls.push([key, value&&typeof value.addColorStop==="function"?"CanvasGradient":value]); } });
   return c;
 }
 function event(overrides = {}) { return { id: 1, kind: 'attack', source: {x:250,y:280}, target:{x:300,y:280}, facing:1, weaponType:'sword', skillId:null, result:null, phase:'direct', amount:null, magic:false, age:.08, duration:.28, ...overrides }; }

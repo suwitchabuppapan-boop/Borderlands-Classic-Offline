@@ -69,14 +69,14 @@ test('debuffs change actual attack, hit and speed, bosses resist hard root but r
 
 test('marks and one-use amplification enhance the next matching cast once',()=>{
   const base=setup('lotus_mage',['lotus_storm']), boosted=setup('lotus_mage',['lotus_storm','blossom_mark','gather_petals']);
-  cast(boosted,'blossom_mark');assert.ok(boosted.monsters[0].hp<10000,'mark resolves its real direct magic hit');assert.equal(boosted.combatFeedback.events.filter(e=>e.kind==='impact'&&e.skillId==='blossom_mark').length,1);assert.ok(boosted.monsters[0].skillMarks.blossom_mark);cast(boosted,'gather_petals');cast(base,'lotus_storm');const hp=boosted.monsters.map(m=>m.hp);cast(boosted,'lotus_storm');
+  assert.equal(cast(boosted,'blossom_mark').ok,true);assert.ok(boosted.monsters[0].hp<10000,'mark resolves its real direct magic hit');assert.equal(boosted.combatFeedback.events.filter(e=>e.kind==='impact'&&e.skillId==='blossom_mark').length,1);assert.ok(boosted.monsters[0].skillMarks.blossom_mark);advance(boosted,.5);assert.equal(cast(boosted,'gather_petals').ok,true);advance(boosted,.5);cast(base,'lotus_storm');const hp=boosted.monsters.map(m=>m.hp);assert.equal(cast(boosted,'lotus_storm').ok,true);
   assert.ok(hp[0]-boosted.monsters[0].hp>10000-base.monsters[0].hp);assert.equal(boosted.monsters[0].skillMarks.blossom_mark,undefined);assert.equal(boosted.classCombat.buffs.gather_petals.empowerRemaining,0);
-  const a=setup('arcane_archer',['arcane_arrow_inscription','arcane_harmonic_arrow']);cast(a,'arcane_arrow_inscription');cast(a,'arcane_harmonic_arrow');assert.equal(a.classCombat.buffs.arcane_arrow_inscription.empowerRemaining,0);
+  const a=setup('arcane_archer',['arcane_arrow_inscription','arcane_harmonic_arrow']);assert.equal(cast(a,'arcane_arrow_inscription').ok,true);advance(a,.5);assert.equal(cast(a,'arcane_harmonic_arrow').ok,true);assert.equal(a.classCombat.buffs.arcane_arrow_inscription.empowerRemaining,0);
 });
 
 test('poison/bleed/garuda conditional bursts use real states and never invent DOT',()=>{
   for(const [id,pre] of [['moon_shadow_finisher','moon_venom'],['night_tiger_sweep','tiger_rend'],['garuda_pierce','garuda_combo']]) {
-    const a=setup(D.skills[id].owner,[id]),b=setup(D.skills[id].owner,[id,pre]);cast(b,pre);const hp=b.monsters[0].hp;cast(a,id);cast(b,id);assert.ok(hp-b.monsters[0].hp>10000-a.monsters[0].hp,id);assert.ok(b.classCombat.signals.some(e=>e.kind==='conditional'&&e.skillId===id),id);
+    const a=setup(D.skills[id].owner,[id]),b=setup(D.skills[id].owner,[id,pre]);assert.equal(cast(b,pre).ok,true);advance(b,.5);const hp=b.monsters[0].hp;cast(a,id);assert.equal(cast(b,id).ok,true);assert.ok(hp-b.monsters[0].hp>10000-a.monsters[0].hp,id);assert.ok(b.classCombat.signals.some(e=>e.kind==='conditional'&&e.skillId===id),id);
   }
 });
 
@@ -147,7 +147,7 @@ test('heals emit measured positive signals, shields share one budget and actual 
     assert.equal(full.classCombat?.signals?.some(e=>e.kind==='heal')||false,false);
   }
   const s=setup('orb_weaver',['lotus_veil','prism_veil']);s.classCombat={buffs:{},traps:[],orbCharges:1,orbTimer:12};
-  cast(s,'lotus_veil');const first=s.classCombat.buffs.lotus_veil.shieldRemaining;cast(s,'prism_veil');
+  assert.equal(cast(s,'lotus_veil').ok,true);const first=s.classCombat.buffs.lotus_veil.shieldRemaining;advance(s,.5);assert.equal(cast(s,'prism_veil').ok,true);
   const pools=Object.values(s.classCombat.buffs).map(b=>b.shieldRemaining||0);assert.equal(pools.filter(n=>n>0).length,1);
   const remaining=Math.max(...pools);assert.ok(remaining>=first);assert.equal(Combat.absorbDamage(s,1000),1000-remaining);assert.equal(Combat.absorbDamage(s,1000),1000);
   assert.ok(s.classCombat.signals.some(e=>e.kind==='break'));

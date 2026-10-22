@@ -57,7 +57,7 @@ test('approved catalog has exactly 61 matching Thai names, four native skills an
   }
   assert.equal(Object.values(D.skills).filter(skill => skill.kind === 'passive').length, 15);
   assert.equal(Object.values(D.skills).filter(skill => skill.owner && skill.kind !== 'passive').length, 45);
-  assert.equal(D.world.release, '1.19');
+  assert.equal(D.world.release, '1.20');
 });
 
 test('original signatures and non-weight item properties retain exact balance and descriptions', () => {

@@ -52,3 +52,23 @@ test('arc phase wrapping preserves the original short sweep across multiple revo
   assert.equal(a.calls.length,b.calls.length);
   a.calls.forEach((call,i)=>call.forEach((v,j)=>{if(typeof v==='number')assert.ok(Math.abs(v-b.calls[i][j])<1e-8,'same short sweep');else assert.equal(v,b.calls[i][j]);}));
 });
+
+test('luminous ribbons use transparent color falloff rather than an opaque flat plate',()=>{
+  const P=painter(),c=context(),gradients=[];
+  for(const kind of ['Linear','Radial'])c['create'+kind+'Gradient']=(...coordinates)=>{const stops=[];const g={kind,coordinates,stops,addColorStop(offset,color){assert.ok(offset>=0&&offset<=1);stops.push([offset,color]);}};gradients.push(g);return g;};
+  P.ribbon(c,[[0,0],[12,-5],[28,2]],7,'#66aacc','#fff7de');
+  assert.ok(gradients.some(g=>g.kind==='Linear'),'trail needs color falloff along its length');
+  assert.ok(gradients.some(g=>g.stops.some(([,color])=>/rgba\([^)]*,\s*0\)/.test(color))),'at least one edge fades to transparent');
+  assert.equal(c.depth,0);assert.equal(c.globalAlpha,.6);
+});
+test('soft auras are bounded and restore parent alpha and transform state',()=>{
+  const P=painter(),c=context();assert.equal(typeof P.aura,'function');
+  P.aura(c,12,8,22,9,'#779ddd',.4);
+  assert.ok(c.calls.some(row=>['ellipse','arc'].includes(row[0])));assert.equal(c.depth,0);assert.equal(c.globalAlpha,.6);
+  const before=c.calls.length;P.aura(c,NaN,8,22,9,'#779ddd',.4);P.aura(c,12,8,Infinity,9,'#779ddd',.4);P.aura(c,12,8,22,9,'#779ddd',0);assert.equal(c.calls.length,before);
+});
+test('impact rays evolve in space with a bounded particle count',()=>{
+  const P=painter();assert.equal(typeof P.rays,'function');const a=context(),b=context();
+  P.rays(a,0,0,.1,100000,'#77bbee','#fff7de',24);P.rays(b,0,0,.7,100000,'#77bbee','#fff7de',24);
+  assert.notDeepEqual(a.calls,b.calls);assert.ok(a.calls.length<700);assert.equal(a.depth,0);assert.equal(b.depth,0);
+});

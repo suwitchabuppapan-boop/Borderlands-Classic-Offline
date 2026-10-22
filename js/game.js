@@ -566,10 +566,10 @@
   }
   function updateSkillReadiness() {
     document.querySelectorAll('.skill-use[data-id]').forEach(el => {
-      const id=el.dataset.id, skill=D.skills[id], remaining=state.cooldowns[id]||0;
-      let reason=!state.skills[id]?"ต้องเรียนสกิลก่อน":remaining>0?`รอ ${remaining.toFixed(1)} วินาที`:state.player.sp<SkillRules.spCost(state,id)?"SP ไม่เพียงพอ":skill.chargeCost>(state.classCombat?.orbCharges||0)?"ประจุมณีไม่เพียงพอ":"";
-      el.disabled=!!reason;el.title=reason||`ใช้ ${skill.name}`;
-      el.textContent=remaining>0?`${remaining.toFixed(1)}s`:"ใช้";
+      const id=el.dataset.id,skill=D.skills[id],r=C.actionReadiness(state,id);
+      el.disabled=!r.ready;el.title=r.reason||`ใช้ ${skill.name}`;
+      el.dataset.readinessSource=r.source||"";el.dataset.readinessRemaining=String(r.remaining);
+      el.textContent=r.remaining>0?`${(Math.ceil(r.remaining*10)/10).toFixed(1)}s`:"ใช้";
     });
   }
   function skillTree(s) {
@@ -820,6 +820,7 @@
         color: d.color,
         locked: !state.skills[id] || !C.skillAvailable(state, id),
         cooldown: (state.cooldowns[id] || 0) / d.cooldown,
+        skillId: id,
       };
     }
     if (kind === "item") {
@@ -848,11 +849,19 @@
         })
         .join("");
     }
-    state.hotbar.forEach(
-      (v, i) =>
-        ($("cool-" + i).style.height =
-          Math.max(0, Math.min(1, bindingInfo(v).cooldown || 0)) * 100 + "%"),
-    );
+    state.hotbar.forEach((value,i)=>{
+      const info=bindingInfo(value),slot=$("hotbar-slots").querySelector(`[data-hot="${i}"]`),overlay=$("cool-"+i);
+      const attack=value==="action:attack",r=info.skillId?C.actionReadiness(state,info.skillId):attack?C.actionReadiness(state,"attack"):null;
+      const busy=r?.source==="action",blocked=info.locked||info.skillId&&!r.ready||attack&&busy;
+      slot.disabled=!!blocked;slot.classList.toggle("action-busy",busy);
+      slot.dataset.readinessSource=r?.source||"";slot.dataset.readinessRemaining=String(r?.remaining||0);
+      const reason=r&&!r.ready?r.reason:"";
+      slot.title=`${info.label}${reason?` · ${reason}`:""} · ปุ่ม ${i+1}`;
+      slot.setAttribute("aria-label",`ช่อง ${i+1}: ${info.label}${reason?` · ${reason}`:""}`);
+      const fraction=Math.max(info.cooldown||0,busy?r.remaining/(info.skillId ? .45 : .28):0);
+      overlay.style.height=Math.max(0,Math.min(1,fraction))*100+"%";
+      overlay.textContent=r?.remaining>0?(Math.ceil(r.remaining*10)/10).toFixed(1):"";
+    });
   }
   function updateHUD() {
     const s = state,

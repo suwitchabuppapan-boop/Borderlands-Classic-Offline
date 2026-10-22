@@ -46,18 +46,36 @@ async def run_checks(page, artifacts=None):
       };
       const advance=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds*10);i++)C.tick(s,.1);};
       const cast=(s,id)=>C.act(s,'skill',{id,target:s.monsters[0]?.uid});
+      const waitReady=(s,id)=>{
+        // Preserve the chosen target while ordinary engine ticks age recovery.
+        // An active target would otherwise request extra ordinary attacks.
+        const target=s.target,p={target:s.monsters[0]?.uid};s.target=null;
+        try{
+          for(let i=0;i<2000;i++){
+            const ready=C.actionReadiness(s,id,p);if(ready.ready)return;
+            ensure(ready.remaining>0,id+' cannot recover: '+ready.reason);
+            C.tick(s,Math.min(.05,ready.remaining));
+          }
+          throw Error(id+' did not become ready through normal ticks');
+        }finally{s.target=target;}
+      };
       const resources=s=>JSON.stringify({sp:s.player.sp,hp:s.player.hp,x:s.player.x,y:s.player.y,seed:s.seed,
         cooldowns:s.cooldowns,classCombat:s.classCombat,monsters:s.monsters,feedback:s.combatFeedback});
       const outcome=s=>JSON.stringify({hp:s.player.hp,x:s.player.x,y:s.player.y,classCombat:s.classCombat,
         targets:s.monsters.map(m=>({hp:m.hp,snare:m.snare,dots:m.classDots,marks:m.skillMarks,debuffs:m.skillDebuffs}))});
       const charge=s=>{
         const target=s.monsters[0];
-        for(let i=0;i<3;i++){s.cooldowns.attack=0;ensure(C.act(s,'attack',{target:target.uid}).ok,'charge attack failed');}
+        for(let i=0;i<3;i++){waitReady(s,'attack');ensure(C.act(s,'attack',{target:target.uid}).ok,'charge attack failed');}
         ensure(s.classCombat?.orbCharges===3,'Only landed ordinary attacks must create actual orb charges');
-        s.combatFeedback.events=[];s.cooldowns={};
+        waitReady(s,'first_aid');s.combatFeedback.events=[];
       };
-      const live=s=>{const dst=BCGame.state;for(const k of Object.keys(dst))delete dst[k];Object.assign(dst,s);return dst;};
-      window.__skills117={C,D,R,ensure,directions,setup,advance,cast,resources,outcome,charge,live};
+      const live=s=>{
+        // Import creates a new runtime identity, just like a genuine new scene;
+        // reusing the old object could retain its WeakMap action recovery.
+        BCGame.loadSave(C.serialize(s));const dst=BCGame.state;
+        for(const k of Object.keys(dst))delete dst[k];Object.assign(dst,s);return dst;
+      };
+      window.__skills117={C,D,R,ensure,directions,setup,advance,waitReady,cast,resources,outcome,charge,live};
     }''')
     catalog = await page.evaluate(r'''() => {
       const {D,R,ensure}=__skills117,ids=Object.keys(D.skills),passives=ids.filter(id=>R.isPassive(id));
@@ -186,7 +204,7 @@ async def run_checks(page, artifacts=None):
     }''')
 
     mechanics = await page.evaluate(r'''() => {
-      const {C,D,setup,cast,charge,advance,ensure}=__skills117;
+      const {C,D,setup,cast,charge,advance,waitReady,ensure}=__skills117;
       const damaged=s=>100000-s.monsters[0].hp;
       // Absorption changes the normal incoming enemy attack, not just a shield icon.
       const bare=setup('mage'),shield=setup('mage',['lotus_veil']);cast(shield,'lotus_veil');
@@ -211,18 +229,18 @@ async def run_checks(page, artifacts=None):
       // One-use sources remain through an unrelated single attack, then both are
       // consumed exactly once by the actual matching area skill.
       const lotus=setup('lotus_mage',['blossom_mark','gather_petals','lotus_bolt','lotus_storm']);
-      cast(lotus,'blossom_mark');cast(lotus,'gather_petals');cast(lotus,'lotus_bolt');
+      cast(lotus,'blossom_mark');waitReady(lotus,'gather_petals');cast(lotus,'gather_petals');waitReady(lotus,'lotus_bolt');cast(lotus,'lotus_bolt');
       ensure(lotus.monsters[0].skillMarks.blossom_mark,'Single skill consumed area mark');
       ensure(lotus.classCombat.buffs.gather_petals.empowerRemaining>0,'Single skill consumed area empower');
-      const markHp=lotus.monsters[0].hp;cast(lotus,'lotus_storm');const amplified=markHp-lotus.monsters[0].hp;
+      waitReady(lotus,'lotus_storm');const markHp=lotus.monsters[0].hp;cast(lotus,'lotus_storm');const amplified=markHp-lotus.monsters[0].hp;
       ensure(!lotus.monsters[0].skillMarks.blossom_mark,'Blossom mark was not consumed');
       ensure(lotus.classCombat.buffs.gather_petals.empowerRemaining===0,'Gather empower not consumed');
-      lotus.cooldowns.lotus_storm=0;const secondHp=lotus.monsters[0].hp;cast(lotus,'lotus_storm');const ordinary=secondHp-lotus.monsters[0].hp;
+      waitReady(lotus,'lotus_storm');const secondHp=lotus.monsters[0].hp;cast(lotus,'lotus_storm');const ordinary=secondHp-lotus.monsters[0].hp;
       ensure(amplified>ordinary,'Consumed area amplification did not change actual damage');
       const arcane=setup('arcane_archer',['arcane_arrow_inscription','arcane_harmonic_arrow']);
-      cast(arcane,'arcane_arrow_inscription');const arrowBefore=arcane.monsters[0].hp;cast(arcane,'arcane_harmonic_arrow');const firstArrow=arrowBefore-arcane.monsters[0].hp;
+      cast(arcane,'arcane_arrow_inscription');waitReady(arcane,'arcane_harmonic_arrow');const arrowBefore=arcane.monsters[0].hp;cast(arcane,'arcane_harmonic_arrow');const firstArrow=arrowBefore-arcane.monsters[0].hp;
       ensure(arcane.classCombat.buffs.arcane_arrow_inscription.empowerRemaining===0,'Arrow inscription not consumed');
-      arcane.cooldowns.arcane_harmonic_arrow=0;const nextHp=arcane.monsters[0].hp;cast(arcane,'arcane_harmonic_arrow');
+      waitReady(arcane,'arcane_harmonic_arrow');const nextHp=arcane.monsters[0].hp;cast(arcane,'arcane_harmonic_arrow');
       ensure(firstArrow>nextHp-arcane.monsters[0].hp,'Arrow one-use bonus did not affect actual damage');
       // Charges come from landed basics; the empty shield rejects without spending.
       const orb=setup('orb_weaver',['prism_veil']);const zeroSp=orb.player.sp;
@@ -391,7 +409,7 @@ async def run_checks(page, artifacts=None):
     await page.evaluate(r'''() => {
       const original=BCRender.draw;window.__classRaf={frames:0,captured:[],pending:null};
       BCRender.draw=function(canvas,s){original(canvas,s);const rec=__classRaf;rec.frames++;
-        if(rec.pending&&s.combatFeedback?.events.some(e=>e.kind==='skill'&&e.skillId===rec.pending&&e.age>0&&e.age<.35)){
+        if(rec.pending&&s.combatFeedback?.events.some(e=>e.kind==='skill'&&e.skillId===rec.pending&&e.age>=.08&&e.age<.25)){
           rec.captured.push({id:rec.pending,image:canvas.toDataURL(),events:s.combatFeedback.events.map(e=>({...e})),clock:s.clock});rec.pending=null;
         }};
     }''')
@@ -399,8 +417,11 @@ async def run_checks(page, artifacts=None):
     for width, height in [(1440, 900), (390, 844)]:
         await page.set_viewport_size({"width": width, "height": height})
         await page.evaluate(r'''() => {
-          const s=__skills117.setup('lotus_mage',['lotus_storm','blossom_mark','gather_petals']);s.zone=1;
-          s.hotbar[0]='skill:lotus_storm';__skills117.cast(s,'blossom_mark');__skills117.cast(s,'gather_petals');
+          // Keep the chosen target inside storm range and outside the ordinary
+          // staff approach range while the native keyboard event is delivered.
+          const s=__skills117.setup('lotus_mage',['lotus_storm','blossom_mark','gather_petals'],0,175);s.zone=0;
+          s.monsters.forEach(m=>m.hp=BCData.monsters[m.kind].hp);
+          s.hotbar[0]='skill:lotus_storm';__skills117.cast(s,'blossom_mark');__skills117.waitReady(s,'gather_petals');__skills117.cast(s,'gather_petals');__skills117.waitReady(s,'lotus_storm');
           __skills117.live(s);BCGame.openPanel('skills');__classRaf.pending='lotus_storm';
         }''')
         # Menus intentionally suppress game hotkeys, so close for the actual key,

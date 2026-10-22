@@ -118,6 +118,24 @@ if (FX) {
     }
   });
 
+  test("replaying weapon snapshots in a different age order produces identical marks", () => {
+    for (const weaponType of types) {
+      const phases = [0, .13, .38, .68, .94];
+      const expected = new Map(phases.map(p => [p, render(event({ weaponType, age: .28*p }))]));
+      for (const p of [.94, .13, .68, 0, .38, .13])
+        assert.deepEqual(render(event({ weaponType, age: .28*p })), expected.get(p), weaponType + " depends only on its immutable snapshot");
+    }
+  });
+
+  test("ranged gestures at zero distance retain their body-facing fallback", () => {
+    for (const weaponType of ranged) for (let facing = 0; facing < 4; facing++) {
+      const calls = render(event({ weaponType, facing, target: { x: 140, y: 160 } }));
+      assert.deepEqual(calls.find(([op]) => op === "translate"), ["translate", 140, 143]);
+      assert.deepEqual(calls.find(([op]) => op === "rotate"), ["rotate", [Math.PI / 2, 0, -Math.PI / 2, Math.PI][facing]]);
+      assert.ok(calls.some(([op]) => op === "fill"), weaponType + " remains visible at point-blank range");
+    }
+  });
+
   test("ranged travel is capped at 250 and early, late, large gestures keep finite bounded geometry", () => {
     for (const weaponType of ranged) {
       const capped = geometry(render(event({ weaponType, target: { x: 390, y: 160 }, age: .28*.75 })));
