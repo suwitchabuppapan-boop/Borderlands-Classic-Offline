@@ -69,11 +69,18 @@ async def run_checks(page, artifacts=None):
     await page.evaluate("window.dispatchEvent(new Event('focus'))")
     # Existing save whitelist still excludes all runtime clocks and auto intent.
     save=await page.evaluate("JSON.parse(BCCore.serialize(BCGame.state)).state")
-    assert "simulationClock" not in save and "auto" not in save and "combatFeedback" not in save
+    assert "simulationClock" not in save and "clock" not in save and "auto" not in save and "combatFeedback" not in save
+    historical_clock=await page.evaluate("BCGame.state.clock")
+    assert historical_clock>1, historical_clock
     await page.evaluate("BCGame.save()")
     await page.reload()
     await page.wait_for_function("window.BCGame && BCRender.assets.ready")
-    assert await page.evaluate("!BCGame.state.auto && !BCGame.state.autoQuest?.active && BCGame.state.clock<1")
+    # Image decoding and verified-cache fulfillment can take more than one
+    # second while the fresh live simulation is already running. Compare with
+    # this navigation's real elapsed time rather than an arbitrary load budget.
+    reload_epoch=await page.evaluate("({clock:BCGame.state.clock,pageElapsed:performance.now()/1000,auto:BCGame.state.auto,autoQuest:!!BCGame.state.autoQuest?.active})")
+    assert reload_epoch["auto"] is False and reload_epoch["autoQuest"] is False, reload_epoch
+    assert 0<=reload_epoch["clock"]<=reload_epoch["pageElapsed"]+.1, {"beforeReload":historical_clock,**reload_epoch}
     # A long suspended interval is replayed in chunks. Purchases cannot modify
     # the start of that historical interval, and are not silently queued.
     gate=await page.evaluate("""()=>{
@@ -106,4 +113,5 @@ async def run_checks(page, artifacts=None):
     assert failed_attempts == 1,("failed autosave must not retry every frame",failed_attempts)
     await page.screenshot(path=str(output/"continuous-farming.png"))
     return {"menu_kills_and_loot":loot,"frozen_wall_seconds":elapsed,"replayed_simulation_seconds":simulated,
+      "reload_epoch":reload_epoch,"historical_clock_before_reload":historical_clock,
       "checks":["target retained","menu ticks and real kills/loot","blur ticks","actual page freeze catchup","no duplicate RAF/interval time","manual keys released","save/reload epoch","hour backlog mutation gate","failed autosave cadence"]}
