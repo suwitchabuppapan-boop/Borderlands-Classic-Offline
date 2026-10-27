@@ -74,9 +74,22 @@
       if (!own(current.levels, id)) return invalid("จัดแต้มได้เฉพาะสกิลอาชีพในสายปัจจุบัน");
       if (!Number.isInteger(count) || count <= 0 || levels[id] + count > D.skills[id].max) return invalid("ระดับสกิลในแผนไม่ถูกต้องหรือเกินระดับสูงสุด");
       levels[id] += count;
-      spent += count;
+      spent += count * (D.skills[id].learnCost ?? 1);
     }
     if (spent > current.points) return invalid("แต้มสกิลไม่เพียงพอสำหรับแผนนี้");
+    for (const id of Object.keys(draft.increments)) {
+      const skill = D.skills[id];
+      for (const [required, level] of Object.entries(skill.requirements || {})) {
+        if (!own(levels, required) || levels[required] < level)
+          return invalid(`ต้องเรียน${D.skills[required].name}ระดับ ${level}`);
+      }
+      if (skill.questSkill) {
+        const guide = D.npcs.find(n => n.id === "guide");
+        if (!guide || s.zone !== 0 || !Number.isFinite(s.player?.x) || !Number.isFinite(s.player?.y) ||
+            Math.hypot(s.player.x - guide.x, s.player.y - guide.y) >= 85)
+          return invalid("คุยครูอินที่เมืองเพื่อเรียนสกิลพิเศษฟรี");
+      }
+    }
     for (const id of current.ids) if (own(draft.increments, id)) entries.push({ id, count: draft.increments[id] });
     return { ok: true, message: "", spent, remaining: current.points - spent, levels, entries };
   }

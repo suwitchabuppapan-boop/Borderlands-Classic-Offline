@@ -40,7 +40,7 @@
     const gearAtk = (sum('atk') + (weapon?.atk || 0) * (physicalPrimary - 1) * 0.005) * buff;
     const baseMatk = 8 + (s.baseLevel || 1) + Math.floor(a.int * 1.5) + Math.floor(a.dex / 5) + Math.floor(a.luk / 3);
     const gearMatk = sum('matk') + (weapon?.matk || 0) * (a.int - 1) * 0.005;
-    const softDef = Math.floor(a.vit / 2) + Math.floor(a.agi / 5), hardDef = sum('def') + (mods.defBonus || 0) + passive.defBonus;
+    const softDef = Math.floor(a.vit / 2) * (mods.vitDefMultiplier ?? 1) + Math.floor(a.agi / 5), hardDef = sum('def') + (mods.defBonus || 0) + passive.defBonus;
     const softMdef = a.int + Math.floor(a.vit / 5) + Math.floor(a.dex / 5), hardMdef = sum('mdef') + (mods.mdefBonus || 0) + passive.mdefBonus;
     const interval = Math.max(0.35, profile.interval * passive.intervalMultiplier * (mods.intervalMultiplier || 1) / (1 + (a.agi - 1) * 0.008 + (a.dex - 1) * 0.002));
     const hp = maxHp(s), sp = maxSp(s);
@@ -54,7 +54,7 @@
       crit: Math.min(35, 1 + a.luk * 0.3), perfectDodge: a.luk / 10,
       interval, aspd: 200 - 50 * interval, primaryStat: profile.primaryStat, basicMagic: profile.basicMagic,
       hpRegen: 2 + Math.floor(a.vit / 5) + Math.floor(hp / 200), spRegen: 2 + Math.floor(a.int / 6) + Math.floor(sp / 100),
-      hpItemMultiplier: 1 + a.vit * 0.02, spItemMultiplier: 1 + a.int * 0.01,
+      hpItemMultiplier: 1 + a.vit * 0.02 + passive.hpItemBonus, spItemMultiplier: 1 + a.int * 0.01,
       // Level growth gives every weapon path room for a long farming trip;
       // STR retains its carrying bonus without burdening INT/DEX builds.
       weight, capacity: 6000 + (s.baseLevel || 1) * 800 + a.str * 30,

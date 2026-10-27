@@ -469,3 +469,17 @@ kbd { color: #e9e0c8; font: 9px Tahoma, sans-serif; border: 1px solid #b3ac84; b
 .trial-progress.complete { color: #b8dfad; }
 .class-equipment-rule { margin-top: 8px; margin-bottom: 0; }
 @media (max-width: 600px) { .class-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.skill-training, .skill-prerequisites, .skill-level-effect, .skill-live-state { display: block; margin-top: 4px; font-size: 9px; line-height: 1.7; }
+.skill-training { color: #70ad78; }
+.skill-tree-detail .skill-training { color: #a9d6a6; }
+.skill-prerequisites { color: #a47b2e; }
+.skill-tree-detail .skill-prerequisites { color: #dec78e; }
+.skill-level-effect { color: #9f813e; }
+.skill-tree-detail .skill-level-effect { color: #efd59b; }
+.skill-live-state { color: #9dd6d1; }
+.skill-level-table { margin-top: 7px; font-size: 9px; line-height: 1.6; }
+.skill-level-table summary { cursor: pointer; color: #e1ce9f; }
+.skill-level-table table { width: 100%; border-collapse: collapse; margin-top: 5px; font-variant-numeric: tabular-nums; }
+.skill-level-table th, .skill-level-table td { border-bottom: 1px solid #a8b79738; padding: 4px; text-align: left; vertical-align: top; }
+.skill-level-table .learned-level { color: #f3d68e; background: #a4ba9030; }

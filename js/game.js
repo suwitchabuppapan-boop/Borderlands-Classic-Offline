@@ -3,6 +3,7 @@
   const D = window.BCData,
     C = window.BCCore,
     SkillRules = window.BCSkillRules,
+    SwordRules = window.BCSwordRules,
     R = window.BCRender,
     Clock = window.BCSimulationClock,
     $ = (id) => document.getElementById(id);
@@ -162,7 +163,7 @@
     save();
     updateHUD();
     if (panel) renderPanel();
-    toast("นำเข้าเซฟสำเร็จ");
+    toast(next.swordMigration?.refundedPoints ? `นำเข้าเซฟสำเร็จ · คืนแต้มสกิลนักดาบ ${next.swordMigration.refundedPoints} แต้ม จัดใหม่ได้ในผังสกิล` : "นำเข้าเซฟสำเร็จ");
   }
   function run(action, p = {}) {
     if (!readyForAction()) return { ok: false, message: "กำลังคำนวณการฟาร์มที่ค้างอยู่" };
@@ -314,6 +315,7 @@
   // Equipment uses the same atlas art as the character; other icons stay compact SVGs.
   function artIcon(id) {
     const item = D.items[id], art = item?.iconArt;
+    if(item?.weaponType==="two_hand_sword")return `<svg class="game-icon item-art" viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path d="M5 29l8-9" stroke="#775335" stroke-width="4"/><path d="M4 28l2 2M10 19l5 5" stroke="#d8b363" stroke-width="2.5"/><path d="M12 20L26 3l2 6-13 14z" fill="${esc(item.color||'#c4d6df')}" stroke="#3f5364" stroke-width="1"/><path d="M14 21L26 6" stroke="#fff4cf"/></svg>`;
     if (art) {
       const atlas = window.BCSiamArt?.atlases?.[art.atlas] || { width: 128, height: 64, columns: 4, rows: 2 },
         bounds = window.BCSiamArt?.iconBounds?.[art.atlas]?.[art.cell],
@@ -548,19 +550,41 @@
     const reason = C.learnReason(s, id);
     return `<article class="skill-card" data-skill="${id}" data-class="${d.owner || "villager"}" data-kind="${passive ? "passive" : "active"}"><span class="item-icon">${artIcon(id)}</span><div class="item-info"><b>${esc(d.name)} <span class="subtle">Lv.${s.skills[id] || 0} / ${d.max}</span></b><small class="skill-owner">${owner ? `${esc(owner.name)} · Class ${owner.tier}${d.owner !== s.classId ? " · สืบทอด" : ""}` : "ใช้ได้ทุกอาชีพ"}</small>${skillMeta(s, id)}<small class="skill-description">${esc(d.description)}</small>${id !== "first_aid" && reason ? `<small class="skill-reason">${esc(reason)}</small>` : ""}</div>${skillControls(s, id, reason)}</article>`;
   }
-  function skillMeta(s, id) {
-    const d = D.skills[id], passive = SkillRules.isPassive(id);
+  function swordLevelText(s, id, level) {
+    const v = SwordRules.levelInfo(id,level,s.baseLevel), pct = n => numberText(n*100);
+    if (!v) return "";
+    switch(id) {
+      case "swordsman_discipline": case "swordsman_twohand_mastery": return `ความเสียหายแยกจาก DEF +${v.masteryFlat} ต่อฮิต`;
+      case "swordsman_recovery": return `ฟื้น ${5*level} + ${pct(.002*level)}% Max HP / 10 วินาที · ผลยา HP +${pct(v.hpItemBonus)}%`;
+      case "arun_slash": return `ATK ${pct(v.power)}% · HIT +${v.hitBonus} · SP ${v.sp}${level>=6&&s.skills.swordsman_fatal_blow?` · มึนงง ${pct(v.fatalBlowChance)}%`:""}`;
+      case "swordsman_provoke": return `สำเร็จ ${pct(v.successChance)}% · เป้า ATK +${pct(v.enemyAtkMultiplier-1)}% / DEF −${pct(1-v.enemyDefMultiplier)}% · SP ${v.sp}`;
+      case "swordsman_sweep": return `ATK ${pct(v.power)}% · HIT +${v.hitBonus} · HP ${v.hpCost} / SP ${v.sp}`;
+      case "swordsman_stance": return `MDEF +${v.mdefBonus} · ${v.duration} วินาที / 7 ครั้ง · SP ${v.sp}`;
+      case "swordsman_moving_recovery": return "ฟื้น HP ตามธรรมชาติขณะเดิน 50%";
+      case "swordsman_fatal_blow": return "ฟาดฟันรุนแรง Lv.6–10 ทำให้มึนงง 5 วินาที";
+      case "swordsman_auto_berserk": return "HP <25%: ATK +32% / VIT DEF −55% · เปิด SP 1 / ปิดฟรี";
+      default: return "";
+    }
+  }
+  function skillMeta(s, id, showTable = false) {
+    const d = D.skills[id], passive = SkillRules.isPassive(id), sword = SwordRules.isSwordSkill(id);
     const roles = { attack: "โจมตี", buff: "เสริมพลัง", utility: "สนับสนุน", heal: "ฟื้นฟู" };
-    const mechanics = { cone: "โจมตีเป็นพัด", radial: "โจมตีรอบตัว", chain: "โจมตีชิ่ง", pierce: "โจมตีทะลุแนว", shield: "สร้างโล่", mark: "วางตราบนเป้าหมาย", empower: "เสริมสกิลครั้งถัดไป", cleanse: "ชำระสถานะ", move: "เคลื่อนที่", debuff: "ลดพลังศัตรู", trap: "วางกับดัก", sanctuary: "ฟื้นฟูและโจมตีรอบตัว" };
-    if (passive) return `<small class="skill-meta"><span class="skill-kind passive">ติดตัว</span> เรียนแล้วทำงานอัตโนมัติ · ไม่ใช้ช่อง Hotbar</small>`;
-    const cost = SkillRules.spCost(s, id), range = SkillRules.rangeFor(s, id);
-    return `<small class="skill-meta"><span class="skill-kind active">กดใช้</span> ${mechanics[d.kind] || roles[d.category] || "สกิลอาชีพ"} · <span data-effective-sp="${cost}">SP ${cost}</span>${cost !== d.sp ? ` (ปกติ ${d.sp})` : ""} · CD ${d.cooldown} วินาที${range > 0 ? ` · ระยะ ${range}` : " · ตนเอง"}</small>`;
+    const mechanics = { cone: "โจมตีเป็นพัด", radial: "โจมตีรอบตัว", chain: "โจมตีชิ่ง", pierce: "โจมตีทะลุแนว", shield: "สร้างโล่", mark: "วางตราบนเป้าหมาย", empower: "เสริมสกิลครั้งถัดไป", cleanse: "ชำระสถานะ", move: "เคลื่อนที่", debuff: "ลดพลังศัตรู", provoke: "ยั่วยุ", toggle: "เปิด / ปิด", trap: "วางกับดัก", sanctuary: "ฟื้นฟูและโจมตีรอบตัว" };
+    const level = Math.max(1,s.skills[id]||0), cost = SkillRules.spCost(s,id,id==="swordsman_auto_berserk"&&s.classCombat?.autoBerserk?.enabled), range = SkillRules.rangeFor(s,id);
+    let html = passive ? `<small class="skill-meta"><span class="skill-kind passive">ติดตัว</span> เรียนแล้วทำงานอัตโนมัติ · ไม่ใช้ช่อง Hotbar</small>` : `<small class="skill-meta"><span class="skill-kind active">กดใช้</span> ${mechanics[d.kind]||roles[d.category]||"สกิลอาชีพ"} · <span data-skill-sp="${id}" data-effective-sp="${cost}">SP ${cost}</span> · CD ${d.cooldown} วินาที${range>0?` · ระยะ ${sword?(id==='swordsman_provoke'?9:1)+' ช่อง':range}`:" · ตนเอง"}</small>`;
+    if (d.questSkill) html += '<small class="skill-training">สกิลพิเศษ · เรียนฟรีกับครูอินในเมือง</small>';
+    const requirements=Object.entries(d.requirements||{});
+    if(requirements.length)html+=`<small class="skill-prerequisites">ต้องเรียน ${requirements.map(([key,lv])=>`${esc(D.skills[key].name)} Lv.${lv}`).join(' · ')}</small>`;
+    if(sword)html+=`<small class="skill-level-effect" data-level-effect="${id}">${s.skills[id]?'ระดับปัจจุบัน':'ตัวอย่างระดับ 1'}: ${esc(swordLevelText(s,id,level))}</small>`;
+    if(showTable&&sword&&d.max>1)html+=`<details class="skill-level-table"><summary>ดูผลทั้ง ${d.max} ระดับ</summary><table><thead><tr><th scope="col">Lv.</th><th scope="col">ผลของสกิล</th></tr></thead><tbody>${Array.from({length:d.max},(_,i)=>`<tr data-level="${i+1}"${s.skills[id]===i+1?' class="learned-level"':''}><th scope="row">${i+1}</th><td>${esc(swordLevelText(s,id,i+1))}</td></tr>`).join('')}</tbody></table></details>`;
+    if(["swordsman_stance","swordsman_sweep","swordsman_auto_berserk"].includes(id))html+=`<small class="skill-live-state" data-skill-live="${id}" aria-live="polite"></small>`;
+    return html;
   }
   function skillControls(s, id, reason) {
     const d = D.skills[id], passive = SkillRules.isPassive(id);
     const learn = id === "first_aid"
       ? '<span class="skill-starting">เริ่มต้น</span>'
-      : button("learn", "เรียน", id, `${reason ? `disabled title="${esc(reason)}"` : ""} aria-label="เรียน ${esc(d.name)}"`);
+      : button("learn", d.questSkill ? "เรียนฟรี" : "เรียน", id, `${reason ? `disabled title="${esc(reason)}"` : ""} aria-label="เรียน ${esc(d.name)}"`);
     const use = passive ? "" : button("skill", "ใช้", id, `class="skill-use" aria-label="ใช้ ${esc(d.name)}"${s.skills[id] ? "" : ' disabled title="ต้องเรียนสกิลก่อน"'}`);
     return `<div class="skill-actions">${learn}${use}</div>`;
   }
@@ -569,7 +593,18 @@
       const id=el.dataset.id,skill=D.skills[id],r=C.actionReadiness(state,id);
       el.disabled=!r.ready;el.title=r.reason||`ใช้ ${skill.name}`;
       el.dataset.readinessSource=r.source||"";el.dataset.readinessRemaining=String(r.remaining);
-      el.textContent=r.remaining>0?`${(Math.ceil(r.remaining*10)/10).toFixed(1)}s`:"ใช้";
+      el.textContent=r.remaining>0?`${(Math.ceil(r.remaining*10)/10).toFixed(1)}s`:id==="swordsman_auto_berserk"?(state.classCombat?.autoBerserk?.enabled?"ปิด":"เปิด"):"ใช้";
+    });
+    document.querySelectorAll('[data-skill-sp]').forEach(el=>{
+      const id=el.dataset.skillSp,cost=SkillRules.spCost(state,id,id==="swordsman_auto_berserk"&&state.classCombat?.autoBerserk?.enabled);
+      if(el.dataset.effectiveSp!==String(cost)){el.dataset.effectiveSp=String(cost);el.textContent=`SP ${cost}`;}
+    });
+    document.querySelectorAll('[data-skill-live]').forEach(el=>{
+      const id=el.dataset.skillLive,cs=state.classCombat,buff=cs?.buffs?.[id];
+      let text="";
+      if(id==="swordsman_auto_berserk")text=cs?.autoBerserk?.enabled?(cs.autoBerserk.active?"เปิดอยู่ · คลั่งทำงาน: ATK +32% / VIT DEF −55%":"เปิดอยู่ · รอ HP ต่ำกว่า 25%"):"ปิดอยู่";
+      else if(buff?.remaining>0)text=id==="swordsman_stance"?`ยืนหยัด ${buff.remaining.toFixed(1)} วินาที · เหลือ ${buff.hitsRemaining} ครั้ง`:`เสริมพลังไฟ 20% · ${buff.remaining.toFixed(1)} วินาที`;
+      if(el.textContent!==text)el.textContent=text;
     });
   }
   function skillTree(s) {
@@ -582,19 +617,20 @@
       const { classId, classDef: c, skillId, skill: d } = node;
       const relation = classId === s.classId ? "own" : "inherited";
       const passive=SkillRules.isPassive(skillId),level=plan.levels[skillId]??s.skills[skillId],pending=skillAllocation?.increments[skillId]||0;
-      const disabled=plan.remaining<1||level>=d.max;
-      return `<article class="${shared?'skill-shared-node':'skill-tree-node'}" data-class="${classId}" data-skill="${skillId}" data-state="${relation}" data-kind="${passive?'passive':'active'}" data-selected="${selectedTreeSkill===skillId}" data-learned="${s.skills[skillId]>0}" data-pending="${pending>0}"><button class="skill-node-select" data-skill-select="${skillId}" aria-label="ดู ${esc(d.name)} · ระดับ ${level} จาก ${d.max}" aria-pressed="${selectedTreeSkill===skillId}" aria-controls="skill-tree-detail">${artIcon(skillId)}</button><h3 class="skill-node-name">${esc(d.name)}</h3><small class="skill-node-kind">${passive?'ติดตัว':'กดใช้'}${pending?' · แต้มร่าง +'+pending:''}</small>${shared?'<span class="skill-starting">เริ่มต้น · 1 / 1</span>':`<div class="skill-level-controls"><button data-skill-adjust="${skillId}" data-delta="-1" aria-label="ลดแต้มร่าง ${esc(d.name)}"${pending?'':' disabled'}>−</button><output class="skill-node-level" aria-label="ระดับในแผน ${esc(d.name)}">${level} / ${d.max}</output><button data-skill-adjust="${skillId}" data-delta="1" aria-label="เพิ่มแต้มร่าง ${esc(d.name)}"${disabled?' disabled':''}>+</button></div>`}</article>`;
+      const add=tree.adjustAllocation(s,skillAllocation,skillId,1), remove=tree.adjustAllocation(s,skillAllocation,skillId,-1);
+      const disabled=!add.ok;
+      return `<article class="${shared?'skill-shared-node':'skill-tree-node'}" data-class="${classId}" data-skill="${skillId}" data-state="${relation}" data-kind="${passive?'passive':'active'}" data-selected="${selectedTreeSkill===skillId}" data-learned="${s.skills[skillId]>0}" data-pending="${pending>0}"><button class="skill-node-select" data-skill-select="${skillId}" aria-label="ดู ${esc(d.name)} · ระดับ ${level} จาก ${d.max}" aria-pressed="${selectedTreeSkill===skillId}" aria-controls="skill-tree-detail">${artIcon(skillId)}</button><h3 class="skill-node-name">${esc(d.name)}</h3><small class="skill-node-kind">${passive?'ติดตัว':'กดใช้'}${d.questSkill?' · เรียนฟรี':''}${pending?' · แต้มร่าง +'+pending:''}</small>${shared?'<span class="skill-starting">เริ่มต้น · 1 / 1</span>':`<div class="skill-level-controls"><button data-skill-adjust="${skillId}" data-delta="-1" aria-label="ลดแต้มร่าง ${esc(d.name)}"${remove.ok?'':' disabled'}>−</button><output class="skill-node-level" aria-label="ระดับในแผน ${esc(d.name)}">${level} / ${d.max}</output><button data-skill-adjust="${skillId}" data-delta="1" aria-label="เพิ่มแต้มร่าง ${esc(d.name)}"${disabled?' disabled':''}>+</button></div>`}</article>`;
     };
     const classes = [...new Set(accessible.ancestry.map(n => n.classId))];
     const groups = classes.map(classId => {
       const c = D.classes[classId], trial = c.trial, active = progress?.classId === classId ? progress : null;
       const trialText = trial ? ` · ทดสอบกำจัด${D.monsters[trial.kind].name} ${trial.count} ตัว${active ? ` (${active.current}/${trial.count}${active.complete ? " · สำเร็จ" : ""})` : " · นับหลังรับทดสอบ"}` : "";
-      return `<section class="skill-tree-group" data-skill-class="${classId}"><header class="skill-tree-group-heading"><h3>Class ${c.tier} · ${esc(c.name)}</h3><small>4 สกิล · ${classId===s.classId?'อาชีพปัจจุบัน':'สืบทอด'}</small></header><div class="skill-tree-grid">${accessible.ancestry.filter(n => n.classId === classId).map(n=>tile(n)).join("")}</div><small class="skill-tree-requirement">Job Lv.${c.tier===1?10:40}${esc(trialText)}</small></section>`;
+      return `<section class="skill-tree-group" data-skill-class="${classId}"><header class="skill-tree-group-heading"><h3>Class ${c.tier} · ${esc(c.name)}</h3><small>${accessible.ancestry.filter(n=>n.classId===classId).length} สกิล · ${classId===s.classId?'อาชีพปัจจุบัน':'สืบทอด'}</small></header><div class="skill-tree-grid">${accessible.ancestry.filter(n => n.classId === classId).map(n=>tile(n)).join("")}</div><small class="skill-tree-requirement">Job Lv.${c.tier===1?10:40}${esc(trialText)}</small></section>`;
     }).join("");
     const selected=nodes.find(n=>n.skillId===selectedTreeSkill),id=selected?.skillId,d=selected?.skill,c=selected?.classDef;
     const pending=skillAllocation?.increments[id]||0,reason=id?C.learnReason(s,id):"";
-    const detail=selected?`<aside class="skill-tree-detail" id="skill-tree-detail" aria-labelledby="skill-tree-detail-title"><header><span class="item-icon">${artIcon(id)}</span><div><h3 id="skill-tree-detail-title">${esc(d.name)}</h3><small>ปัจจุบัน Lv.${s.skills[id]} / ${d.max}${pending?` · แผน Lv.${plan.levels[id]}`:''}</small></div></header>${skillMeta(s,id)}<p class="skill-tree-description">${esc(d.description)}</p><small class="skill-tree-requirement">${d.owner?`เปิดเมื่อเปลี่ยน ${esc(c.name)} · Job Lv.${c.tier===1?10:40}${c.trial?' + ผ่านการทดสอบ':''}`:'สกิลเริ่มต้นทุกอาชีพ'}</small>${id!=='first_aid'&&reason?`<small class="skill-reason">${esc(reason)}</small>`:''}${pending?'<small class="skill-tree-draftnote">แต้มร่างยังไม่ส่งผลในเกม · ค่า SP แสดงระดับที่เรียนจริง</small>':''}${SkillRules.isPassive(id)?'<small class="skill-tree-draftnote">ทำงานอัตโนมัติเมื่อยืนยันเรียน · ไม่ใช้ช่อง Hotbar</small>':`<div class="skill-actions">${button('skill','ใช้สกิล',id,`class="skill-use" aria-label="ใช้ ${esc(d.name)}"${s.skills[id]?'':' disabled'}`)}</div>`}</aside>`:'';
-    return `<div class="skill-atlas-layout"><div class="skill-atlas-boards">${groups?`<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${groups}</section>`:'<p class="panel-note">ชาวบ้าน Job Lv.10 เลือก Class 1 กับครูอินเพื่อเปิดผังอาชีพ</p>'}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3>สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n=>tile(n,true)).join('')}</section></div>${detail}</div><div class="skill-plan-bar"><div>ใช้ในแผน <b data-plan-spent>${plan.spent}</b> · เหลือ <b data-plan-remaining>${plan.remaining}</b> แต้ม</div><div class="skill-plan-actions"><button data-plan-reset${plan.spent?'':' disabled'}>ล้างแผน</button><button data-plan-apply class="primary"${plan.spent?'':' disabled'}>ยืนยันเรียน</button></div><small class="skill-plan-hint">− ลดได้เฉพาะแต้มร่าง · ปิดหน้าต่างจะยกเลิกแต้มที่ยังไม่ยืนยัน</small></div>`;
+    const detail=selected?`<aside class="skill-tree-detail" id="skill-tree-detail" aria-labelledby="skill-tree-detail-title"><header><span class="item-icon">${artIcon(id)}</span><div><h3 id="skill-tree-detail-title">${esc(d.name)}</h3><small>ปัจจุบัน Lv.${s.skills[id]} / ${d.max}${pending?` · แผน Lv.${plan.levels[id]}`:''}</small></div></header>${skillMeta(s,id,true)}<p class="skill-tree-description">${esc(d.description)}</p><small class="skill-tree-requirement">${d.owner?`เปิดเมื่อเปลี่ยน ${esc(c.name)} · Job Lv.${c.tier===1?10:40}${c.trial?' + ผ่านการทดสอบ':''}`:'สกิลเริ่มต้นทุกอาชีพ'}</small>${id!=='first_aid'&&reason?`<small class="skill-reason">${esc(reason)}</small>`:''}${pending?'<small class="skill-tree-draftnote">แต้มร่างยังไม่ส่งผลในเกม · ค่า SP แสดงระดับที่เรียนจริง</small>':''}${SkillRules.isPassive(id)?'<small class="skill-tree-draftnote">ทำงานอัตโนมัติเมื่อยืนยันเรียน · ไม่ใช้ช่อง Hotbar</small>':`<div class="skill-actions">${button('skill','ใช้สกิล',id,`class="skill-use" aria-label="ใช้ ${esc(d.name)}"${s.skills[id]?'':' disabled'}`)}</div>`}</aside>`:'';
+    return `<div class="skill-atlas-layout"><div class="skill-atlas-boards">${groups?`<section class="skill-tree-path" aria-label="สกิลอาชีพปัจจุบันและที่สืบทอด">${groups}</section>`:'<p class="panel-note">ชาวบ้าน Job Lv.10 เลือก Class 1 กับครูอินเพื่อเปิดผังอาชีพ</p>'}<section class="skill-tree-shared" aria-label="สกิลร่วมทุกอาชีพ"><h3>สกิลร่วมทุกอาชีพ</h3>${accessible.shared.map(n=>tile(n,true)).join('')}</section></div>${detail}</div><div class="skill-plan-bar"><div>ใช้ในแผน <b data-plan-spent>${plan.spent}</b> · เหลือ <b data-plan-remaining>${plan.remaining}</b> แต้ม</div><div class="skill-plan-actions"><button data-plan-reset${plan.entries.length?'':' disabled'}>ล้างแผน</button><button data-plan-apply class="primary"${plan.entries.length?'':' disabled'}>ยืนยันเรียน</button></div><small class="skill-plan-hint">− ลดได้เฉพาะแต้มร่าง · ปิดหน้าต่างจะยกเลิกแต้มที่ยังไม่ยืนยัน</small></div>`;
   }
   function rerenderSkillTree(selector) {
     const scroll=$("panel-window").scrollTop;
@@ -612,12 +648,12 @@
     }
     const reason=$("side-panel").querySelector('.skill-tree-detail .skill-reason');
     if(reason){const text=C.learnReason(state,selectedTreeSkill);if(reason.textContent!==text)reason.textContent=text;reason.hidden=!text;}
-    $("side-panel").querySelectorAll('[data-skill-adjust]').forEach(el=>{const id=el.dataset.skillAdjust;el.disabled=el.dataset.delta==='1'?plan.remaining<1||plan.levels[id]>=D.skills[id].max:!(skillAllocation.increments[id]>0);});
+    $("side-panel").querySelectorAll('[data-skill-adjust]').forEach(el=>{const id=el.dataset.skillAdjust;const result=tree.adjustAllocation(state,skillAllocation,id,el.dataset.delta==='1'?1:-1);el.disabled=!result.ok;el.title=result.message||'';});
   }
   function applySkillAllocation() {
     if(!readyForAction())return;
     const plan=window.BCSkillTree.validateAllocation(state,skillAllocation);
-    if(!plan.ok||!plan.spent){toast(plan.message||"เพิ่มแต้มในแผนก่อนยืนยัน");renderPanel();return;}
+    if(!plan.ok||!plan.entries.length){toast(plan.message||"เพิ่มแต้มในแผนก่อนยืนยัน");renderPanel();return;}
     const result=C.act(state,"learn-plan",skillAllocation);
     if(result.ok){skillAllocation=window.BCSkillTree.createAllocation(state);save();}
     if(result.message)toast(result.message);
@@ -658,7 +694,7 @@
       ["interval", "ตีทุก", `${st.interval.toFixed(2)}s`, "ระยะห่างระหว่างการตีปกติ · ไม่เปลี่ยนความเร็วเดินหรือคูลดาวน์สกิล"],
     ];
     const contribution = (base, gear) => `${statNumber(base)} + ${statNumber(gear)}`;
-    return `<div class="stat-summary" aria-label="พลังต่อสู้">${cells.map(([id, label, value, help]) => `<div title="${esc(help)}"><span>${label}</span><b data-derived="${id}">${typeof value === "number" ? statNumber(value) : value}</b></div>`).join("")}</div><details class="stat-details"><summary>รายละเอียดพลังป้องกันและฟื้นฟู</summary><dl class="stat-detail-grid"><div><dt>ATK พื้นฐาน + อุปกรณ์</dt><dd>${contribution(st.baseAtk, st.gearAtk)}</dd></div><div><dt>MATK พื้นฐาน + อุปกรณ์</dt><dd>${contribution(st.baseMatk, st.gearMatk)}</dd></div><div><dt>DEF พื้นฐาน + เกราะ</dt><dd>${contribution(st.softDef, st.hardDef)}</dd></div><div><dt>MDEF พื้นฐาน + เกราะเวท</dt><dd>${contribution(st.softMdef, st.hardMdef)}</dd></div><div><dt>HP / SP สูงสุด</dt><dd>${st.maxHp} / ${st.maxSp}</dd></div><div><dt>ฟื้น HP / SP ทุก 4 วินาที</dt><dd><span data-derived="hpRegen">${st.hpRegen}</span> / <span data-derived="spRegen">${st.spRegen}</span></dd></div><div><dt>หลบสมบูรณ์ (ตีปกติกายภาพ)</dt><dd>${statNumber(st.perfectDodge)}%</dd></div><div><dt>ความจุน้ำหนัก</dt><dd>${st.capacity}</dd></div></dl><p class="panel-note">เกราะลดความเสียหายด้วย 100 / (100 + เกราะ) แล้วหักป้องกันพื้นฐาน ×0.25 แยก DEF / MDEF ตามชนิดโจมตี ค่าคริติคอลใช้กับตีปกติกายภาพเท่านั้น</p><p class="panel-note">ฟื้นฟูทุก 4 วินาทีเมื่อน้ำหนักต่ำกว่า 50% · VIT เพิ่มผลยา HP, INT เพิ่มผลยา SP · AGI ไม่เพิ่มความเร็วเดินหรือทำให้คูลดาวน์สกิลสั้นลง</p></details>`;
+    return `<div class="stat-summary" aria-label="พลังต่อสู้">${cells.map(([id, label, value, help]) => `<div title="${esc(help)}"><span>${label}</span><b data-derived="${id}">${typeof value === "number" ? statNumber(value) : value}</b></div>`).join("")}</div><details class="stat-details"><summary>รายละเอียดพลังป้องกันและฟื้นฟู</summary><dl class="stat-detail-grid"><div><dt>ATK พื้นฐาน + อุปกรณ์</dt><dd>${contribution(st.baseAtk, st.gearAtk)}</dd></div><div><dt>MATK พื้นฐาน + อุปกรณ์</dt><dd>${contribution(st.baseMatk, st.gearMatk)}</dd></div><div><dt>DEF พื้นฐาน + เกราะ</dt><dd>${contribution(st.softDef, st.hardDef)}</dd></div><div><dt>MDEF พื้นฐาน + เกราะเวท</dt><dd>${contribution(st.softMdef, st.hardMdef)}</dd></div><div><dt>HP / SP สูงสุด</dt><dd>${st.maxHp} / ${st.maxSp}</dd></div><div><dt>ฟื้น HP / SP ทุก 4 วินาที</dt><dd><span data-derived="hpRegen">${st.hpRegen}</span> / <span data-derived="spRegen">${st.spRegen}</span></dd></div><div><dt>หลบสมบูรณ์ (ตีปกติกายภาพ)</dt><dd>${statNumber(st.perfectDodge)}%</dd></div><div><dt>ความจุน้ำหนัก</dt><dd>${st.capacity}</dd></div></dl><p class="panel-note">เกราะลดความเสียหายด้วย 100 / (100 + เกราะ) แล้วหักป้องกันพื้นฐาน ×0.25 แยก DEF / MDEF ตามชนิดโจมตี ค่าคริติคอลใช้กับตีปกติกายภาพเท่านั้น</p><p class="panel-note">ฟื้นฟูทุก 4 วินาทีเมื่อน้ำหนักต่ำกว่า 50%${SwordRules.isSwordLineage(s)?" · สายนักดาบฟื้น HP ขณะยืน เดินได้ 50% เมื่อเรียนฟื้นฟูขณะเคลื่อนที่ · ฟื้นฟูพลังชีวิตแยกทำงานทุก 10 วินาทีที่ยืนนิ่ง":""} · VIT และฟื้นฟูพลังชีวิตเพิ่มผลยา HP, INT เพิ่มผลยา SP · AGI ไม่เพิ่มความเร็วเดินหรือทำให้คูลดาวน์สกิลสั้นลง</p></details>`;
   }
   function renderPanel() {
     $("panel-window").classList.toggle("skill-tree-window",panel==="skills"&&skillsTab==="tree");
@@ -799,7 +835,7 @@
     if (panel === "help")
       html = `<div class="help-list"><p>${esc(world.intro)}</p><p><kbd>WASD / ลูกศร</kbd> เดิน · คลิกพื้นเพื่อเดินไปตำแหน่งนั้น</p><p><kbd>SPACE</kbd> เลือกศัตรูใกล้สุดและเข้าต่อสู้ · คลิกตัวมอนสเตอร์เพื่อเลือกเอง</p><p><kbd>1–9</kbd> ใช้ Hotbar · <kbd>H</kbd> ใช้ยา HP · <kbd>F</kbd> Auto Battle</p><p><kbd>E</kbd> คุย NPC ใกล้ตัว · <kbd>I</kbd> กระเป๋า · <kbd>Q</kbd> เควสต์ · <kbd>M</kbd> แผนที่ · <kbd>Esc</kbd> ปิดเมนู</p><p>เปิดกระเป๋า → หมวดอุปกรณ์ → เลือกอาวุธหรือหมวก → สวมใส่ อาวุธต้องตรงกับประเภทของอาชีพ ซื้ออาวุธสำหรับอาชีพถัดไปเก็บได้ ภาพชุดและท่าถือเป็นแบบประจำอาชีพถาวร อาวุธที่สวมเพิ่มค่าสถานะ ถอดแล้วใช้รูปลักษณ์อาวุธฝึกโดยไม่มีโบนัส ดาบและโล่อยู่ในช่องอาวุธเดียวกัน</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรับและส่งเควสต์ ชาวบ้าน Job Lv.10 เลือก Class 1 ได้ 5 อาชีพ จากนั้น Job Lv.40 รับการทดสอบเพื่อเลือก Class 2 หนึ่งในสองเส้นทาง ต้องอยู่ใกล้ครูอิน การทดสอบนับเฉพาะตัวที่กำจัดหลังรับ เมื่อเปลี่ยนอาชีพ Job Lv.เริ่มที่ 1 และสืบทอดสกิลเดิม โดยไม่แจกอาวุธหรืออัฐ</p><p>ซุ้มทางเดินอยู่ริมแผนที่ซ้ายและขวา เดินจาก${esc(D.maps[0].name)}สู่${esc(D.maps[1].name)}และ${esc(D.maps[2].name)} ${esc(npc("healer").name)}ที่${esc(npc("healer").thai)}ฟื้น HP/SP ฟรี เมื่อล้มจะกลับท่าน้ำพร้อมความคืบหน้าเดิม</p><p>เปิด Auto Battle หรือ Auto Quest แล้วฟาร์มต่อได้ระหว่างเปิดเมนู ย่อหน้าต่าง หรือสลับแท็บ หากเบราว์เซอร์พักการทำงาน ระบบจะคำนวณเวลาที่ค้างเมื่อกลับมา ต้องเปิดหน้าเกมไว้ · บันทึกอัตโนมัติทุก 10 วินาที และควร Export Save เป็นระยะ</p></div>`;
     if (panel === "help")
-      html += `<div class="help-list stat-guide-note"><p>สเตตัสเริ่มที่ 1 ทั้ง 6 ค่า พร้อม 48 แต้ม ใช้แต้มมากขึ้นทุกช่วง 10 ค่า ดูค่าใช้จ่ายที่ปุ่ม ＋ ในหน้าสเตตัส STR ใช้กับอาวุธประชิด, DEX ใช้กับธนู, INT ใช้กับคทา หนังสือ และแก้วมณี ธนูมนตรายิงปกติใช้ DEX สกิลเวทใช้ INT และเรียนศรสองศาสตร์เพื่อให้ DEX เสริมเวทได้ อักขระจู่โจมและคลื่นอาคมใช้ MATK เมื่อถือหนังสือ และเปลี่ยนเป็น ATK เมื่อเป็นนักสู้ครุฑาสายสนับมือ</p><p>AGI ช่วยความเร็วตีและหลบกายภาพ, VIT เพิ่ม HP ป้องกันและผลยา HP, INT เพิ่ม SP ป้องกันเวทและผลยา SP ส่วน LUK ช่วยคริติคอลกายภาพและหลบสมบูรณ์ คริเฉพาะตีปกติกายภาพ ความเสียหาย ×1.4 ไม่ใช้กับสกิลหรือเวท ความเร็วเดินและคูลดาวน์สกิลคงเดิม</p><p>แต่ละอาชีพมีสกิลกดใช้ 3 และติดตัว 1 เรียนได้ถึงระดับ 5 เมื่อเปลี่ยน Class 2 จะรับสกิลเพิ่ม 4 และคงสกิล Class 1 ทั้ง 4 สกิล สกิลติดตัวไม่ต้องกดใช้หรือใส่ Hotbar ส่วน Auto Battle ใช้สกิลกดใช้ที่เรียนแล้วตามสถานการณ์</p><p>DEF ป้องกันกายภาพ ส่วน MDEF ป้องกันเวท เช่น ${esc(D.monsters.willow.name)} อุปกรณ์ระบุ ATK / MATK แยกกัน เปิดรายละเอียดในหน้าสเตตัสเพื่อดูส่วนพื้นฐาน ส่วนเกราะ และอัตราฟื้นฟู</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรีสเตตัสฟรี คืนแต้มที่ลงไว้ทั้งหมดและจัดบิลด์ใหม่ได้ โดยคงอาชีพ อุปกรณ์ และความคืบหน้า</p></div>`;
+      html += `<div class="help-list stat-guide-note"><p>สเตตัสเริ่มที่ 1 ทั้ง 6 ค่า พร้อม 48 แต้ม ใช้แต้มมากขึ้นทุกช่วง 10 ค่า ดูค่าใช้จ่ายที่ปุ่ม ＋ ในหน้าสเตตัส STR ใช้กับอาวุธประชิด, DEX ใช้กับธนู, INT ใช้กับคทา หนังสือ และแก้วมณี ธนูมนตรายิงปกติใช้ DEX สกิลเวทใช้ INT และเรียนศรสองศาสตร์เพื่อให้ DEX เสริมเวทได้ อักขระจู่โจมและคลื่นอาคมใช้ MATK เมื่อถือหนังสือ และเปลี่ยนเป็น ATK เมื่อเป็นนักสู้ครุฑาสายสนับมือ</p><p>AGI ช่วยความเร็วตีและหลบกายภาพ, VIT เพิ่ม HP ป้องกันและผลยา HP, INT เพิ่ม SP ป้องกันเวทและผลยา SP ส่วน LUK ช่วยคริติคอลกายภาพและหลบสมบูรณ์ คริเฉพาะตีปกติกายภาพ ความเสียหาย ×1.4 ไม่ใช้กับสกิลหรือเวท ความเร็วเดินและคูลดาวน์สกิลคงเดิม</p><p>นักดาบอรุณมีสกิล 10 สกิล: 7 สกิลหลักเรียนได้ถึงระดับ 10 และ 3 สกิลพิเศษเรียนฟรีกับครูอิน ส่วนอาชีพอื่นมีสกิลประจำอาชีพ 4 สกิลถึงระดับ 5 เมื่อเปลี่ยน Class 2 จะสืบทอดสกิล Class 1 สกิลติดตัวไม่ใช้ช่อง Hotbar จัดแต้มในผังก่อนยืนยัน และเรียนสกิลที่เป็นเงื่อนไขให้ครบก่อน สกิลคลั่งอัตโนมัติต้องเปิดเองหนึ่งครั้งแล้วทำงานเมื่อ HP ต่ำกว่า 25%</p><p>DEF ป้องกันกายภาพ ส่วน MDEF ป้องกันเวท เช่น ${esc(D.monsters.willow.name)} อุปกรณ์ระบุ ATK / MATK แยกกัน เปิดรายละเอียดในหน้าสเตตัสเพื่อดูส่วนพื้นฐาน ส่วนเกราะ และอัตราฟื้นฟู</p><p>คุย${esc(npc("guide").name)}ที่${esc(npc("guide").thai)}เพื่อรีสเตตัสฟรี คืนแต้มที่ลงไว้ทั้งหมดและจัดบิลด์ใหม่ได้ โดยคงอาชีพ อุปกรณ์ และความคืบหน้า</p></div>`;
     $("side-panel").innerHTML = html;
     if ($("status-portrait")) R.portrait($("status-portrait"), s);
     if (["status", "equipment", "npc"].includes(panel)) $("side-panel").insertAdjacentHTML("beforeend", classSelector(s));
@@ -815,11 +851,11 @@
       if (!d || !C.skillAvailable(state, id) || SkillRules.isPassive(id))
         return { label: "ว่าง · สกิลที่ยังใช้ไม่ได้", icon: "", color: "#879c7f", locked: true };
       return {
-        label: `${d.name} · SP ${SkillRules.spCost(state, id)} · รอ ${d.cooldown} วินาที`,
+        label: `${d.name} · SP ${SkillRules.spCost(state, id,id==="swordsman_auto_berserk"&&state.classCombat?.autoBerserk?.enabled)} · รอ ${d.cooldown} วินาที`,
         icon: artIcon(id),
         color: d.color,
         locked: !state.skills[id] || !C.skillAvailable(state, id),
-        cooldown: (state.cooldowns[id] || 0) / d.cooldown,
+        cooldown: d.cooldown > 0 ? (state.cooldowns[id] || 0) / d.cooldown : 0,
         skillId: id,
       };
     }
@@ -852,13 +888,13 @@
     state.hotbar.forEach((value,i)=>{
       const info=bindingInfo(value),slot=$("hotbar-slots").querySelector(`[data-hot="${i}"]`),overlay=$("cool-"+i);
       const attack=value==="action:attack",r=info.skillId?C.actionReadiness(state,info.skillId):attack?C.actionReadiness(state,"attack"):null;
-      const busy=r?.source==="action",blocked=info.locked||info.skillId&&!r.ready||attack&&busy;
+      const busy=["action","aftercast","flinch"].includes(r?.source),blocked=info.locked||info.skillId&&!r.ready||attack&&busy;
       slot.disabled=!!blocked;slot.classList.toggle("action-busy",busy);
       slot.dataset.readinessSource=r?.source||"";slot.dataset.readinessRemaining=String(r?.remaining||0);
       const reason=r&&!r.ready?r.reason:"";
       slot.title=`${info.label}${reason?` · ${reason}`:""} · ปุ่ม ${i+1}`;
       slot.setAttribute("aria-label",`ช่อง ${i+1}: ${info.label}${reason?` · ${reason}`:""}`);
-      const fraction=Math.max(info.cooldown||0,busy?r.remaining/(info.skillId ? .45 : .28):0);
+      const fraction=Math.max(info.cooldown||0,busy?r.remaining/(r.source==="aftercast"?2:r.source==="flinch" ? .12 : info.skillId ? .45 : .28):0);
       overlay.style.height=Math.max(0,Math.min(1,fraction))*100+"%";
       overlay.textContent=r?.remaining>0?(Math.ceil(r.remaining*10)/10).toFixed(1):"";
     });
@@ -1447,6 +1483,7 @@
   updateHUD();
   requestAnimationFrame(frame);
   if (storageError) setTimeout(() => toast(storageError), 100);
+  else if(state.swordMigration?.refundedPoints) setTimeout(()=>toast(`อัปเดตสกิลนักดาบแล้ว · คืนแต้ม ${state.swordMigration.refundedPoints} แต้ม จัดใหม่ได้ในผังสกิล`),500);
   else
     setTimeout(
       () => toast(`ยินดีต้อนรับสู่${world.title} • คุย${npc("guide").name}เพื่อรับภารกิจแรก`),

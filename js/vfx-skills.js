@@ -50,6 +50,12 @@
       case "shield_counter":groundFrame(c,e,()=>{P.polygon(c,[[3,18],[17+9*p,9],[34+7*p,17],[17+9*p,23]],"#ad843d43");P.stroke(c,[[6,18],[19,13],[29,17]],ivory,.9);});break;
       case "garuda_combo":groundFrame(c,e,()=>{for(let side=-1;side<=1;side+=2)for(let i=0;i<3;i++)P.polygon(c,[[7,17],[19+i*5+10*p,17+side*(6+i*4)],[12,17+side*3]],"#c68b4d44");});break;
       case "tiger_rend":groundFrame(c,e,d=>{for(let i=0;i<3;i++)P.polygon(c,[[d-20+i*3,12+i*4],[d+12+12*p,12+i*5],[d-8,14+i*4]],"#b7615a42");});break;
+      case "swordsman_sweep":{
+        const r=D.skills[id].radius;
+        // Square 5×5 cell hit area, with a fine rim rather than an opaque fire disk.
+        P.withSaved(c,.34*Math.pow(1-p,1.2),()=>P.stroke(c,[[e.source.x-r,e.source.y-r],[e.source.x+r,e.source.y-r],[e.source.x+r,e.source.y+r],[e.source.x-r,e.source.y+r],[e.source.x-r,e.source.y-r]],"#cf8554",.85));
+        break;
+      }
       case "naga_trap":boundary(c,tx,ty,D.skills[id].radius,"#86ab85",p);P.withSaved(c,.7,()=>serpent(c,tx,ty,D.skills[id].radius,p,false));break;
       default:{const sk=D.skills[id];if(sk.radius){const anchor=sk.kind==="sanctuary"||sk.kind==="radial"?e.source:e.target,color=sk.owner==="divine_scribe"||sk.owner==="acolyte"?"#83b9a2":sk.owner==="arcane_archer"?"#83bbc8":"#ad96bd";boundary(c,anchor.x,anchor.y,sk.radius,color,p);}}
     }
@@ -59,7 +65,7 @@
     const recipe=F.recipes[e.skillId];if(!recipe||recipe.passive)return;
     const p=P.progress(e),sk=D.skills[e.skillId],classId=owns(D.classes,e.classId)?e.classId:recipe.owner;
     const socket=F.socket(classId,e.facing,Math.min(1,e.age/.22),e.source);
-    const self=["self","sanctuary","shield","buff","empower","cleanse","backstep","radial"].includes(sk.kind);
+    const self=["self","sanctuary","shield","buff","empower","cleanse","backstep","radial","toggle"].includes(sk.kind);
     const angle=self?[Math.PI/2,0,-Math.PI/2,Math.PI][e.facing]:direction(e);
     const gate=e.kind==="impact"?(e.phase==="dot"?"tick":"impact"):"cast";
     if(e.kind==="impact"&&!["hit","crit"].includes(e.result))return;
@@ -78,7 +84,7 @@
       const dx=e.target.x-anchor.x,dy=e.target.y-17-anchor.y;
       const reach=sk.adaptive&&e.weaponType==="knuckle"?(sk.meleeRange||70):sk.range||60;
       const radius=sk.kind==="cone"?reach:sk.radius||34;
-      F.draw(c,part.partId,{x:anchor.x+(part.offset?.[0]||0),y:anchor.y+(part.offset?.[1]||0),progress:p,angle:vector?(projectile?Math.atan2(dy,dx):angle)+(part.rotation||0):part.rotation||0,scale:part.scale,radius,distance:Math.min(260,Math.hypot(dx,dy)),seed:e.id||1,facing:e.facing,variant:part.variant});
+      F.draw(c,part.partId,{x:anchor.x+(part.offset?.[0]||0),y:anchor.y+(part.offset?.[1]||0),progress:p,angle:part.variant==="flame_burst"?0:vector?(projectile?Math.atan2(dy,dx):angle)+(part.rotation||0):part.rotation||0,scale:part.scale,radius,distance:Math.min(260,Math.hypot(dx,dy)),seed:e.id||1,facing:e.facing,variant:part.variant});
     }
   }
   function drawGround(c,e){if(!active(e))return;P.withSaved(c,1,()=>{if(e.kind!=="impact")ground(c,e,P.progress(e));compose(c,e,"ground");});}

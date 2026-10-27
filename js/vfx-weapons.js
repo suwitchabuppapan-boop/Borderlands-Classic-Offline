@@ -7,7 +7,7 @@
   const profiles = Object.freeze(Object.fromEntries([
     ["training", "Practice stroke", "#a8bac6", "#e6ebda"],
     ["sword", "Dha crescent", "#90bdde", "#f4f5ed"],
-    ["dual_sword", "Crossed royal cuts", "#a0b6df", "#f3f3ed"],
+    ["two_hand_sword", "Royal greatsword", "#a0b6df", "#f3f3ed"],
     ["sword_shield", "Guardian glint", "#9bc9d8", "#fff4d6"],
     ["staff", "Lotus comet", "#c4a5f3", "#fff1dc"],
     ["orb", "Jade discharge", "#72d4bb", "#d9fff1"],
@@ -101,9 +101,9 @@
       case "sword":
         crescent(c, p, q, 31*size, 0, width);
         break;
-      case "dual_sword":
-        crescent(c, p, q, 29*size, -5*size, width*.74, -.33);
-        P.withSaved(c, .8*(1-p*.65), () => crescent(c, P.clamp(p-.13,0,1), q, 27*size, 8*size, width*.67, .56));
+      case "two_hand_sword":
+        // One committed broad cut follows the two-handed full-body attack pose.
+        crescent(c, p, q, 39*size, 2*size, width*1.18, -.2);
         break;
       case "sword_shield":
         crescent(c, p, q, 30*size, 5*size, width*.69, .15);
