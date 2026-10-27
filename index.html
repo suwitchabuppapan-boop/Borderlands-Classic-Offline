@@ -1,58 +1,249 @@
 <!doctype html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#274d39"><title>Borderlands Classic · Solo Field</title><link rel="stylesheet" href="css/style.css"></head>
-<body><div class="shell"><main class="layout ro-skin" aria-label="Borderlands Classic Solo">
-  <section class="game-column" aria-label="แผนที่เกม">
-    <div id="game-wrap" class="game-wrap"><canvas id="game" width="960" height="560" aria-label="พื้นที่เกม Pixel RPG">เบราว์เซอร์นี้ไม่รองรับ Canvas</canvas><div class="game-badges"><span id="zone-caption">PORING · FABRE · LUNATIC</span><span>✦ LOCAL / OFFLINE</span></div><div class="target-box" id="target-box" hidden></div><div class="toast" id="toast" aria-live="polite"></div><div class="game-hint" id="game-hint">WASD เดิน · คลิกมอนสเตอร์เลือกเป้าหมาย · E คุย NPC</div></div>
-    <div class="scene-heading"><strong id="zone-label">CLASSIC STARTER MEADOW · 01</strong><span id="mob-count">◈ 0 MONSTERS</span><span id="clock">00:00</span></div>
-    <div class="combatbar" aria-label="Hotbar ปรับแต่งได้ ช่อง 1 ถึง 9"><div class="action-row" id="hotbar-slots">
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="1" data-hotkey="1" data-kind="empty" title="ช่อง 1 ว่าง"><small>1</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-1"></div></button><button type="button" class="slot-remove" data-clear-slot="1" aria-label="นำของออกจากช่อง 1" title="ถอดออกจากช่อง" hidden>×</button></div>
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="2" data-hotkey="2" data-kind="empty" title="ช่อง 2 ว่าง"><small>2</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-2"></div></button><button type="button" class="slot-remove" data-clear-slot="2" aria-label="นำของออกจากช่อง 2" title="ถอดออกจากช่อง" hidden>×</button></div>
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="3" data-hotkey="3" data-kind="empty" title="ช่อง 3 ว่าง"><small>3</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-3"></div></button><button type="button" class="slot-remove" data-clear-slot="3" aria-label="นำของออกจากช่อง 3" title="ถอดออกจากช่อง" hidden>×</button></div>
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="4" data-hotkey="4" data-kind="empty" title="ช่อง 4 ว่าง"><small>4</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-4"></div></button><button type="button" class="slot-remove" data-clear-slot="4" aria-label="นำของออกจากช่อง 4" title="ถอดออกจากช่อง" hidden>×</button></div>
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="5" data-hotkey="5" data-kind="empty" title="ช่อง 5 ว่าง"><small>5</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-5"></div></button><button type="button" class="slot-remove" data-clear-slot="5" aria-label="นำของออกจากช่อง 5" title="ถอดออกจากช่อง" hidden>×</button></div>
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="6" data-hotkey="6" data-kind="empty" title="ช่อง 6 ว่าง"><small>6</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-6"></div></button><button type="button" class="slot-remove" data-clear-slot="6" aria-label="นำของออกจากช่อง 6" title="ถอดออกจากช่อง" hidden>×</button></div>
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="7" data-hotkey="7" data-kind="empty" title="ช่อง 7 ว่าง"><small>7</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-7"></div></button><button type="button" class="slot-remove" data-clear-slot="7" aria-label="นำของออกจากช่อง 7" title="ถอดออกจากช่อง" hidden>×</button></div>
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="8" data-hotkey="8" data-kind="empty" title="ช่อง 8 ว่าง"><small>8</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-8"></div></button><button type="button" class="slot-remove" data-clear-slot="8" aria-label="นำของออกจากช่อง 8" title="ถอดออกจากช่อง" hidden>×</button></div>
-      <div class="hotbar-cell"><button type="button" class="action-slot" data-slot="9" data-hotkey="9" data-kind="empty" title="ช่อง 9 ว่าง"><small>9</small><b>＋</b><span>ว่าง</span><div class="cool" id="cool-9"></div></button><button type="button" class="slot-remove" data-clear-slot="9" aria-label="นำของออกจากช่อง 9" title="ถอดออกจากช่อง" hidden>×</button></div>
-    </div><button type="button" class="hotbar-edit" data-act="edithotbar" aria-pressed="false" aria-label="จัด Hotbar">จัดช่อง</button><button type="button" class="hotbar-handle" data-act="togglehotbar" aria-label="พับ Hotbar" aria-expanded="true" title="พับหรือขยาย Hotbar">⌄</button></div>
-    <div class="footer-line"><span id="system-message">◉ พร้อมเล่น</span><span id="coordinates">X:250 Y:290</span></div>
-  </section>
-  <aside class="sidebar left" aria-label="ข้อมูลตัวละครและเมนู">
-    <section class="pane portrait-pane"><div class="section-head"><span>◉ ข้อมูลพื้นฐาน</span><span class="hud-guest">GUEST</span><button class="hud-collapse" data-act="collapsehud" aria-expanded="true" aria-label="พับข้อมูลตัวละคร" title="ย่อหรือขยายข้อมูลตัวละคร">−</button></div><div class="hero-detail"><div class="name-line"><strong id="hero-name">Novice</strong><span class="currency">Silver <b id="silver">45</b></span></div>
-      <div class="class-line"><span>Novice</span><strong id="stat-points">0 POINTS</strong></div>
-      <div class="meter-label"><span>HP</span><strong id="hp-val">110 / 110</strong></div><div class="meter hp-meter"><div id="hp-bar" class="fill hp"></div></div>
-      <div class="meter-label"><span>SP</span><strong id="sp-val">25 / 25</strong></div><div class="meter sp-meter"><div id="sp-bar" class="fill sp"></div></div>
-      <div class="level-line"><strong id="level">Base Lv.1</strong><strong id="job-level">Novice · Job Lv.1</strong></div>
-      <div class="meter-label exp-label"><span>EXP <strong id="exp-val">0 / 30</strong></span></div><div class="meter slim"><div id="exp-bar" class="fill exp"></div></div>
-      <div class="meter-label exp-label"><span>Job EXP <strong id="jexp-val">0 / 20</strong></span></div><div class="meter slim"><div id="jexp-bar" class="fill job"></div></div>
-      <div class="weight-line">Items <span id="weight-val">— / —</span></div><div class="status-footer"><span id="hud-state">พร้อม — คลิกมอนสเตอร์หรือผู้เล่น / M แผนที่โลก</span></div>
-    </div></section>
-    <div class="menu-dock"><button type="button" class="menu-toggle" data-act="togglemenu" aria-expanded="false" aria-controls="game-menu" title="เปิดเมนูเกม">☰ เมนูเกม <span>▾</span></button>
-    <nav class="tab-nav" id="game-menu" aria-label="เมนูเกม" hidden>
-      <button class="tab" data-tab="status" title="Status" aria-label="Status"><b class="ro-menu-glyph">ST</b></button>
-      <button class="tab" data-tab="equipment" title="Equipment" aria-label="Equipment"><b class="ro-menu-glyph">EQ</b></button>
-      <button class="tab" data-tab="quest" title="Quest Journal" aria-label="Quest Journal"><b>📜</b></button>
-      <button class="tab" data-tab="log" title="Battle Log" aria-label="Battle Log"><b>💬</b></button>
-      <button class="tab" data-tab="settings" title="Settings" aria-label="Settings"><b>⚙️</b></button>
-      <button class="tab" data-tab="inventory" title="Inventory / Bag" aria-label="Bag"><b class="ro-menu-glyph">IT</b></button>
-      <button class="tab" data-tab="skills" title="Skills / Job" aria-label="Skills"><b class="ro-menu-glyph">SK</b></button>
-      <button class="tab" data-act="map" title="แสดงหรือซ่อนแผนที่" aria-label="Toggle Map"><b>🗺️</b></button>
-      <button class="tab" data-tab="shop" title="Shop" aria-label="Shop"><b>🎒</b></button>
-      <button class="tab" data-tab="auto" title="Auto Play" aria-label="Auto Play"><b>🦋</b></button>
-      <button class="tab" data-act="potion" title="ใช้ HP Potion" aria-label="Use HP Potion"><b>🧪</b></button>
-      <button class="tab" data-tab="codex" title="Divine Pride Codex" aria-label="Codex"><b>📖</b></button>
-      <button class="tab" data-act="save" title="Save Game" aria-label="Save Game"><b>👑</b></button>
-      <button class="tab" data-act="interact" title="คุย NPC" aria-label="Talk to NPC"><b>🧭</b></button>
-      <button class="tab" data-act="export" title="Export Save" aria-label="Export Save"><b>📦</b></button>
-      <button class="tab" data-act="help" title="วิธีเล่น" aria-label="Help"><b>❔</b></button>
-    </nav></div>
-    <section class="pane help-pane" id="help-panel" hidden><div class="section-head">วิธีเล่น <button data-act="closehelp" aria-label="ปิดคู่มือ">✕</button></div><p>WASD / ลูกศร เดิน · คลิกพื้นเดิน · คลิกมอนสเตอร์ล็อกเป้า · Space โจมตี · ปุ่ม 1–9 ใช้ช่อง Hotbar · เปิด Skills/Bag เพื่อใส่ช่อง · H ใช้ยา · F เปิด Auto · E คุย NPC · I กระเป๋า · Q เควสต์ · Esc ปิดหน้าต่าง</p><small>Job Lv.10 → คุย Guild Guide เพื่อเปลี่ยนอาชีพ</small></section>
-  </aside>
-  <aside class="sidebar right" aria-label="แผนที่ย่อและภารกิจ"><section class="minimap-panel" id="minimap-panel"><button type="button" class="minimap-toggle" data-act="toggleminimap" aria-label="พับแผนที่ย่อ" aria-expanded="true" title="พับหรือขยายแผนที่ย่อ">−</button><canvas id="minimap" width="330" height="280" aria-label="แผนที่ย่อ แสดงตำแหน่งตัวละครและมอนสเตอร์"></canvas><div class="map-location">✦ <span id="map-location">Starter Meadow</span></div></section><button type="button" class="auto-map-button" data-act="auto" id="auto-button" aria-pressed="false" title="Auto Battle (F)"><span>⚔ AUTO BATTLE</span><strong id="combat-mode">OFF</strong><kbd>F</kbd></button>
-    <section class="pane field-pane"><div class="quest-heading">QUEST JOURNAL <button data-act="togglequest" title="ย่อหรือขยาย Quest" aria-label="Toggle Quest" aria-expanded="true">−</button></div><div class="quest-body"><div id="mini-quest" class="field-notes"></div><button class="quest-open" data-tab="quest">เปิดบันทึกภารกิจ ↗</button></div></section>
-    <div class="server-status"><span id="save-indicator">● LOCAL SAVE</span> <span>FPS <b id="fps">60</b> · SOLO OFFLINE</span></div>
-  </aside>
-  <div id="panel-window" class="panel-window" hidden><div class="window-title" title="ลากเพื่อย้ายหน้าต่าง"><span id="panel-window-title">CHARACTER</span><button data-act="closepanel" aria-label="ปิดหน้าต่าง">✕</button></div><section id="side-panel" class="pane side-panel" aria-live="polite"></section></div>
-</main></div>
-<input type="file" id="import-file" accept=".json,application/json" hidden><script src="js/classic-data.js"></script><script src="js/core.js"></script><script src="data/divine-pride-cache.js"></script><script src="js/divine-pride-codex.js"></script><script src="js/sprite-anchors.js"></script>
-<script src="js/game.js"></script></body></html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#294e50" />
+    <meta name="description" content="สยามอรุณ — ออกเดินทางจากตลาดท่าน้ำ สู่ป่าหิมพานต์และถ้ำแก้วนาคา เกมผจญภัยแฟนตาซีเล่นคนเดียวบนเว็บ" />
+    <title>สยามอรุณ · ตำนานผู้กล้าแห่งลุ่มน้ำ</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%23294e50'/%3E%3Cg stroke='%23e2bf78' stroke-width='1.5' stroke-linejoin='round' fill='%23f3e4c5'%3E%3Cpath d='M20 8c-7 7-8 14 0 20 8-6 7-13 0-20Z'/%3E%3Cpath d='M20 29C9 29 6 22 6 16c8 0 13 5 14 13Zm0 0c11 0 14-7 14-13-8 0-13 5-14 13Z'/%3E%3Cpath d='M10 32h20' fill='none'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="css/style.css?v=1.21" />
+  </head>
+  <body class="game-fullscreen">
+    <header class="topbar">
+      <a class="brand" href="index.html" aria-label="สยามอรุณ หน้าแรก"
+        ><span class="brand-mark">❧</span
+        ><span><b id="world-title">สยามอรุณ</b><small id="world-tagline">ตำนานผู้กล้าแห่งลุ่มน้ำ</small></span></a
+      >
+      <div class="header-note">WASD เดิน · E คุย NPC · V ซ่อน/แสดง UI</div>
+      <div class="header-actions">
+        <button data-action="save" id="save-button">
+          ▣ <span>บันทึก</span></button
+        ><button
+          data-action="fullscreen"
+          aria-label="เข้าโหมดเต็มจอ"
+          aria-pressed="false"
+          title="เต็มจอ"
+        >
+          ⛶ <span>เต็มจอ</span>
+        </button>
+        <button
+          data-action="toggle-ui"
+          aria-label="ซ่อน UI"
+          aria-pressed="true"
+          title="ซ่อน/แสดง UI (V)"
+        >
+          ◉ <span>UI</span>
+        </button>
+        <button
+          data-panel="help"
+          aria-label="คู่มือการเล่น"
+          title="คู่มือการเล่น"
+        >
+          ?
+        </button>
+        <button data-panel="settings" aria-label="ตั้งค่า">⚙</button>
+      </div>
+    </header>
+    <main class="game-layout">
+      <aside class="side-left">
+        <section class="card character">
+          <div class="character-heading">
+            <canvas
+              id="portrait"
+              width="68"
+              height="76"
+              aria-label="ตัวละคร"
+            ></canvas>
+            <div>
+              <h1 id="hero-name">ผู้เดินทาง</h1>
+              <div class="subtle" id="job-level">Job Lv.1</div>
+            </div>
+          </div>
+          <div class="vital-row"><span>HP</span><div class="meter"><i id="hp-bar" class="hp"></i><b id="hp-val"></b></div></div>
+          <div class="vital-row"><span>SP</span><div class="meter"><i id="sp-bar" class="sp"></i><b id="sp-val"></b></div></div>
+          <div class="level-row">
+            <b id="level">Base Lv.1</b><span id="exp-val"></span>
+          </div>
+          <div class="meter thin"><i id="exp-bar" class="exp"></i></div>
+          <div class="level-row small">
+            <span>Job EXP</span><span id="jexp-val"></span>
+          </div>
+          <div class="meter thin"><i id="jexp-bar" class="job"></i></div>
+          <div class="weight">
+            <span class="money">◈ <b id="silver">45</b> <span id="currency-name">อัฐ</span></span><span>Wt. <span id="weight-val"></span></span>
+          </div>
+        </section>
+        <section class="card menu-card">
+          <nav class="menu-grid" aria-label="เมนูเกม">
+            <button data-panel="status"><span>♧</span>สเตตัส</button
+            ><button data-panel="skills"><span>✧</span>สกิล</button
+            ><button data-panel="inventory"><span>▤</span>กระเป๋า</button
+            ><button data-panel="equipment"><span>⚔</span>อุปกรณ์</button
+            ><button data-panel="quest"><span>☷</span>เควสต์</button
+            ><button data-panel="shop"><span>♜</span>ร้านค้า</button
+            ><button data-panel="codex"><span>▥</span>คู่มือ</button
+            ><button data-panel="log"><span>⌁</span>บันทึก</button
+            ><button data-panel="settings"><span>⚙</span>ตั้งค่า</button>
+          </nav>
+        </section>
+        <section class="card guide-card">
+          <div class="eyebrow">คำฝากจากท่าน้ำ</div>
+          <p>ทุกการเดินทาง<br />เริ่มจากก้าวแรก</p>
+          <div class="key-hint"><kbd>W A S D</kbd> เดินสำรวจ</div>
+          <div class="key-hint"><kbd>SPACE</kbd> โจมตี</div>
+          <div class="key-hint"><kbd>E</kbd> คุยกับ NPC</div>
+          <div class="key-hint"><kbd>1—9</kbd> ใช้ Hotbar</div>
+          <button class="text-button" data-panel="help">
+            คู่มือนักผจญภัย ↗
+          </button>
+        </section>
+      </aside>
+      <section class="world-column">
+        <div class="world-heading">
+          <div>
+            <div class="eyebrow">เส้นทาง <span id="zone-number">01</span></div>
+            <h2 id="zone-label">ท่าน้ำอรุณ</h2>
+            <p id="zone-subtitle">ลมแม่น้ำ • บ้านของเหล่านักเดินทาง</p>
+          </div>
+          <div class="world-status">
+            <span class="live-dot"></span> ผจญภัยคนเดียว<br /><span id="clock"
+              >00:00</span
+            >
+          </div>
+        </div>
+        <div class="world-frame">
+          <div class="world-corner">
+            ❧ <span id="world-caption">ท่าน้ำอรุณ</span>
+          </div>
+          <canvas
+            id="game"
+            width="960"
+            height="560"
+            tabindex="0"
+            aria-label="แผนที่เกม คลิกพื้นเพื่อเดิน คลิกมอนสเตอร์เพื่อโจมตี"
+            >ต้องใช้เบราว์เซอร์ที่รองรับ Canvas</canvas
+          >
+          <div id="target-box" hidden></div>
+          <div id="pause-banner" role="status" aria-live="polite" hidden>
+            กำลังคำนวณการฟาร์มต่อเนื่อง
+          </div>
+          <div class="world-bottom">
+            <span id="coordinates">X:250 Y:310</span
+            ><span>คลิกพื้นเพื่อเดิน · คลิกมอนสเตอร์เพื่อโจมตี</span
+            ><span id="mob-count"></span>
+          </div>
+        </div>
+        <div class="action-heading">
+          <span class="eyebrow">ก้าวต่อไปของเจ้า</span
+          ><button class="text-button" data-panel="hotbar">
+            จัด Hotbar ⚙
+          </button>
+        </div>
+        <div
+          id="hotbar-slots"
+          class="hotbar"
+          aria-label="Hotbar ช่อง 1 ถึง 9"
+        ></div>
+        <div class="world-footer">
+          <span id="save-indicator">● เซฟในเบราว์เซอร์นี้</span
+          ><span>เดินทางตามจังหวะของคุณ</span>
+        </div>
+        <div id="toast" role="status" aria-live="polite"></div>
+      </section>
+      <aside class="side-right">
+        <section class="card map-card">
+          <div class="eyebrow">แผนที่เส้นทาง <span>⌖</span></div>
+          <canvas
+            id="minimap"
+            width="192"
+            height="112"
+            aria-label="แผนที่ย่อ คลิกเพื่อเดิน"
+          ></canvas>
+          <div class="map-caption">
+            <span class="live-dot"></span
+            ><span id="map-location">ท่าน้ำอรุณ</span>
+          </div>
+        </section>
+        <button class="auto-button" data-action="auto" aria-pressed="false">
+          <span>⚔ AUTO BATTLE</span><b id="combat-mode">OFF</b
+          ><kbd>F</kbd></button
+        ><button class="text-button auto-settings" data-panel="auto">
+          ตั้งค่าการต่อสู้อัตโนมัติ ↗
+        </button>
+        <section class="card quest-card">
+          <div class="eyebrow">เรื่องเล่าระหว่างทาง <span>◇</span></div>
+          <span class="quest-tag">ภารกิจหลัก</span>
+          <h3 id="quest-title">คำฝากจากท่าน้ำ</h3>
+          <p id="quest-description">คุยกับครูอินเพื่อรับภารกิจแรก</p>
+          <div class="quest-progress"><i id="quest-progress-bar"></i></div>
+          <div id="quest-count" class="subtle"></div>
+          <div id="quest-auto-status" class="quest-auto-status" role="status" aria-live="polite"></div>
+          <button id="quest-auto-toggle" data-act="auto-quest" class="quest-auto-toggle" aria-pressed="false">ทำเควสต์หลักอัตโนมัติ</button>
+          <button data-panel="quest" class="outline-button">
+            เปิดบันทึกภารกิจ →
+          </button>
+        </section>
+        <section class="field-note">
+          <span>❧</span>
+          <h3>พักก่อนก็ได้</h3>
+          <p>หมอมะลิที่ศาลาสมุนไพรช่วยฟื้น HP และ SP ให้เต็มได้เสมอ</p>
+        </section>
+      </aside>
+    </main>
+    <footer class="site-footer">
+      <span>❧ สยามอรุณ · ตำนานผู้กล้าแห่งลุ่มน้ำ</span
+      ><span>จากตลาดท่าน้ำ สู่เรื่องเล่าแห่งหิมพานต์</span
+      ><span id="release-label">รุ่น 1.21</span>
+    </footer>
+    <div id="panel-backdrop" hidden></div>
+    <section
+      id="panel-window"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="panel-title"
+      hidden
+    >
+      <header class="panel-header">
+        <div>
+          <div class="eyebrow">สมุดบันทึกผู้เดินทาง</div>
+          <h2 id="panel-title"></h2>
+        </div>
+        <button data-action="close" aria-label="ปิดหน้าต่าง">✕</button>
+      </header>
+      <div id="side-panel"></div>
+    </section>
+    <input
+      type="file"
+      id="import-file"
+      accept=".json,application/json"
+      hidden
+    />
+    <script src="js/classic-data.js?v=1.21"></script>
+    <script src="js/sword-rules.js?v=1.21"></script>
+    <script src="js/skill-rules.js?v=1.21"></script>
+    <script src="js/sword-save.js?v=1.21"></script>
+    <script src="js/item-rules.js?v=1.21"></script>
+    <script src="js/stat-rules.js?v=1.21"></script>
+    <script src="js/combat-feedback.js?v=1.21"></script>
+    <script src="js/class-combat.js?v=1.21"></script>
+    <script src="js/auto-quest.js?v=1.21"></script>
+    <script src="js/core.js?v=1.21"></script>
+    <script src="js/character.js?v=1.21"></script>
+    <script src="js/siam-art.js?v=1.21"></script>
+    <script src="js/school-art.js?v=1.21"></script>
+    <script src="js/vfx-painter.js?v=1.21"></script>
+    <script src="js/vfx-weapons.js?v=1.21"></script>
+    <script src="js/effect-parts.js?v=1.21"></script>
+    <script src="js/vfx-skills.js?v=1.21"></script>
+    <script src="js/combat-effects.js?v=1.21"></script>
+    <script src="js/skill-tree.js?v=1.21"></script>
+    <script src="js/damage-text.js?v=1.21"></script>
+    <script src="js/render.js?v=1.21"></script>
+    <script src="js/simulation-clock.js?v=1.21"></script>
+    <script src="js/game.js?v=1.21"></script>
+  </body>
+</html>
