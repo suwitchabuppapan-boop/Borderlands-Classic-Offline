@@ -10,7 +10,7 @@ try { R = require('../js/skill-rules.js'); } catch (error) { if (error.code !== 
 
 const native = {
   villager: ['first_aid'],
-  swordsman: ['arun_slash', 'swordsman_sweep', 'swordsman_stance', 'swordsman_discipline'],
+  swordsman: ['swordsman_discipline','swordsman_twohand_mastery','swordsman_recovery','arun_slash','swordsman_provoke','swordsman_sweep','swordsman_stance','swordsman_moving_recovery','swordsman_fatal_blow','swordsman_auto_berserk'],
   mage: ['lotus_bolt', 'petal_wave', 'lotus_veil', 'mana_focus'],
   acolyte: ['glyph_strike', 'scripture_wave', 'ward_script', 'steady_mind'],
   scout: ['quick_stab', 'scout_sweep', 'scout_shadow_step', 'scout_weakpoint'],
@@ -31,55 +31,57 @@ const rules = () => { assert.ok(R, 'BCSkillRules module exists'); return R; };
 const digest = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const baseKeys = ['name','thai','owner','max','sp','cooldown','kind','range','power','powerPerLevel','magic','icon','color','description'];
 const originalExtras = {
-  arun_slash: [], lotus_bolt: [], ward_script: ['heal','healPerLevel','duration','defBonus','defPerLevel','damageTaken'],
-  quick_stab: [], aimed_shot: [], royal_flurry: ['hits'], shield_counter: ['duration','defBonus','defPerLevel','damageTaken'],
+  lotus_bolt: [], ward_script: ['heal','healPerLevel','duration','defBonus','defPerLevel','damageTaken'],
+  quick_stab: [], aimed_shot: [], shield_counter: ['duration','defBonus','defPerLevel','damageTaken'],
   lotus_storm: ['radius'], orb_burst: ['chargePower','chargeCap','chargeDuration'], sanctuary: ['radius','heal','healPerLevel'],
   garuda_combo: ['hits','duration','atkMultiplier','atkPerLevel'], moon_venom: ['dotPower','dotPerLevel','duration','interval'],
   tiger_rend: ['defenseScale','dotPower','dotPerLevel','duration','interval'], naga_trap: ['radius','duration','snareDuration'], arcane_volley: ['radius'],
 };
 
-test('approved catalog has exactly 61 matching Thai names, four native skills and 15 passives', () => {
-  assert.equal(Object.keys(D.skills).length, 61);
+test('approved catalog has exactly 67 matching Thai names and 19 passives', () => {
+  assert.equal(Object.keys(D.skills).length, 67);
   const approvedIds = Object.values(native).flat();
-  assert.equal(new Set(approvedIds).size, 61);
+  assert.equal(new Set(approvedIds).size, 67);
   assert.deepEqual(Object.keys(D.skills).sort(), approvedIds.sort());
   const spec = fs.readFileSync(path.join(__dirname, '../docs/superpowers/specs/2026-10-20-class-skills-effect-parts-design.md'), 'utf8');
   for (const [classId, ids] of Object.entries(native)) {
     assert.deepEqual(D.classes[classId].skillIds, ids);
     for (const id of ids) {
+      const renamed = {swordsman_discipline:'เชี่ยวชาญดาบ',swordsman_twohand_mastery:'เชี่ยวชาญดาบสองมือ',swordsman_recovery:'ฟื้นฟูพลังชีวิต',arun_slash:'ฟาดฟันรุนแรง',swordsman_provoke:'ยั่วยุ',swordsman_sweep:'ระเบิดเพลิง',swordsman_stance:'ยืนหยัด',swordsman_moving_recovery:'ฟื้นฟูขณะเคลื่อนที่',swordsman_fatal_blow:'กระแทกมึนงง',swordsman_auto_berserk:'คลั่งอัตโนมัติ',royal_flurry:'ราชันฟาดต่อเนื่อง',royal_duelist_ring:'วงดาบราชัน',royal_duelist_tempo:'เร่งคมราชัน',royal_duelist_rhythm:'จังหวะดาบใหญ่'};
       const match = spec.match(new RegExp('^\\| `' + id + '` \\| ([^|]+) \\|', 'm'));
-      assert.ok(match, id + ' in approved spec');
-      const name = match[1].replace(/^★\s*/, '').split('·')[0].trim();
+      assert.ok(renamed[id] || match, id + ' in approved catalog');
+      const name = renamed[id] || match[1].replace(/^★\s*/, '').split('·')[0].trim();
       assert.equal(D.skills[id].name, name, id);
       assert.equal(D.skills[id].thai, name, id);
       assert.equal(D.skills[id].owner, classId === 'villager' ? undefined : classId, id);
     }
   }
-  assert.equal(Object.values(D.skills).filter(skill => skill.kind === 'passive').length, 15);
-  assert.equal(Object.values(D.skills).filter(skill => skill.owner && skill.kind !== 'passive').length, 45);
-  assert.equal(D.world.release, '1.20');
+  assert.equal(Object.values(D.skills).filter(skill => skill.kind === 'passive').length, 19);
+  assert.equal(Object.values(D.skills).filter(skill => skill.kind !== 'passive').length, 48);
+  assert.equal(D.world.release, '1.21');
 });
 
 test('original signatures and non-weight item properties retain exact balance and descriptions', () => {
   const originals = Object.fromEntries(Object.entries(originalExtras).map(([id, extras]) => [id, Object.fromEntries([...baseKeys, ...extras].map(key => [key, D.skills[id][key]]))]));
   originals.first_aid = Object.fromEntries(['name','thai','max','sp','cooldown','icon','description','color'].map(key => [key, D.skills.first_aid[key]]));
-  assert.equal(digest(originals), 'a6e1360ab3d4af6a2ecbdc96eb1ad158d52a601ba00a8bf6bf0d102424a863e4');
-  const itemsWithoutWeights=Object.fromEntries(Object.entries(D.items).map(([id,{weight,...item}])=>[id,item]));
+  assert.equal(digest(originals), '991ff70f4e12115b53c2dd2fe12f262b5af286a9bdf2ea5505a578faa07e698b');
+  const formerNames={palace_dual_blades:'ดาบคู่ราชวัง',banyan_dual_blades:'ดาบคู่เถาไทร',sun_royal_dual_blades:'ดาบคู่สุริยราช'};
+  const itemsWithoutWeights=Object.fromEntries(Object.entries(D.items).map(([id,{weight,...item}])=>[id,formerNames[id]?{...item,name:formerNames[id],weaponType:'dual_sword',appearance:{...item.appearance,profile:'dual_sword'}}:item]));
   assert.equal(digest(itemsWithoutWeights), 'c76ddb1c7806958caa7339af26314a31047a65056e9ac99fc576b8c6551083fc');
   assert.equal(Object.keys(D.items).length, 59);
-  for (const [classId, info] of Object.entries(D.classes)) assert.equal(info.skill, classId === 'acolyte' ? 'ward_script' : native[classId][0]);
+  for (const [classId, info] of Object.entries(D.classes)) assert.equal(info.skill, classId === 'acolyte' ? 'ward_script' : classId === 'swordsman' ? 'arun_slash' : native[classId][0]);
 });
 
 test('every catalog entry has finite explicit balance, category and meaningful description', () => {
   for (const [id, skill] of Object.entries(D.skills)) {
-    assert.equal(skill.max, id === 'first_aid' ? 1 : 5, id);
+    assert.equal(skill.max, id === 'first_aid' || skill.questSkill ? 1 : skill.owner === 'swordsman' ? 10 : 5, id);
     for (const key of ['sp','cooldown','range','power','powerPerLevel']) assert.ok(Number.isFinite(skill[key]) && skill[key] >= 0, id + ':' + key);
     assert.ok(['attack','buff','utility','passive','heal'].includes(skill.category), id);
     assert.ok(skill.description.length > 15, id);
     if (skill.kind === 'passive') {
       assert.equal(skill.sp, 0, id); assert.equal(skill.cooldown, 0, id); assert.equal(skill.power, 0, id);
       assert.ok(skill.passive && Object.values(skill.passive).some(Number.isFinite), id + ' numerical passive');
-    } else { assert.ok(skill.sp > 0, id); assert.ok(skill.cooldown > 0, id); }
+    } else { assert.ok(skill.sp > 0, id); assert.ok(skill.cooldown > 0 || id === 'swordsman_auto_berserk' && skill.cooldown === 0, id); }
   }
 });
 
@@ -119,7 +121,7 @@ test('zero and inaccessible passives leave exact neutral modifiers and base SP c
 });
 
 const passiveExpectations = {
-  swordsman_discipline: ['swordsman', 'physicalMultiplier', 1.125],
+  swordsman_discipline: ['swordsman', 'masteryFlat', 40],
   royal_duelist_rhythm: ['royal_duelist', 'swordSpReduction', .15],
   city_guardian_foundation: ['city_guardian', 'defBonus', 10],
   mana_focus: ['mage', 'magicSpReduction', .125],
@@ -136,7 +138,7 @@ const passiveExpectations = {
   arcane_dual_art: ['arcane_archer', 'magicBowDexFactor', 1.4],
 };
 for (const [id, [classId,key,expected]] of Object.entries(passiveExpectations)) test(id + ' changes its real numerical modifier only at bounded learned levels', () => {
-  const r=rules(), modifiers=r.passives(state(classId,{[id]:5}));
+  const r=rules(), modifiers=r.passives(state(classId,{[id]:D.skills[id].max}));
   assert.ok(Math.abs(modifiers[key]-expected)<1e-12, id);
   assert.notEqual(modifiers[key], r.passives(state(classId))[key]);
   assert.deepEqual(r.passives(state(classId,{[id]:999})), modifiers, 'overlevel clamps');
@@ -159,7 +161,7 @@ test('effective cost discounts only the matching learned skill family and stays 
   assert.equal(r.spCost(state('royal_duelist',{royal_duelist_rhythm:5}), 'royal_flurry'),11);
   assert.equal(r.spCost(state('royal_duelist',{royal_duelist_rhythm:5}), 'first_aid'),3);
   assert.equal(r.spCost(state('lotus_mage',{mana_focus:5}), 'lotus_storm'),14);
-  assert.equal(r.spCost(state('swordsman',{mana_focus:5}), 'arun_slash'),6);
+  assert.equal(r.spCost(state('swordsman',{mana_focus:5}), 'arun_slash'),8);
   assert.equal(r.spCost(state('royal_duelist',{royal_duelist_rhythm:999}), 'royal_flurry'),11);
   assert.equal(r.spCost(state('mage'), 'mana_focus'),0);
   assert.equal(r.spCost(state('mage'), 'constructor'),0);

@@ -23,7 +23,7 @@
   }
   const buffParts=Object.freeze({
     ward_script:"acolyte.ward_cage",shield_counter:"city_guardian.shield_face",garuda_combo:"garuda_monk.garuda_feather",
-    swordsman_stance:"swordsman.stance_seal",royal_duelist_tempo:"royal_duelist.tempo_streak",city_guardian_vow:"city_guardian.vow_shell",
+    swordsman_sweep:"common.shock_ring",swordsman_stance:"swordsman.stance_seal",royal_duelist_tempo:"royal_duelist.tempo_streak",city_guardian_vow:"city_guardian.vow_shell",
     lotus_veil:"mage.lotus_veil",gather_petals:"lotus_mage.gathering_petals",prism_veil:"orb_weaver.prism_shell",
     cleansing_script:"divine_scribe.cleansing_seal",scout_shadow_step:"scout.shadow_step",night_tiger_tempo:"night_tiger.hunt_trail",
     naga_forest_veil:"archer.fletching_trail",arcane_arrow_inscription:"arcane_archer.rune_seal"
@@ -32,7 +32,8 @@
   function persistent(c,s,layer){
     const cs=s?.classCombat,player=s?.player;
     if(alive(player)&&cs){
-      for(const [id,part]of Object.entries(buffParts)){const b=own(cs.buffs,id)?cs.buffs[id]:null;if(!positive(b)||shields.has(id)&&!(b.shieldRemaining>0)||empowers.has(id)&&!(b.empowerRemaining>0))continue;statePart(c,part,player,b.remaining,layer,id==="arcane_arrow_inscription"?{anchor:"body"}:{});}
+      for(const [id,part]of Object.entries(buffParts)){const b=own(cs.buffs,id)?cs.buffs[id]:null;if(!positive(b)||shields.has(id)&&!(b.shieldRemaining>0)||empowers.has(id)&&!(b.empowerRemaining>0))continue;statePart(c,part,player,b.remaining,layer,id==="arcane_arrow_inscription"?{anchor:"body"}:id==="swordsman_sweep"?{variant:"fire_aura"}:{});}
+      if(cs.autoBerserk?.enabled===true&&cs.autoBerserk?.active===true&&layer==="front")F.draw(c,"common.status_tick",{x:player.x,y:player.y-17,progress:phase(finite(s.clock)?s.clock:0),variant:"berserk",alpha:.85});
       if(finite(cs.orbTimer)&&cs.orbTimer>0&&finite(cs.orbCharges)&&cs.orbCharges>0)statePart(c,"orb_weaver.charge_jewel",player,cs.orbTimer,layer,{count:P.clamp(Math.floor(cs.orbCharges),0,3)});
     }
     const traps=cs?.traps;
@@ -42,6 +43,8 @@
       const m=monsters[i];if(!alive(m))continue;
       const dots=Array.isArray(m.classDots)?m.classDots:[];
       const seen=new Set();for(let j=0;j<Math.min(2,dots.length);j++){const d=dots[j];if(seen.has(d?.id))continue;seen.add(d?.id);if(positive(d)&&["moon_venom","tiger_rend"].includes(d.id))statePart(c,d.id==="moon_venom"?"moon_shadow.poison_cloud":"night_tiger.bleed_mark",m,d.remaining,layer);}
+      if(finite(m.stun)&&m.stun>0)statePart(c,"common.status_tick",m,m.stun,layer,{variant:"stun"});
+      if(positive(m.skillDebuffs?.swordsman_provoke))statePart(c,"common.status_tick",m,m.skillDebuffs.swordsman_provoke.remaining,layer,{variant:"provoke"});
       if(finite(m.snare)&&m.snare>0)statePart(c,"naga_ranger.binding_ribbon",m,m.snare,layer);
       if(positive(m.skillMarks?.blossom_mark))statePart(c,"lotus_mage.blossom_mark",m,m.skillMarks.blossom_mark.remaining,layer);
       const hunt=m.skillMarks?.naga_trap||m.skillMarks?.naga_hunt_mastery;

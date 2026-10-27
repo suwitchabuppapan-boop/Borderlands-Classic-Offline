@@ -18,8 +18,8 @@ function cast(s,id,target=s.monsters[0]) {return C.act(s,'skill',{id,target:targ
 function advance(s,n) {for(let i=0;i<n*10;i++) C.tick(s,.1);}
 function gameplay(s) {const v=JSON.parse(JSON.stringify(s));delete v.log;return v;}
 
-test('all 45 additions are present and every active has a real bounded outcome',()=>{
-  const additions=Object.keys(D.skills).filter(id=>!original.has(id)); assert.equal(additions.length,45);
+test('all 51 additions are present and every active has a real bounded outcome',()=>{
+  const additions=Object.keys(D.skills).filter(id=>!original.has(id)); assert.equal(additions.length,51);
   for(const id of additions) {
     const sk=D.skills[id],s=setup(sk.owner,[id]);
     if(sk.chargeCost) s.classCombat={buffs:{},traps:[],orbCharges:1,orbTimer:12};
@@ -35,7 +35,7 @@ test('all 45 additions are present and every active has a real bounded outcome',
 
 test('all new active rejections preserve SP, cooldown, RNG, status and feedback atomically',()=>{
   for(const [id,sk] of Object.entries(D.skills).filter(([id,sk])=>!original.has(id)&&sk.kind!=='passive')) {
-    for(const mode of ['unlearned','sp','cooldown',...(!['self','shield','cleanse','empower','radial','debuff'].includes(sk.kind)&&!(sk.kind==='move'&&sk.moveMode==='backward')?['target']:[])]) {
+    for(const mode of ['unlearned','sp','cooldown',...(!['self','shield','cleanse','empower','radial','debuff','toggle'].includes(sk.kind)&&!(sk.kind==='move'&&sk.moveMode==='backward')?['target']:[])]) {
       const s=setup(sk.owner,[id]); if(sk.chargeCost)s.classCombat={buffs:{},traps:[],orbCharges:1,orbTimer:12};
       if(mode==='unlearned')s.skills[id]=0;if(mode==='sp')s.player.sp=0;if(mode==='cooldown')s.cooldowns[id]=1;
       const before=gameplay(s);assert.equal(cast(s,id,mode==='target'?{uid:'missing'}:s.monsters[0]).ok,false,id+'/'+mode);assert.deepEqual(gameplay(s),before,id+'/'+mode);
@@ -44,7 +44,7 @@ test('all new active rejections preserve SP, cooldown, RNG, status and feedback 
 });
 
 test('cones hit only forward, pierce follows line, chain is unique and combo stops at death',()=>{
-  for(const id of ['swordsman_sweep','scout_sweep','scripture_wave','city_guardian_wave','night_tiger_sweep']) {
+  for(const id of ['scout_sweep','scripture_wave','city_guardian_wave','night_tiger_sweep']) {
     assert.ok(D.skills[id],id);const s=setup(D.skills[id].owner,[id]);s.monsters[1].x=370;s.monsters[2].x=400;s.monsters[2].y=345;
     cast(s,id);assert.ok(s.monsters[0].hp<10000,id);assert.equal(s.monsters[1].hp,10000,id+' behind');assert.equal(s.monsters[2].hp,10000,id+' side');
   }
@@ -94,10 +94,10 @@ test('cleanse removes real player debuffs only, MDEF buffs expire and movement h
   const unchanged=gameplay(edge);assert.equal(cast(edge,'archer_backstep').ok,false);assert.deepEqual(gameplay(edge),unchanged,'blocked retreat never snaps inward from a portal edge');
 });
 
-test('all fifteen passives affect real stats, damage, cost, heal or cadence and cap at learned maximum',()=>{
-  const R=require('../js/skill-rules.js');const ids=Object.entries(D.skills).filter(([,sk])=>sk.kind==='passive');assert.equal(ids.length,15);
-  for(const [id,sk] of ids) {const s=setup(sk.owner),neutral=R.passives(s);s.skills[id]=5;const value=R.passives(s);assert.notDeepEqual(value,neutral,id);s.skills[id]=999;assert.deepEqual(R.passives(s),value,id+' overlevel cannot exceed the learned maximum');}
-  const s=setup('swordsman',['swordsman_discipline']);const atk=C.stats(s).atk;s.skills.swordsman_discipline=0;assert.ok(atk>C.stats(s).atk);
+test('all nineteen passives affect real stats, damage, cost, heal or cadence and cap at learned maximum',()=>{
+  const R=require('../js/skill-rules.js');const ids=Object.entries(D.skills).filter(([,sk])=>sk.kind==='passive');assert.equal(ids.length,19);
+  for(const [id,sk] of ids) {const s=setup(id==='swordsman_twohand_mastery'?'royal_duelist':sk.owner),neutral=R.passives(s);s.skills[id]=sk.max;const value=R.passives(s);assert.notDeepEqual(value,neutral,id);s.skills[id]=999;assert.deepEqual(R.passives(s),value,id+' overlevel cannot exceed the learned maximum');}
+  const s=setup('swordsman',['swordsman_discipline']);const atk=C.stats(s).atk;s.skills.swordsman_discipline=0;assert.equal(atk,C.stats(s).atk,'Sword Mastery uses its own flat post-DEF hit channel');
   const g=setup('city_guardian',['city_guardian_foundation']);assert.ok(C.stats(g).hardMdef>setup('city_guardian').equipment.mdef||C.stats(g).hardMdef>0);
   const t=setup('night_tiger',['night_tiger_instinct']);assert.ok(C.stats(t).interval<C.stats(setup('night_tiger')).interval);
   const h=setup('divine_scribe',['mercy_scripture']);const hp=h.player.hp;cast(h,'first_aid');assert.ok(h.player.hp-hp>20);
@@ -151,7 +151,7 @@ test('heals emit measured positive signals, shields share one budget and actual 
   const pools=Object.values(s.classCombat.buffs).map(b=>b.shieldRemaining||0);assert.equal(pools.filter(n=>n>0).length,1);
   const remaining=Math.max(...pools);assert.ok(remaining>=first);assert.equal(Combat.absorbDamage(s,1000),1000-remaining);assert.equal(Combat.absorbDamage(s,1000),1000);
   assert.ok(s.classCombat.signals.some(e=>e.kind==='break'));
-  const b=setup('swordsman',['swordsman_stance']);cast(b,'swordsman_stance');advance(b,6.1);assert.ok(b.classCombat.signals.some(e=>e.kind==='expire'));
+  const b=setup('swordsman',['swordsman_stance']);cast(b,'swordsman_stance');advance(b,10.1);assert.ok(b.classCombat.signals.some(e=>e.kind==='expire'));
 });
 
 test('active malformed levels reject atomically and death clears player debuffs',()=>{

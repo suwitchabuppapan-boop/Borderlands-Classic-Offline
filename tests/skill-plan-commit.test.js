@@ -20,8 +20,8 @@ test('invalid, stale or unaffordable plans never apply even a valid first entry'
 });
 test('point growth is allowed and every class uses the existing access and level caps',()=>{
   for(const classId of Object.keys(D.classes).filter(id=>D.classes[id].tier)) {
-    const s=setup(classId),id=D.classes[classId].skill,p=plan(s,{[id]:5});s.skillPoints=9;
-    assert.equal(C.act(s,'learn-plan',p).ok,true,classId);assert.equal(s.skills[id],5);assert.equal(s.skillPoints,4);
+    const s=setup(classId),id=D.classes[classId].skill,p=plan(s,{[id]:D.skills[id].max});s.skillPoints=20;
+    assert.equal(C.act(s,'learn-plan',p).ok,true,classId);assert.equal(s.skills[id],D.skills[id].max);assert.equal(s.skillPoints,20-D.skills[id].max);
     const max=C.serialize(s);assert.equal(C.act(s,'learn-plan',plan(s,{[id]:1})).ok,false);assert.equal(C.serialize(s),max);
   }
 });

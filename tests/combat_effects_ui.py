@@ -83,7 +83,7 @@ async def run_checks(page, artifacts=None):
         assert check['alphaDiversity'] >= 16, check
         # Steel crescents use nested translucent curves; projectile, magic and
         # impact profiles use the painter's native Canvas light gradients.
-        if check['weaponType'] not in ('training', 'sword', 'dual_sword'):
+        if check['weaponType'] not in ('training', 'sword', 'two_hand_sword'):
             assert sum(check['gradients'].values()) > 0, check
     for progress in (0, .25, .5, .8):
         at_time = [c for c in weapon_checks if c['progress'] == progress and c['facing'] == 1]

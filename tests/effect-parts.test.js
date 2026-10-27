@@ -14,10 +14,10 @@ test('all approved Effect Parts are implemented in a public pure module',()=>{as
 if(FX){
   test('frozen definitions match every approved template and all recipe references resolve',()=>{
     assert.ok(Object.isFrozen(FX));assert.ok(Object.isFrozen(FX.definitions));assert.ok(Object.isFrozen(FX.recipes));
-    assert.equal(partIds.length,58);assert.deepEqual(Object.keys(FX.definitions).sort(),partIds.sort());assert.equal(Object.keys(FX.recipes).length,61);
+    assert.equal(partIds.length,58);assert.deepEqual(Object.keys(FX.definitions).sort(),partIds.sort());assert.equal(Object.keys(FX.recipes).length,67);
     for(const [id,d]of Object.entries(FX.definitions)){assert.equal(d.id,id);assert.ok(Object.isFrozen(d));for(const key of ['shape','anchor','layer','directionMode','palette','size','frameCount','envelope','endPolicy'])assert.ok(d[key],id+' '+key);}
     for(const [id,r]of Object.entries(FX.recipes)){assert.equal(r.id,id);assert.ok(Object.isFrozen(r)&&Object.isFrozen(r.parts));for(const p of r.parts){assert.ok(FX.definitions[p.partId],id+' '+p.partId);for(const key of ['eventGate','anchor','layer','variant','stateBinding'])assert.ok(p[key],id+' '+key);}}
-    assert.equal(Object.values(FX.recipes).filter(r=>r.passive).length,15);
+    assert.equal(Object.values(FX.recipes).filter(r=>r.passive).length,19);
   });
   test('every one of58 templates paints a distinct filled silhouette with bounded deterministic lifetime geometry',()=>{
     const traces=[];

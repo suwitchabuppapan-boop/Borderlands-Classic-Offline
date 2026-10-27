@@ -162,3 +162,12 @@ if (FX) {
     assert.doesNotMatch(source, /Math\.random|Date\.|performance\.|requestAnimationFrame|setTimeout|document\.|fetch\(|createLinearGradient|createRadialGradient|shadowBlur|new Image/);
   });
 }
+
+test("two-handed greatsword uses one broad release instead of two crossed blade tracks",()=>{
+ assert.ok(FX.profiles.two_hand_sword);assert.equal(FX.profiles.dual_sword,undefined);
+ const calls=render(event({weaponType:'two_hand_sword'}));
+ const arcs=calls.filter(v=>v[0]==='bezierCurveTo');
+ assert.equal(arcs.length,8,'one four-layer crescent has two curves per layer');
+ const single=render(event({weaponType:'sword'})).filter(v=>v[0]==='bezierCurveTo');
+ assert.ok(Math.max(...arcs.flatMap(v=>v.slice(1)))>Math.max(...single.flatMap(v=>v.slice(1))),'heavy blade needs a wider reach silhouette');
+});

@@ -10,7 +10,7 @@ const at = (s, id) => Object.assign(s.player, D.npcs.find(n => n.id === id));
 const saved = s => JSON.parse(C.serialize(s)).state;
 const economic = s => JSON.stringify({ silver:s.silver, inventory:s.inventory, equipment:s.equipment });
 
-test("retained catalog, class, skill, combat and drop data matches 1.12 except approved unit weights", t => {
+test("retained catalog, class, skill, combat and drop data matches 1.12 except approved weights and the 1.21 sword redesign", t => {
   const context = { module: { exports: {} } };
   let source;
   try { source=execFileSync("git", ["show", "eefb5c3:js/classic-data.js"], {encoding:"utf8",stdio:["ignore","pipe","pipe"]}); }
@@ -18,7 +18,7 @@ test("retained catalog, class, skill, combat and drop data matches 1.12 except a
   vm.runInNewContext(source, context);
   const baseline = JSON.parse(JSON.stringify(context.module.exports));
   const actual = JSON.parse(JSON.stringify(D));
-  assert.equal(actual.world.release, '1.20');
+  assert.equal(actual.world.release, '1.21');
   delete actual.world.release; delete baseline.world.release;
   for(const id of ["rusty_sword","yak_greatsword"]) delete baseline.items[id];
   // Only the approved 1.19 unit weights change; preserve all other item data.
@@ -33,6 +33,24 @@ test("retained catalog, class, skill, combat and drop data matches 1.12 except a
   }
   for(const classes of [actual.classes,actual.weaponSchools]) {
     for(const cls of Object.values(classes)) delete cls.skillIds;
+  }
+  // The authorized sword redesign changes these fields only; exact new tables
+  // and untouched 1.20 data are independently locked in swordsman-data.test.js.
+  delete actual.skills.arun_slash; delete baseline.skills.arun_slash;
+  for (const id of ["royal_flurry"]) for(const key of ["name","thai","description"]) {
+    delete actual.skills[id][key]; delete baseline.skills[id][key];
+  }
+  actual.weaponSchools.dual_sword=actual.weaponSchools.two_hand_sword; delete actual.weaponSchools.two_hand_sword;
+  for(const [collection,id] of [["classes","royal_duelist"],["weaponSchools","dual_sword"]]) for(const key of ["name","description","weaponType"]) {
+    delete actual[collection][id][key];delete baseline[collection][id][key];
+  }
+  actual.weaponTypes.dual_sword = actual.weaponTypes.two_hand_sword; delete actual.weaponTypes.two_hand_sword;
+  for(const key of ["name","attack"]) {delete actual.weaponTypes.dual_sword[key];delete baseline.weaponTypes.dual_sword[key];}
+  actual.itemCatalog.progressions.dual_sword=actual.itemCatalog.progressions.two_hand_sword;
+  delete actual.itemCatalog.progressions.two_hand_sword;
+  for(const id of ["palace_dual_blades","banyan_dual_blades","sun_royal_dual_blades"]) {
+    for(const key of ["name","weaponType"]) {delete actual.items[id][key];delete baseline.items[id][key];}
+    delete actual.items[id].appearance.profile;delete baseline.items[id].appearance.profile;
   }
   assert.deepEqual(actual, baseline);
 });
@@ -104,7 +122,8 @@ for(const [id,cls] of Object.entries(D.classes)) {
     const s=C.createState(); s.classId=id; s.weaponSchool=cls.weaponType;
     s.job=cls.tier?"Swordman":"Novice"; s.equipment.weapon=cls.trainingWeapon;
     for(const key of Object.keys(D.items)) s.inventory[key]=2;
-    for(const key of C.skillsFor(s)) if(D.skills[key].owner) s.skills[key]=2;
+    for(const key of C.skillsFor(s)) if(D.skills[key].owner) s.skills[key]=Math.min(2,D.skills[key].max);
+    if(C.skillsFor(s).includes("swordsman_provoke")) {s.skills.arun_slash=5;s.skills.swordsman_provoke=5;}
     s.player.hp=C.stats(s).maxHp; s.player.sp=C.stats(s).maxSp;
     const original=saved(s), raw={version:1,state:original};
     raw.state.combatFeedback={nextId:10,events:[{kind:"attack"}]};

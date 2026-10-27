@@ -5,16 +5,18 @@ The browser runner additionally uses Python Playwright and Chromium (this cloud
 environment has `/usr/bin/chromium`). Commands run from the repository root.
 
 ```sh
-python scripts/release_site.py stage --out /workspace/combat120/release-1.20
-python scripts/release_site.py verify-stage --stage /workspace/combat120/release-1.20
+python scripts/release_site.py stage --out /workspace/sword121/release-1.21
+python scripts/release_site.py verify-stage --stage /workspace/sword121/release-1.21
 ```
 
-The output contains `site/` with exactly 52 runtime files (21 JavaScript modules,
+The output contains `site/` with exactly 54 runtime files (23 JavaScript modules,
 27 WebP images, index, CSS, license and `.nojekyll`), `Borderlands-Site.zip`
-with those same files, and `Siam-Arun-1.20.zip` with allowlisted authored source,
+with those same files, and `Siam-Arun-1.21.zip` with allowlisted authored source,
 tests, documentation and scripts from Git's tracked/untracked file inventory.
-The runtime loads `skill-rules.js` immediately after `classic-data.js`, before
-`item-rules.js` and `stat-rules.js`. The effect modules load in the order
+The runtime loads `classic-data.js`, `sword-rules.js`, `skill-rules.js`, then
+`sword-save.js`, before `item-rules.js` and `stat-rules.js`. The sword rules
+provide pure per-level values; the save module upgrades only the skill schema
+before Core applies full save validation. The effect modules load in the order
 `vfx-painter.js`, `vfx-weapons.js`, `effect-parts.js`, `vfx-skills.js`, then
 `combat-effects.js`. `effect-parts.js` provides the shared visual definitions and
 recipes; combat state remains in the game rules. `damage-text.js` loads immediately
@@ -33,11 +35,11 @@ build finishes, verify every public content file:
 
 ```sh
 python scripts/release_site.py verify-public \
-  --stage /workspace/combat120/release-1.20 \
-  --out /workspace/combat120/public-1.20
+  --stage /workspace/sword121/release-1.21 \
+  --out /workspace/sword121/public-1.21
 ```
 
-This fetches 51 content files (`.nojekyll` is a deployment marker), with normal
+This fetches 53 content files (`.nojekyll` is a deployment marker), with normal
 TLS certificate/hostname verification, two workers and at most three retries
 only for HTTP 429/502/503/504. Every response must match staged bytes before the
 cache manifest is written. `--base URL` selects a different HTTPS deployment;
@@ -48,15 +50,17 @@ the checkout or the staged `site/` directory, then run:
 
 ```sh
 python scripts/test_browser.py --url http://127.0.0.1:8765/ \
-  --artifacts /workspace/combat120/browser-local
+  --artifacts /workspace/sword121/browser-local
 python scripts/test_browser.py \
-  --public-cache /workspace/combat120/public-1.20 \
-  --artifacts /workspace/combat120/browser-public
+  --public-cache /workspace/sword121/public-1.21 \
+  --artifacts /workspace/sword121/browser-public
 ```
 
 The runner imports `run_checks(page)` from every `tests/*_ui.py` and, when
 present, `tests/gameplay_regression.py`, including the
-`background_farming_ui.py` and `class_skills_ui.py` checks. It supports sync and
+`background_farming_ui.py`, `class_skills_ui.py` and `swordsman_ui.py` checks.
+The swordsman suite exercises teacher training, zero-cost drafts, prerequisites,
+ten-level details, migration and real Hotbar timing. It supports sync and
 async Playwright suites, runs them sequentially, and closes each browser/context
 before the next.
 Use `--suite skill_tree_ui` (repeatable) to select suites. Every suite starts with

@@ -242,7 +242,7 @@ test("retained numerical state, normalized saves and seeded RNG match after expl
   assert.ok(fs.existsSync(path.join(baselineRoot, "js/core.js")), "untouched 1.12 baseline is required for parity");
   const Old = require(path.join(baselineRoot, "js/core.js"));
   let checkpoints = 0;
-  for (const [classId, cls] of Object.entries(D.classes)) for (const seed of [1, 97, 123456789, 0xffffffff]) {
+  for (const [classId, cls] of Object.entries(D.classes).filter(([id]) => !["swordsman","royal_duelist","city_guardian"].includes(id))) for (const seed of [1, 97, 123456789, 0xffffffff]) {
     const a = makeState(Old, classId, seed), b = makeState(Core, classId, seed);
     const check = (label) => {
       assert.deepEqual(canonical(b), canonical(a), `${classId}/${seed}/${label}: full gameplay state`);
@@ -264,8 +264,8 @@ test("retained numerical state, normalized saves and seeded RNG match after expl
     a.player.x = b.player.x = 900; a.player.y = b.player.y = 280; action("travel", { direction: 1 });
     a.player.hp = b.player.hp = 0; Old.tick(a, .1); Core.tick(b, .1); check("death");
   }
-  assert.equal(checkpoints, 15092, "all declared seeded action/tick checkpoints must execute");
-  t.diagnostic(`${checkpoints} normalized state/save/RNG parity checkpoints across 16 classes and 4 seeds; excludes deleted content, asserted zero-level new keys, skill schema metadata and cosmetic feedback only`);
+  assert.equal(checkpoints, 12260, "all declared seeded action/tick checkpoints must execute");
+  t.diagnostic(`${checkpoints} normalized state/save/RNG parity checkpoints across 13 unchanged classes and 4 seeds; excludes the approved sword-lineage redesign, deleted content, asserted zero-level new keys, skill schema metadata and cosmetic feedback only`);
 });
 
 

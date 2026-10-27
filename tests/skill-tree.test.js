@@ -30,7 +30,7 @@ test("five families contain all fifteen existing class signatures exactly once",
       assert.equal(n.classDef, D.classes[n.classId]);
       assert.equal(n.skillId, n.classDef.skill);
       assert.equal(n.skill, D.skills[n.skillId]);
-      assert.equal(n.skill.max, 5);
+      assert.equal(n.skill.max, n.classId === "swordsman" ? 10 : 5);
     }
     for (const child of parent.children) assert.equal(child.classDef.parent, parent.classId);
   }
@@ -66,16 +66,16 @@ for (const [classId, def] of Object.entries(D.classes)) {
     assert.deepEqual(result.shared.map(n => n.skillId), ["first_aid"]);
     assert.equal(result.shared[0].skill, D.skills.first_aid);
     const s = C.createState();
-    s.classId = classId; s.weaponSchool = def.weaponType; s.skillPoints = 100;
+    s.classId = classId; s.weaponSchool = def.weaponType; s.skillPoints = 100; Object.assign(s.player,D.npcs.find(n=>n.id==="guide"));
     const accessible = new Set([...result.ancestry, ...result.shared].map(n => n.skillId));
-    for (const [skillId, skill] of Object.entries(D.skills)) {
+    for (const [skillId, skill] of [...Object.entries(D.skills)].sort((a,b)=>Object.keys(a[1].requirements||{}).length-Object.keys(b[1].requirements||{}).length)) {
       assert.equal(C.skillAvailable(s, skillId), accessible.has(skillId), `${classId}/${skillId} access`);
       const before = s.skillPoints;
       const learned = C.act(s, "learn", { id: skillId });
       if (skill.owner && accessible.has(skillId)) {
         assert.equal(learned.ok, true);
         assert.equal(s.skills[skillId], 1);
-        assert.equal(s.skillPoints, before - 1);
+        assert.equal(s.skillPoints, before - (skill.learnCost ?? 1));
         for (let level = 2; level <= skill.max; level++) assert.equal(C.act(s, "learn", { id: skillId }).ok, true);
         const maxPoints = s.skillPoints;
         assert.equal(C.act(s, "learn", { id: skillId }).ok, false);
@@ -130,7 +130,7 @@ test("the tree reads the catalog instead of duplicating its labels or family lis
 });
 test("only current ancestral skills can be learned, bound and round tripped", () => {
   const s = C.createState();
-  s.classId = "royal_duelist"; s.weaponSchool = "dual_sword"; s.job = "Swordman"; s.equipment.weapon = null;
+  s.classId = "royal_duelist"; s.weaponSchool = "two_hand_sword"; s.job = "Swordman"; s.equipment.weapon = null;
   s.skillPoints = 8;
   for(const id of ["bash","magnum","provoke"]) {
     assert.equal(C.skillAvailable(s,id),false);

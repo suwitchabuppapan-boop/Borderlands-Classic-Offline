@@ -76,7 +76,8 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
             skill, owner = node.get_attribute("data-skill"), node.get_attribute("data-class")
             assert node.get_attribute("data-state") == ("own" if owner == class_id else "inherited")
             assert node.locator('[data-act="learn"]').count() == 0, "Tree allocation must not bypass confirmation"
-            assert not node.locator('[data-delta="1"]').is_disabled()
+            allowed = page.evaluate("id=>!BCSkillRules.prerequisiteReason(BCGame.state,id)&&!BCSkillRules.trainingReason(BCGame.state,id)", skill)
+            assert node.locator('[data-delta="1"]').is_disabled() != allowed
             assert node.locator('[data-delta="-1"]').is_disabled()
             assert projected(skill) == 0
             select(skill)
@@ -158,7 +159,7 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
     assert page.evaluate("BCGame.state.skills.swordsman_discipline") == 1
     assert page.evaluate("BCGame.state.skillPoints") == 1
     assert counter("spent") == 0 and counter("remaining") == 1
-    assert page.evaluate("BCCore.stats(BCGame.state).atk") > before["stats"]["atk"]
+    assert page.evaluate("BCCore.stats(BCGame.state).atk") == before["stats"]["atk"], "Sword Mastery adds flat post-DEF damage rather than ATK"
     committed = progress()
     assert page.locator('[data-skill-adjust="royal_flurry"][data-delta="1"]').is_disabled()
     minus = page.locator('[data-skill-adjust="royal_flurry"][data-delta="-1"]')
@@ -225,7 +226,7 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
     assert progress() == before_stale, "Stale insufficient points must reject the entire plan"
     page.evaluate("skillTreeFixture('swordsman',3)")
     tree()
-    assert page.locator('.skill-tree-node').count() == 4 and counter("spent") == 0
+    assert page.locator('.skill-tree-node').count() == 10 and counter("spent") == 0
     adjust("arun_slash", 1)
     page.evaluate("text=>BCGame.loadSave(text)", saved)
     assert page.evaluate("BCGame.state.classId") == "royal_duelist"
@@ -265,7 +266,7 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
         assert geometry["x"] >= 0 and geometry["right"] <= width
         assert geometry["top"] >= 0 and geometry["bottom"] <= height
         assert geometry["scroll"] <= geometry["client"], geometry
-        assert page.locator('.skill-tree-node').count() == 8
+        assert page.locator('.skill-tree-node').count() == 14
         columns = page.locator('.skill-tree-grid').first.evaluate("el=>getComputedStyle(el).gridTemplateColumns.trim().split(/\\s+/).length")
         assert columns == (4 if width > 700 else 2), (width, columns)
         icon_size = page.locator('[data-skill-select="royal_flurry"]').bounding_box()
@@ -281,8 +282,8 @@ def run_checks(page, output_dir="/workspace/combat-fx-work"):
     page.evaluate("BCGame.state.skillPoints=0;BCGame.openPanel('skills')")
     tree()
     assert page.locator('[data-skill-adjust="arun_slash"][data-delta="1"]').is_disabled()
-    result = {"classes": len(checked), "class_skills": 60, "catalog_skills": 61,
-              "tree_node_counts": {"villager": 0, "class_1": 4, "class_2": 8}, "learning_max": 5,
+    result = {"classes": len(checked), "class_skills": 66, "catalog_skills": 67,
+              "tree_node_counts": {"villager": 0, "class_1": [4, 10], "class_2": [8, 14]}, "learning_max": [1, 5, 10],
               "checks": ["current compatibility", "exact inherited ancestry", "selected icon details", "Job/SP/CD/range", "staged +/- without gameplay/RNG/save changes", "passive preview stays inactive", "max/points bounds", "atomic batch confirmation", "reset/close/import invalidation", "no committed refunds", "stale points reject atomically", "genuine Auto farming while planning", "foreign actions rejected", "obsolete sanitation", "hotbar/save/reload", "keyboard/focus trap", "desktop4/mobile2 columns", "all icons and +/- natively clickable at 1440x900,390x844,700x390"],
               "migration": migration, "screenshots": screenshots}
     (output / "skill-tree-browser.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))

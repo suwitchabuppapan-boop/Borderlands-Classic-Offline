@@ -24,9 +24,9 @@ test("allocation snapshot includes every owned ancestral level, with a fresh emp
   const r=api();
   for(const classId of Object.keys(D.classes)) {
     const s=state(classId),owned=T.nodesFor(classId).ancestry.map(n=>n.skillId);
-    for(const id of owned)s.skills[id]=2;
+    for(const id of owned)s.skills[id]=Math.min(2,D.skills[id].max);
     const a=r.createAllocation(s),b=r.createAllocation(s);
-    assert.deepEqual(a,{classId,baseline:Object.fromEntries(owned.map(id=>[id,2])),increments:{}});
+    assert.deepEqual(a,{classId,baseline:Object.fromEntries(owned.map(id=>[id,Math.min(2,D.skills[id].max)])),increments:{}});
     assert.notEqual(a,b);assert.notEqual(a.baseline,b.baseline);assert.notEqual(a.increments,b.increments);
     assert.equal(Object.hasOwn(a.baseline,"first_aid"),false);
     const check=r.validateAllocation(s,a);assert.equal(check.ok,true);assert.equal(check.spent,0);assert.equal(check.remaining,8);assert.deepEqual(check.entries,[]);
@@ -119,7 +119,7 @@ test("malformed states and inherited state fields cannot create or validate an a
   for(const bad of [null,undefined,{},[],{classId:"__proto__",skills:{},skillPoints:4},Object.create(state())]) {
     assert.equal(api().createAllocation(bad),null);assert.equal(T.validateAllocation(bad,{}).ok,false);
   }
-  for(const change of [s=>s.skillPoints=-1,s=>s.skillPoints="8",s=>s.skillPoints=.5,s=>s.skillPoints=Infinity,s=>s.skills=[],s=>delete s.skills.arun_slash,s=>s.skills.arun_slash=6,s=>s.skills.arun_slash=NaN]) {
+  for(const change of [s=>s.skillPoints=-1,s=>s.skillPoints="8",s=>s.skillPoints=.5,s=>s.skillPoints=Infinity,s=>s.skills=[],s=>delete s.skills.arun_slash,s=>s.skills.arun_slash=11,s=>s.skills.arun_slash=NaN]) {
     const s=state();change(s);assert.equal(T.createAllocation(s),null);assert.equal(T.validateAllocation(s,{}).ok,false);
   }
 });
@@ -155,4 +155,26 @@ test("browser export supports the same allocation workflow without core or DOM d
   const raw=JSON.stringify(state("swordsman",4));
   const result=vm.runInContext(`(()=>{const s=JSON.parse(${JSON.stringify(raw)}),T=window.BCSkillTree;const d=T.createAllocation(s);return T.validateAllocation(s,T.adjustAllocation(s,d,'arun_slash',1).draft);})()`,context);
   assert.equal(result.ok,true);assert.equal(result.spent,1);assert.equal(result.remaining,3);assert.equal(result.levels.arun_slash,1);
+});
+
+test("sword prerequisites use projected levels and prevent removing a required pending level",()=>{
+  const s=state("swordsman",10),draft=planned(s,{swordsman_sweep:1});
+  assert.equal(T.validateAllocation(s,draft).ok,false,"Magnum requires Bash5");
+  draft.increments.arun_slash=5;
+  assert.equal(T.validateAllocation(s,draft).ok,true,"click order does not change prerequisites");
+  assert.equal(T.adjustAllocation(s,draft,"arun_slash",-1).ok,false);
+  assert.equal(T.adjustAllocation(s,planned(s,{}),"swordsman_twohand_mastery",1).ok,false);
+  assert.equal(T.validateAllocation(s,planned(s,{swordsman_discipline:1,swordsman_twohand_mastery:1})).ok,true);
+});
+test("quest skills stage and confirm for zero points only at the teacher",()=>{
+  const s=state("swordsman",0),guide=D.npcs.find(n=>n.id==="guide");
+  s.zone=1;
+  assert.equal(T.adjustAllocation(s,T.createAllocation(s),"swordsman_fatal_blow",1).ok,false);
+  s.zone=0;Object.assign(s.player,{x:guide.x,y:guide.y});
+  const add=T.adjustAllocation(s,T.createAllocation(s),"swordsman_fatal_blow",1);
+  assert.equal(add.ok,true);
+  const result=T.validateAllocation(s,add.draft);
+  assert.equal(result.spent,0);assert.equal(result.remaining,0);
+  assert.deepEqual(result.entries,[{id:"swordsman_fatal_blow",count:1}]);
+  s.player.x+=100;assert.equal(T.validateAllocation(s,add.draft).ok,false,"teacher proximity is checked again at commit");
 });

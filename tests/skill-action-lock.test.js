@@ -11,7 +11,7 @@ function setup() {
   s.weaponSchool = "sword";
   s.job = "Swordman";
   s.equipment.weapon = Data.classes.swordsman.trainingWeapon;
-  for (const id of ["arun_slash", "swordsman_sweep", "swordsman_stance"]) s.skills[id] = 1;
+  for (const id of ["arun_slash", "swordsman_sweep", "swordsman_stance", "swordsman_provoke"]) s.skills[id] = ["arun_slash", "swordsman_provoke"].includes(id) ? 5 : 1;
   Object.assign(s.player, { x: 400, y: 300, sp: 1000 });
   s.monsters = s.monsters.slice(0, 1);
   Object.assign(s.monsters[0], { x: 440, y: 300, hp: 10000, cd: 999 });

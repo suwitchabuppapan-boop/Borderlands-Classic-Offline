@@ -74,10 +74,10 @@ test('skill drawing module exists before the dispatcher loads it',()=>{
   assert.equal(exists,true,'js/vfx-skills.js must exist');
 });
 if(FX) {
-  test('frozen API identifies all46 active skills with gameplay radii',()=>{
+  test('frozen API identifies all48 active skills with gameplay radii',()=>{
     assert.ok(Object.isFrozen(FX));assert.ok(Object.isFrozen(FX.profiles));
     assert.deepEqual(Object.keys(FX).sort(),['drawFront','drawGround','profiles']);
-    assert.deepEqual(Object.keys(FX.profiles).sort(),activeIds.sort());assert.equal(activeIds.length,46);
+    assert.deepEqual(Object.keys(FX.profiles).sort(),activeIds.sort());assert.equal(activeIds.length,48);
     for(const id of ids) {
       assert.ok(Object.isFrozen(FX.profiles[id]));assert.ok(FX.profiles[id].name.length>3);
       assert.equal(FX.profiles[id].radius,D.skills[id].radius||0,id);

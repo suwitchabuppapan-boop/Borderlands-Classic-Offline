@@ -1,4 +1,4 @@
-"""Release 1.17: real class learning, combat, saves and Canvas Part acceptance.
+"""Release 1.21: real class learning, combat, saves and Canvas Part acceptance.
 
 Fixtures select legal classes and paid skill levels; outcomes always run through
 BCCore. Native requestAnimationFrame and the normal keyboard/menu handlers remain
@@ -32,8 +32,10 @@ async def run_checks(page, artifacts=None):
         const s=C.createState(),cls=D.classes[classId],[dx,dy]=directions[facing];
         Object.assign(s,{classId,weaponSchool:cls.weaponType,job:cls.tier?'Swordman':'Novice',skillPoints:100,seed:1});
         s.equipment.weapon=cls.trainingWeapon;
+        Object.assign(s.player,D.npcs.find(n=>n.id==='guide'));
+        const learnSkill=id=>{for(const [required,minimum] of Object.entries(D.skills[id].requirements||{}))while(s.skills[required]<minimum)learnSkill(required);const result=C.act(s,'learn',{id});ensure(result.ok,'Cannot learn '+id+': '+result.message);};
         s.stats={str:30,agi:10,vit:20,int:30,dex:30,luk:1};
-        for(const id of learn)if(id!=='first_aid')ensure(C.act(s,'learn',{id}).ok,'Cannot learn '+id);
+        for(const id of learn)if(id!=='first_aid')learnSkill(id);
         Object.assign(s.player,{x:470,y:280,facing});
         const st=C.stats(s);s.player.hp=Math.floor(st.maxHp*.4);s.player.sp=st.maxSp;
         s.monsters=[
@@ -41,6 +43,7 @@ async def run_checks(page, artifacts=None):
           {uid:'forward',kind:'guardian',x:470+dx*(distance+20),y:280+dy*(distance+20),hp:100000,dead:0,cd:9999},
           {uid:'behind',kind:'guardian',x:470-dx*40,y:280-dy*40,hp:100000,dead:0,cd:9999},
         ];
+        if(learn.includes('swordsman_provoke'))s.monsters.forEach(m=>m.kind='poring');
         s.target='primary';s.auto=false;s.settings.autoSkill=false;s.settings.autoPotion=0;
         return s;
       };
@@ -79,27 +82,28 @@ async def run_checks(page, artifacts=None):
     }''')
     catalog = await page.evaluate(r'''() => {
       const {D,R,ensure}=__skills117,ids=Object.keys(D.skills),passives=ids.filter(id=>R.isPassive(id));
-      ensure(ids.length===61&&passives.length===15,'Expected 61 skills / 15 passives');
+      ensure(ids.length===67&&passives.length===19,'Expected 67 skills / 19 passives');
       ensure(Object.keys(BCFXParts.definitions).length===58,'Expected all 58 Parts');
-      ensure(Object.keys(BCFXParts.recipes).length===61,'Expected all 61 recipes');
+      ensure(Object.keys(BCFXParts.recipes).length===67,'Expected all 67 recipes');
       for(const [classId,cls] of Object.entries(D.classes)){
-        ensure(cls.skillIds.length===(cls.tier?4:1),classId+' native skills');
+        ensure(cls.skillIds.length===(classId==='swordsman'?10:cls.tier?4:1),classId+' native skills');
         const ids=R.skillsFor(classId);
-        ensure(ids.length===(cls.tier===2?9:cls.tier===1?5:1),classId+' ancestry count');
-        ensure(ids.filter(R.isPassive).length===cls.tier,classId+' inherited passive count');
+        const sword=BCSwordRules.isSwordLineage({classId});
+        ensure(ids.length===(sword?(cls.tier===2?15:11):cls.tier===2?9:cls.tier===1?5:1),classId+' ancestry count');
+        ensure(ids.filter(R.isPassive).length===(sword?cls.tier+4:cls.tier),classId+' inherited passive count');
       }
       for(const [id,recipe] of Object.entries(BCFXParts.recipes)){
         ensure(recipe.id===id&&Array.isArray(recipe.parts),id+' recipe schema');
         ensure(recipe.passive===R.isPassive(id),id+' passive recipe mismatch');
         for(const p of recipe.parts)ensure(BCFXParts.definitions[p.partId],id+' missing Part '+p.partId);
       }
-      return {skills:ids.length,active:ids.length-passives.length,passives:passives.length,parts:58,recipes:61,classes:Object.keys(D.classes)};
+      return {skills:ids.length,active:ids.length-passives.length,passives:passives.length,parts:58,recipes:67,classes:Object.keys(D.classes)};
     }''')
 
     # Use the real current dialog and delegated learn handlers in every identity.
     ui_classes = []
     for class_id in catalog["classes"]:
-        await page.evaluate("id => {const s=__skills117.setup(id);BCGame.loadSave(BCCore.serialize(s));BCGame.openPanel('skills');}", class_id)
+        await page.evaluate("id => {const s=__skills117.setup(id);Object.assign(s.player,BCData.npcs.find(n=>n.id==='guide'));BCGame.loadSave(BCCore.serialize(s));BCGame.openPanel('skills');}", class_id)
         expected = await page.evaluate("BCCore.skillsFor(BCGame.state)")
         cards = page.locator(".skill-card")
         assert await cards.evaluate_all("els=>els.map(el=>el.dataset.skill)") == expected
@@ -111,7 +115,7 @@ async def run_checks(page, artifacts=None):
             points = await page.evaluate("BCGame.state.skillPoints")
             await card.locator('[data-act="learn"]').click()
             assert await page.evaluate("id=>BCGame.state.skills[id]", skill_id) == 1
-            assert await page.evaluate("BCGame.state.skillPoints") == points - 1
+            assert await page.evaluate("BCGame.state.skillPoints") == points - await page.evaluate("id=>BCSkillRules.learnCost(id)", skill_id)
         await page.locator('[data-skills-tab="tree"]').click()
         nodes = page.locator(".skill-tree-node")
         assert await nodes.count() == len(expected) - 1
@@ -138,21 +142,24 @@ async def run_checks(page, artifacts=None):
         for(const id of Object.keys(legacy.state.skills))if(!oldIds.includes(id))delete legacy.state.skills[id];
         ensure(Object.keys(legacy.state.skills).length===16,'Not a complete 1.16 skill schema');
         const loaded=C.deserialize(JSON.stringify(legacy)),saved=JSON.parse(C.serialize(loaded)).state;
-        ensure(saved.skillVersion===2&&Object.keys(saved.skills).length===61,classId+' upgrade completeness');
-        for(const id of oldIds)ensure(saved.skills[id]===legacy.state.skills[id],classId+' changed retained '+id);
+        ensure(saved.skillVersion===3&&Object.keys(saved.skills).length===67,classId+' upgrade completeness');
+        const refund=legacy.state.skills.arun_slash;
+        for(const id of oldIds)ensure(saved.skills[id]===(id==='arun_slash'?0:legacy.state.skills[id]),classId+' changed retained '+id);
+        ensure(saved.skillPoints===legacy.state.skillPoints+refund,classId+' incorrect selective refund');
+        if(legacy.state.hotbar[1]==='skill:arun_slash')legacy.state.hotbar[1]=null;
         for(const id of Object.keys(D.skills).filter(id=>!oldIds.includes(id)))ensure(saved.skills[id]===0,classId+' granted '+id);
-        for(const k of ['classId','weaponSchool','job','silver','skillPoints','statPoints','quest','questActive','stats','inventory','equipment','hotbar'])
+        for(const k of ['classId','weaponSchool','job','silver','statPoints','quest','questActive','stats','inventory','equipment','hotbar'])
           ensure(JSON.stringify(saved[k])===JSON.stringify(legacy.state[k]),classId+' changed '+k);
         ensure(!saved.classCombat&&!saved.combatFeedback&&!saved.cooldowns,'Transient state leaked into save');
         // A second import is now strict modern format, without another migration.
         ensure(C.serialize(C.deserialize(JSON.stringify({version:1,state:saved})))===C.serialize(loaded),'Modern roundtrip drift');
-        records.push({classId,retained:16,addedZero:45,points:saved.skillPoints,skillVersion:saved.skillVersion});
+        records.push({classId,retained:15,addedZero:51,points:saved.skillPoints,skillVersion:saved.skillVersion});
       }
       return records;
     }''', ORIGINAL_SKILLS)
     assert len(migrations) == 16
 
-    # All 46 actives resolve genuine outcomes in each of the four directions.
+    # All 48 actives resolve genuine outcomes in each of the four directions.
     # Utilities are required to change HP, position or actual status, not only SP/CD.
     active_checks = await page.evaluate(r'''() => {
       const {C,D,R,setup,cast,charge,advance,outcome,ensure}=__skills117,records=[];
@@ -176,7 +183,7 @@ async def run_checks(page, artifacts=None):
             damage,impacts:impacts.length,x:s.player.x,y:s.player.y,status:!!s.classCombat});
         }
       }
-      ensure(records.length===184,'46 active skills x 4 directions');return records;
+      ensure(records.length===192,'48 active skills x 4 directions');return records;
     }''')
 
     # Failed actions remain atomic; passive skills cannot cast or bind even by
@@ -262,11 +269,15 @@ async def run_checks(page, artifacts=None):
     # outcome. Comparing helper metadata alone would not prove game integration.
     passive_checks = await page.evaluate(r'''() => {
       const {C,D,R,setup,cast,advance,ensure}=__skills117,records=[];
-      const combat={lotus_mastery:'lotus_storm',orb_attunement:'attack',mercy_scripture:'first_aid',
+      const combat={swordsman_discipline:'attack',swordsman_twohand_mastery:'attack',lotus_mastery:'lotus_storm',orb_attunement:'attack',mercy_scripture:'first_aid',
         moon_shadow_toxicology:'moon_venom',arcane_dual_art:'arcane_harmonic_arrow'};
       for(const [id,sk] of Object.entries(D.skills).filter(([id])=>R.isPassive(id))){
-        const a=setup(sk.owner),b=setup(sk.owner);b.skillPoints=100;
-        for(let level=0;level<5;level++)ensure(C.act(b,'learn',{id}).ok,id+' passive learn');
+        const passiveClass=id==='swordsman_twohand_mastery'?'royal_duelist':sk.owner;
+        const a=setup(passiveClass),b=setup(passiveClass);b.skillPoints=100;
+        Object.assign(b.player,D.npcs.find(n=>n.id==='guide'));
+        for(const [required,minimum] of Object.entries(sk.requirements||{}))while(b.skills[required]<minimum)ensure(C.act(b,'learn',{id:required}).ok,id+' prerequisite');
+        for(let level=0;level<sk.max;level++)ensure(C.act(b,'learn',{id}).ok,id+' passive learn');
+        Object.assign(b.player,{x:470,y:280});
         let metric='stats',before=C.stats(a),after=C.stats(b),changed=JSON.stringify(before)!==JSON.stringify(after);
         if(['royal_duelist_rhythm','mana_focus'].includes(id)){
           // SP is explicitly rounded up: the 6-SP starter bolt remains 6 at
@@ -283,13 +294,34 @@ async def run_checks(page, artifacts=None):
             if(id==='moon_shadow_toxicology'){a.target=b.target=null;advance(a,1.1);advance(b,1.1);}
             before=100000-a.monsters[0].hp;after=100000-b.monsters[0].hp;changed=after>before;metric='actualDamage';
           }
+        }else if(id==='swordsman_recovery'){
+          a.player.hp=b.player.hp=1;
+          const ra=C.act(a,'use',{id:'potion'}),rb=C.act(b,'use',{id:'potion'});
+          ensure(ra.ok&&rb.ok,'Recovery potion fixture rejected');
+          before=a.player.hp;after=b.player.hp;changed=after>before;metric='actualHPItem';
+        }else if(id==='swordsman_moving_recovery'){
+          for(const s of [a,b]){s.target=null;s.monsters=[];s.player.hp=1;}
+          for(let i=0;i<45;i++)for(const s of [a,b]){
+            if(i%10===0)C.act(s,'move',{x:i%20===0?900:100,y:280});C.tick(s,.1);
+          }
+          before=a.player.hp;after=b.player.hp;changed=after>before&&before===1;metric='actualMovingHP';
+        }else if(id==='swordsman_fatal_blow'){
+          before=false;after=false;
+          for(let seed=1;seed<2000&&!after;seed++){
+            const plain=setup('swordsman',['arun_slash']),fatal=setup('swordsman',['arun_slash','swordsman_fatal_blow']);
+            for(const s of [plain,fatal]){s.skills.arun_slash=6;s.seed=Math.imul(seed,2654435761)>>>0;s.monsters.forEach(m=>m.kind='poring');}
+            cast(plain,'arun_slash');cast(fatal,'arun_slash');
+            const hasStun=s=>(s.classCombat?.signals||[]).some(e=>e.kind==='stun')||s.monsters.some(m=>m.stun>0||m.skillDebuffs?.arun_slash?.stun>0);
+            before=hasStun(plain);after=hasStun(fatal);
+          }
+          changed=after&&!before;metric='actualBashStun';
         }else if(id==='naga_hunt_mastery'){
           a.skills.naga_trap=b.skills.naga_trap=1;cast(a,'naga_trap');cast(b,'naga_trap');advance(a,.1);advance(b,.1);
           before=a.monsters[0].skillMarks?.naga_trap||null;after=b.monsters[0].skillMarks?.naga_trap||null;changed=!!after&&!before;metric='actualHuntMark';
         }
         ensure(changed,id+' did not affect real '+metric);records.push({id,metric,before,after});
       }
-      ensure(records.length===15,'Missing passive outcomes');return records;
+      ensure(records.length===19,'Missing passive outcomes');return records;
     }''')
 
     # All Parts use native Canvas at actual scale, evolving over four ages and
@@ -368,7 +400,7 @@ async def run_checks(page, artifacts=None):
         path = output / f"skills-real-casts-directions-{start // 6 + 1}.png"
         path.write_bytes(base64.b64decode(record.pop("image").split(",", 1)[1]))
         image_paths.append(str(path));skill_frames.extend(record["checks"])
-    assert len(skill_frames) == 46 * 4
+    assert len(skill_frames) == 48 * 4
 
     # Every class can choose at least one learned native active under real Auto.
     auto_checks = await page.evaluate(r'''() => {

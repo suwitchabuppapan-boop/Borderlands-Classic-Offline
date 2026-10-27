@@ -41,6 +41,7 @@
       aoeMultiplier: 1, poisonMultiplier: 1, bowMultiplier: 1, huntMultiplier: 1,
       damageTakenMultiplier: 1, magicBowDexFactor: 0, magicBowIntFactor: 0,
       swordSpReduction: 0, magicSpReduction: 0,
+      masteryFlat: 0, hpRecoveryLevel: 0, hpItemBonus: 0, movingHpRecovery: 0, fatalBlow: 0,
     };
     const type = classInfo(s?.classId)?.weaponType;
     for (const id of skillsFor(s?.classId)) {
@@ -54,13 +55,35 @@
     }
     return result;
   }
-  function spCost(s, id) {
+  function learnCost(id) {
+    const skill = definition(id);
+    return skill ? skill.learnCost ?? 1 : 0;
+  }
+  function prerequisiteReason(s, id, levels = s?.skills) {
+    if (!accessible(s, id)) return "อาชีพนี้เรียนสกิลนี้ไม่ได้";
+    for (const [required, level] of Object.entries(definition(id).requirements || {})) {
+      if (!own(levels, required) || !Number.isInteger(levels[required]) || levels[required] < level)
+        return `ต้องเรียน${definition(required)?.name || required}ระดับ ${level}`;
+    }
+    return "";
+  }
+  function trainingReason(s, id) {
+    if (!definition(id)?.questSkill) return "";
+    if (!accessible(s, id)) return "อาชีพนี้เรียนสกิลนี้ไม่ได้";
+    const guide = D.npcs.find(n => n.id === "guide");
+    return guide && s?.zone === 0 && Number.isFinite(s.player?.x) && Number.isFinite(s.player?.y) &&
+      Math.hypot(s.player.x - guide.x, s.player.y - guide.y) < 85 ? "" : "คุยครูอินที่เมืองเพื่อเรียนสกิลพิเศษฟรี";
+  }
+  function spCost(s, id, deactivating = false) {
     if (!accessible(s, id) || isPassive(id)) return 0;
     const skill = definition(id), mods = passives(s);
+    if (skill.kind === "toggle" && deactivating) return 0;
     const swordFamily = ["swordsman", "royal_duelist", "city_guardian"].includes(skill.owner);
     const discount = Math.min(0.35, (swordFamily ? mods.swordSpReduction : 0) + (magicFor(s, id) ? mods.magicSpReduction : 0));
-    return Math.max(1, Math.ceil(skill.sp * (1 - discount)));
+    const level = Math.max(1, learnedLevel(s, id));
+    const base = skill.spByLevel ? skill.spByLevel[level - 1] : skill.sp;
+    return Math.max(1, Math.ceil(base * (1 - discount)));
   }
-  const api = Object.freeze({accessible, isPassive, nativeSkills, skillsFor, spCost, passives, magicFor, rangeFor});
+  const api = Object.freeze({accessible, isPassive, nativeSkills, skillsFor, spCost, passives, magicFor, rangeFor, learnCost, prerequisiteReason, trainingReason});
   if (typeof module === "object") module.exports = api; else root.BCSkillRules = api;
 })(typeof window === "undefined" ? globalThis : window);
